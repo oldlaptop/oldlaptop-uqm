@@ -43,7 +43,7 @@ static RACE_DESC umgah_desc =
 {
 	{
 		FIRES_FORE | IMMEDIATE_WEAPON,
-		7, /* Super Melee cost */
+		16, /* Super Melee cost */
 		833 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -253,7 +253,7 @@ initialize_cone (PELEMENT ShipPtr, HELEMENT ConeArray[])
 #define UMGAH_OFFSET 0
 #define MISSILE_SPEED 0
 #define MISSILE_HITS 100
-#define MISSILE_DAMAGE 1
+#define MISSILE_DAMAGE 50 //1
 #define MISSILE_LIFE 1
 #define MISSILE_OFFSET 0
 	STARSHIPPTR StarShipPtr;

@@ -24,7 +24,7 @@
 
 
 #define MAX_CREW 20
-#define MAX_ENERGY 20
+#define MAX_ENERGY MAX_ENERGY_SIZE
 #define ENERGY_REGENERATION 0
 #define WEAPON_ENERGY_COST 0
 #define SPECIAL_ENERGY_COST 1
@@ -33,8 +33,8 @@
 #define THRUST_INCREMENT 6
 #define TURN_WAIT 1
 #define THRUST_WAIT 6
-#define WEAPON_WAIT 7
-#define SPECIAL_WAIT 12
+#define WEAPON_WAIT 2 //7
+#define SPECIAL_WAIT 12 //12
 
 #define SHIP_MASS 8
 #define UTWIG_OFFSET 9
@@ -45,10 +45,10 @@ static RACE_DESC utwig_desc =
 {
 	{
 		FIRES_FORE | POINT_DEFENSE | SHIELD_DEFENSE,
-		22, /* Super Melee cost */
+		27, /* Super Melee cost */
 		666 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
-		MAX_ENERGY >> 1, MAX_ENERGY,
+		MAX_ENERGY/* >> 1*/, MAX_ENERGY,
 		{
 			8534, 8797,
 		},
@@ -252,10 +252,10 @@ utwig_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Con
 static void
 utwig_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
-	if (ElementPtr0->life_span > NORMAL_LIFE
+	/*if (ElementPtr0->life_span > NORMAL_LIFE
 			&& (ElementPtr1->state_flags & FINITE_LIFE)
 			&& ElementPtr1->mass_points)
-		ElementPtr0->life_span += ElementPtr1->mass_points;
+		ElementPtr0->life_span += ElementPtr1->mass_points;*/
 
 	collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
 }

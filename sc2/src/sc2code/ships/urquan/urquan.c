@@ -28,7 +28,7 @@
 #define MAX_ENERGY MAX_ENERGY_SIZE
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 6
-#define SPECIAL_ENERGY_COST 8
+#define SPECIAL_ENERGY_COST 4 //8
 #define ENERGY_WAIT 4
 #define MAX_THRUST 30
 #define THRUST_INCREMENT 6
@@ -45,7 +45,7 @@ static RACE_DESC urquan_desc =
 {
 	{
 		FIRES_FORE | SEEKING_SPECIAL,
-		30, /* Super Melee cost */
+		28, /* Super Melee cost */
 		2666 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -396,14 +396,14 @@ spawn_fighters (PELEMENT ElementPtr)
 	delta_x = COSINE (FACING_TO_ANGLE (facing), DISPLAY_TO_WORLD (14));
 	delta_y = SINE (FACING_TO_ANGLE (facing), DISPLAY_TO_WORLD (14));
 
-	i = ElementPtr->crew_level > 2 ? 2 : 1;
+	DeltaCrew (ElementPtr, -1);
+
+	i = 4;
 	while (i-- && (hFighterElement = AllocElement ()))
 	{
 		SIZE sx, sy;
 		COUNT fighter_facing;
 		ELEMENTPTR FighterElementPtr;
-
-		DeltaCrew (ElementPtr, -1);
 
 		PutElement (hFighterElement);
 		LockElement (hFighterElement, &FighterElementPtr);
@@ -424,17 +424,31 @@ spawn_fighters (PELEMENT ElementPtr)
 		}
 
 		FighterElementPtr->current.location = ElementPtr->next.location;
-		if (i == 1)
+		if (i == 3)
 		{
 			FighterElementPtr->turn_wait = LEFT;
-			fighter_facing = NORMALIZE_FACING (facing + 2);
+			fighter_facing = NORMALIZE_FACING (facing + 3);
+			FighterElementPtr->current.location.x += delta_x - delta_y;
+			FighterElementPtr->current.location.y += delta_y + delta_x;
+		}
+		else if (i == 2)
+		{
+			FighterElementPtr->turn_wait = RIGHT;
+			fighter_facing = NORMALIZE_FACING (facing - 1);
+			FighterElementPtr->current.location.x += delta_x + delta_y;
+			FighterElementPtr->current.location.y += delta_y - delta_x;
+		}
+		else if (i == 1)
+		{
+			FighterElementPtr->turn_wait = LEFT;
+			fighter_facing = NORMALIZE_FACING (facing + 1);
 			FighterElementPtr->current.location.x += delta_x - delta_y;
 			FighterElementPtr->current.location.y += delta_y + delta_x;
 		}
 		else
 		{
 			FighterElementPtr->turn_wait = RIGHT;
-			fighter_facing = NORMALIZE_FACING (facing - 2);
+			fighter_facing = NORMALIZE_FACING (facing - 3);
 			FighterElementPtr->current.location.x += delta_x + delta_y;
 			FighterElementPtr->current.location.y += delta_y - delta_x;
 		}

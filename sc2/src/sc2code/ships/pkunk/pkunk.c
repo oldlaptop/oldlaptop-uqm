@@ -23,14 +23,14 @@
 #include "libs/mathlib.h"
 
 
-#define MAX_CREW 8
+#define MAX_CREW 36 //8
 #define MAX_ENERGY 12
 #define ENERGY_REGENERATION 0
 #define WEAPON_ENERGY_COST 1
 #define SPECIAL_ENERGY_COST 2
 #define ENERGY_WAIT 0
-#define MAX_THRUST 64
-#define THRUST_INCREMENT 16
+#define MAX_THRUST 128 //64
+#define THRUST_INCREMENT 32 //16
 #define TURN_WAIT 0
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 0
@@ -44,7 +44,7 @@ static RACE_DESC pkunk_desc =
 {
 	{
 		FIRES_FORE | FIRES_LEFT | FIRES_RIGHT,
-		20, /* Super Melee cost */
+		36, /* Super Melee cost */
 		666 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -433,9 +433,29 @@ phoenix_transition (PELEMENT
 }
 
 static void
+pkunk_collision (PELEMENT ElementPtr0, PPOINT pPt0,
+		PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	//Take minimal damage from hitting planets
+	if (!(ElementPtr1->state_flags & FINITE_LIFE))
+	{
+		ElementPtr0->state_flags |= COLLISION;
+		if (GRAVITY_MASS (ElementPtr1->mass_points))
+		{
+			do_damage ((ELEMENTPTR)ElementPtr0, 1);
+
+			ProcessSound (SetAbsSoundIndex (GameSounds, TARGET_DAMAGED_FOR_1_PT), ElementPtr0);
+		}
+	}
+}
+
+
+static void
 pkunk_preprocess (ElementPtr)
 PELEMENT ElementPtr;
 {
+	ElementPtr->collision_func = pkunk_collision;
+
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);

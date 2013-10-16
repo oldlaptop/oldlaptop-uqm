@@ -43,7 +43,7 @@ static RACE_DESC supox_desc =
 {
 	{
 		FIRES_FORE,
-		16, /* Super Melee cost */
+		26, /* Super Melee cost */
 		333 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -169,19 +169,20 @@ supox_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Con
 	}
 }
 
-static COUNT
-initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
-{
-#define MISSILE_HITS 1
+
+#define MISSILE_HITS 500
 #define MISSILE_DAMAGE 1
 #define MISSILE_OFFSET 2
 #define SUPOX_OFFSET 23
+
+static COUNT
+initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
+{
+	COUNT i;
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
-	MissileBlock.cx = ShipPtr->next.location.x;
-	MissileBlock.cy = ShipPtr->next.location.y;
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
 	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
@@ -193,8 +194,29 @@ initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
 	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = NULL_PTR;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
-	HornArray[0] = initialize_missile (&MissileBlock);
-	return (1);
+
+#define SHOTS_ON_EACH_SIDE 1 //2
+#define SHOT_OFFSET 30 //25
+
+	/*MissileBlock.cx += COSINE (FACING_TO_ANGLE (MissileBlock.face - 4), SHOTS_ON_EACH_SIDE * SHOT_OFFSET);
+	MissileBlock.cy += SINE (FACING_TO_ANGLE (MissileBlock.face - 4), SHOTS_ON_EACH_SIDE * SHOT_OFFSET);*/
+	for (i = 0; i <= SHOTS_ON_EACH_SIDE; ++i)
+	{
+		HELEMENT hFlame;
+
+		if(i > 0)
+		{
+			MissileBlock.cx = ShipPtr->next.location.x - COSINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * i);
+			MissileBlock.cy = ShipPtr->next.location.y -  SINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * i);
+			HornArray[(i * 2) - 1] = initialize_missile (&MissileBlock);
+		}
+
+		MissileBlock.cx = ShipPtr->next.location.x + COSINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * i);
+		MissileBlock.cy = ShipPtr->next.location.y +  SINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * i);
+		HornArray[(i * 2)] = initialize_missile (&MissileBlock);
+	}
+	
+	return ((SHOTS_ON_EACH_SIDE * 2) + 1);
 }
 
 static void

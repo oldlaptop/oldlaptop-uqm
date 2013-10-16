@@ -26,25 +26,25 @@
 #define MAX_ENERGY 10
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 1
-#define SPECIAL_ENERGY_COST (MAX_ENERGY * 3 / 4)
+#define SPECIAL_ENERGY_COST 0 //(MAX_ENERGY * 3 / 4)
 #define ENERGY_WAIT 4
 #define MAX_THRUST 40
 #define THRUST_INCREMENT 10
 #define TURN_WAIT 1
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 0
-#define SPECIAL_WAIT 6
+#define SPECIAL_WAIT 2 //6
 
 #define SHIP_MASS 5
 #define MISSILE_SPEED DISPLAY_TO_WORLD (10)
-#define MISSILE_LIFE 10
+#define MISSILE_LIFE 100 //10
 #define MISSILE_RANGE (MISSILE_SPEED * MISSILE_LIFE)
 
 static RACE_DESC zoqfotpik_desc =
 {
 	{
 		FIRES_FORE,
-		6, /* Super Melee cost */
+		14, /* Super Melee cost */
 		320 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

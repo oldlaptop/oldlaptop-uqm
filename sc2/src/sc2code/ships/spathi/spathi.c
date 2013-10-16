@@ -22,15 +22,15 @@
 #define MAX_CREW 30
 #define MAX_ENERGY 10
 #define ENERGY_REGENERATION 1
-#define WEAPON_ENERGY_COST 2
-#define SPECIAL_ENERGY_COST 3
+#define WEAPON_ENERGY_COST MAX_ENERGY //2
+#define SPECIAL_ENERGY_COST 1 //3
 #define ENERGY_WAIT 10
 #define MAX_THRUST 48
 #define THRUST_INCREMENT 12
 #define TURN_WAIT 1
 #define THRUST_WAIT 1
-#define WEAPON_WAIT 0
-#define SPECIAL_WAIT 7
+#define WEAPON_WAIT 2 //0 (needs to be more than 0 so I can check whether you've just fired)
+#define SPECIAL_WAIT 4 //7
 
 #define SHIP_MASS 5
 #define MISSILE_SPEED DISPLAY_TO_WORLD (30)
@@ -41,7 +41,7 @@ static RACE_DESC spathi_desc =
 {
 	{
 		FIRES_FORE | FIRES_AFT | SEEKING_SPECIAL | DONT_CHASE,
-		18, /* Super Melee cost */
+		22, /* Super Melee cost */
 		1000 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -228,33 +228,102 @@ spathi_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Co
 	}
 }
 
-static COUNT
-initialize_standard_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
+
+MISSILE_BLOCK setup_for_one_primary_shot(PELEMENT ShipPtr)
 {
 #define SPATHI_FORWARD_OFFSET 16
 #define MISSILE_HITS 1
-#define MISSILE_DAMAGE 1
+#define MISSILE_DAMAGE 2
 #define MISSILE_OFFSET 1
+#define NUM_MISSILES 12
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
-	MissileBlock.cx = ShipPtr->next.location.x;
-	MissileBlock.cy = ShipPtr->next.location.y;
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
-	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
 			| IGNORE_SIMILAR;
 	MissileBlock.pixoffs = SPATHI_FORWARD_OFFSET;
-	MissileBlock.speed = MISSILE_SPEED;
 	MissileBlock.hit_points = MISSILE_HITS;
 	MissileBlock.damage = MISSILE_DAMAGE;
-	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = NULL_PTR;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
-	MissileArray[0] = initialize_missile (&MissileBlock);
 
-	return (1);
+	MissileBlock.cx = ShipPtr->next.location.x + COSINE (StarShipPtr->ShipFacing, (COUNT)TFB_Random() % 281 - 140);
+	MissileBlock.cy = ShipPtr->next.location.y + SINE (StarShipPtr->ShipFacing, (COUNT)TFB_Random() % 281 - 140);
+
+	MissileBlock.face = MissileBlock.index = NORMALIZE_FACING (StarShipPtr->ShipFacing + (COUNT)TFB_Random() % 3 - 1);
+
+	MissileBlock.speed = MISSILE_SPEED + TFB_Random() % 41 - 20;
+	MissileBlock.life = MISSILE_LIFE + TFB_Random() % 17 - 8;
+
+	return MissileBlock;
+}
+
+#define NUM_MISSILES 12
+
+static void
+make_extra_missiles (PELEMENT ShipPtr)
+{
+	COUNT i;
+	STARSHIPPTR StarShipPtr;
+	MISSILE_BLOCK MissileBlock;
+
+	GetElementStarShip (ShipPtr, &StarShipPtr);
+
+	for(i = 0; i < NUM_MISSILES / 2; ++i)
+	{
+		HELEMENT hMissile;
+		MissileBlock = setup_for_one_primary_shot(ShipPtr);
+
+		hMissile = initialize_missile (&MissileBlock);
+		if (hMissile)
+		{
+			ELEMENTPTR MissilePtr;
+
+			LockElement (hMissile, &MissilePtr);
+			SetElementStarShip (MissilePtr, StarShipPtr);
+			MissilePtr->hTarget = 0;
+			MissilePtr->turn_wait = 0;
+			UnlockElement (hMissile);
+			PutElement (hMissile);
+		}
+	}
+}
+
+static COUNT
+initialize_standard_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
+{
+	COUNT i;
+	/*STARSHIPPTR StarShipPtr;
+	*/MISSILE_BLOCK MissileBlock;/*
+
+	GetElementStarShip (ShipPtr, &StarShipPtr);
+	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
+	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| IGNORE_SIMILAR;
+	MissileBlock.pixoffs = SPATHI_FORWARD_OFFSET;
+	MissileBlock.hit_points = MISSILE_HITS;
+	MissileBlock.damage = MISSILE_DAMAGE;
+	MissileBlock.preprocess_func = NULL_PTR;
+	MissileBlock.blast_offs = MISSILE_OFFSET;*/
+
+	for(i = 0; i < NUM_MISSILES / 2; ++i)
+	{
+		/*MissileBlock.cx = ShipPtr->next.location.x + COSINE (StarShipPtr->ShipFacing, (COUNT)TFB_Random() % 281 - 140);
+		MissileBlock.cy = ShipPtr->next.location.y + SINE (StarShipPtr->ShipFacing, (COUNT)TFB_Random() % 281 - 140);
+
+		MissileBlock.face = MissileBlock.index = NORMALIZE_FACING (StarShipPtr->ShipFacing + (COUNT)TFB_Random() % 3 - 1);
+
+		MissileBlock.speed = MISSILE_SPEED + TFB_Random() % 41 - 20;
+		MissileBlock.life = MISSILE_LIFE + TFB_Random() % 17 - 8;*/
+
+		MissileBlock = setup_for_one_primary_shot(ShipPtr);
+
+		MissileArray[i] = initialize_missile (&MissileBlock);
+	}
+
+	return (NUM_MISSILES / 2);
 }
 
 static void
@@ -271,6 +340,11 @@ spathi_postprocess (PELEMENT ElementPtr)
 
 		StarShipPtr->special_counter =
 				StarShipPtr->RaceDescPtr->characteristics.special_wait;
+	}
+
+	if(StarShipPtr->weapon_counter == WEAPON_WAIT)
+	{
+		make_extra_missiles(ElementPtr);
 	}
 }
 

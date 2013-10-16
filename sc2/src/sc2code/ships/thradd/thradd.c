@@ -22,29 +22,29 @@
 #include "globdata.h"
 
 
-#define MAX_CREW 8
-#define MAX_ENERGY 24
+#define MAX_CREW MAX_CREW_SIZE //8
+#define MAX_ENERGY MAX_ENERGY_SIZE //24
 #define ENERGY_REGENERATION 1
-#define WEAPON_ENERGY_COST 2
+#define WEAPON_ENERGY_COST 10 //2
 #define SPECIAL_ENERGY_COST 1
-#define ENERGY_WAIT 6
-#define MAX_THRUST 28
-#define THRUST_INCREMENT 7
-#define TURN_WAIT 1
-#define THRUST_WAIT 0
-#define WEAPON_WAIT 12
+#define ENERGY_WAIT 3 //6
+#define MAX_THRUST 24 //28
+#define THRUST_INCREMENT 5 //7
+#define TURN_WAIT 3 //1
+#define THRUST_WAIT 3 //0
+#define WEAPON_WAIT 8 //12
 #define SPECIAL_WAIT 0
 
-#define SHIP_MASS 7
+#define SHIP_MASS 10 //7
 #define THRADDASH_OFFSET 9
 #define MISSILE_SPEED DISPLAY_TO_WORLD (30)
-#define MISSILE_LIFE 15
+#define MISSILE_LIFE 20 //15
 
 static RACE_DESC thraddash_desc =
 {
 	{
 		FIRES_FORE,
-		10, /* Super Melee cost */
+		30, /* Super Melee cost */
 		833 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -200,9 +200,9 @@ thraddash_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT
 static void
 flame_napalm_preprocess (PELEMENT ElementPtr)
 {
-	ZeroVelocityComponents (&ElementPtr->velocity);
+	//ZeroVelocityComponents (&ElementPtr->velocity);
 
-	if (ElementPtr->state_flags & NONSOLID)
+	/*if (ElementPtr->state_flags & NONSOLID)
 	{
 		ElementPtr->state_flags &= ~NONSOLID;
 		ElementPtr->state_flags |= APPEARING;
@@ -213,7 +213,7 @@ flame_napalm_preprocess (PELEMENT ElementPtr)
 		InitIntersectEndPoint (ElementPtr);
 		InitIntersectFrame (ElementPtr);
 	}
-	else if (ElementPtr->turn_wait > 0)
+	else */if (ElementPtr->turn_wait > 0)
 		--ElementPtr->turn_wait;
 	else
 	{
@@ -238,8 +238,8 @@ flame_napalm_preprocess (PELEMENT ElementPtr)
 static COUNT
 initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
 {
-#define MISSILE_HITS 2
-#define MISSILE_DAMAGE 1
+#define MISSILE_HITS 6 //2
+#define MISSILE_DAMAGE 6 //1
 #define MISSILE_OFFSET 3
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
@@ -269,28 +269,29 @@ thraddash_preprocess (PELEMENT ElementPtr)
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if (!(StarShipPtr->cur_status_flags & SPECIAL))
+	/*if (!(StarShipPtr->cur_status_flags & SPECIAL))
 	{
 		if ((StarShipPtr->old_status_flags & SPECIAL)
 				&& (StarShipPtr->cur_status_flags & SHIP_AT_MAX_SPEED))
 			StarShipPtr->cur_status_flags |= SHIP_BEYOND_MAX_SPEED;
 	}
-	else if (DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	else */     if (StarShipPtr->cur_status_flags & SPECIAL)
+	if(DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{
-#define SPECIAL_THRUST_INCREMENT 12
+#define SPECIAL_THRUST_INCREMENT 0 //12
 #define SPECIAL_MAX_THRUST 72
 		COUNT max_thrust, thrust_increment;
 		UWORD thrust_status;
 		HELEMENT hTrailElement;
 
-		if (!(StarShipPtr->old_status_flags & SPECIAL))
+		/*if (!(StarShipPtr->old_status_flags & SPECIAL))
 			StarShipPtr->cur_status_flags &=
-					~(SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);
+					~(SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);*/
 
-		if (ElementPtr->thrust_wait == 0)
-			++ElementPtr->thrust_wait;
+		/*if (ElementPtr->thrust_wait == 0)
+			++ElementPtr->thrust_wait;*/
 
-		thrust_increment =
+		/*thrust_increment =
 				StarShipPtr->RaceDescPtr->characteristics.thrust_increment;
 		max_thrust = StarShipPtr->RaceDescPtr->characteristics.max_thrust;
 		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
@@ -307,26 +308,35 @@ thraddash_preprocess (PELEMENT ElementPtr)
 
 		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
 				thrust_increment;
-		StarShipPtr->RaceDescPtr->characteristics.max_thrust = max_thrust;
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust = max_thrust;*/
 
 		{
 #define NAPALM_HITS 1
 #define NAPALM_DAMAGE 2
-#define NAPALM_LIFE 48
+#define NAPALM_LIFE 11 //48
+#define NAPALM_SPEED 48 //was no speed!
 #define NAPALM_OFFSET 0
+			COUNT i;
+			for (i = 0; i < 3; ++i)
+			{
+				if(i==1)continue;
 			MISSILE_BLOCK MissileBlock;
 
-			MissileBlock.cx = ElementPtr->next.location.x;
-			MissileBlock.cy = ElementPtr->next.location.y;
+			/*MissileBlock.cx = ElementPtr->next.location.x;
+			MissileBlock.cy = ElementPtr->next.location.y;*/
+			
 			MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.special;
-			MissileBlock.face = 0;
+			/*MissileBlock.face = 0;
 			MissileBlock.index = GetFrameCount (
 					StarShipPtr->RaceDescPtr->ship_data.special[0]
-					) - 1;
+					) - 1;*/
+			MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
+			MissileBlock.cx = ElementPtr->next.location.x - COSINE (FACING_TO_ANGLE (MissileBlock.face + 4), 34 * (i - 1));
+			MissileBlock.cy = ElementPtr->next.location.y -  SINE (FACING_TO_ANGLE (MissileBlock.face + 4), 34 * (i - 1));
 			MissileBlock.sender = (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
 					| IGNORE_SIMILAR;
-			MissileBlock.pixoffs = 0;
-			MissileBlock.speed = 0;
+			MissileBlock.pixoffs = THRADDASH_OFFSET; //0;
+			MissileBlock.speed = NAPALM_SPEED;
 			MissileBlock.hit_points = NAPALM_HITS;
 			MissileBlock.damage = NAPALM_DAMAGE;
 			MissileBlock.life = NAPALM_LIFE;
@@ -336,31 +346,36 @@ thraddash_preprocess (PELEMENT ElementPtr)
 			hTrailElement = initialize_missile (&MissileBlock);
 			if (hTrailElement)
 			{
+				SIZE dx, dy;
 				ELEMENTPTR TrailElementPtr;
 
 				LockElement (hTrailElement, &TrailElementPtr);
 				SetElementStarShip (TrailElementPtr, StarShipPtr);
 				TrailElementPtr->hTarget = 0;
 				TrailElementPtr->turn_wait = NAPALM_WAIT;
+				
+				GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
+				DeltaVelocityComponents (&TrailElementPtr->velocity, dx, dy);
 
-				TrailElementPtr->state_flags |= NONSOLID;
+				/*TrailElementPtr->state_flags |= NONSOLID;
 				SetPrimType (
 						&(GLOBAL (DisplayArray))[TrailElementPtr->PrimIndex],
 						NO_PRIM
 						);
 
-						/* normally done during preprocess, but because
+						/ * normally done during preprocess, but because
 						 * object is being inserted at head rather than
 						 * appended after tail it may never get preprocessed.
-						 */
+						 * /
 				TrailElementPtr->next = TrailElementPtr->current;
-				TrailElementPtr->state_flags |= PRE_PROCESS;
+				TrailElementPtr->state_flags |= PRE_PROCESS;*/
 
 				UnlockElement (hTrailElement);
-				InsertElement (hTrailElement, GetHeadElement ());
+				/*InsertElement*/ PutElement (hTrailElement/*, GetHeadElement ()*/);
 
 				ProcessSound (SetAbsSoundIndex (
 						StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
+			}
 			}
 		}
 	}

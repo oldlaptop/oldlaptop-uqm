@@ -44,7 +44,7 @@ static RACE_DESC syreen_desc =
 {
 	{
 		FIRES_FORE,
-		13, /* Super Melee cost */
+		39, /* Super Melee cost */
 		0 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, SYREEN_MAX_CREW_SIZE,
 		MAX_ENERGY, MAX_ENERGY,
@@ -189,18 +189,22 @@ spawn_crew (PELEMENT ElementPtr)
 
 				dx = WORLD_TO_DISPLAY (dx);
 				dy = WORLD_TO_DISPLAY (dy);
+				d_squared = (DWORD)((UWORD)dx * (UWORD)dx)
+						+ (DWORD)((UWORD)dy * (UWORD)dy);
 #define ABANDONER_RANGE 208 /* originally SPACE_HEIGHT */
-				if (dx <= ABANDONER_RANGE && dy <= ABANDONER_RANGE
+				if (true /*dx <= ABANDONER_RANGE && dy <= ABANDONER_RANGE
 						&& (d_squared = (DWORD)((UWORD)dx * (UWORD)dx)
 						+ (DWORD)((UWORD)dy * (UWORD)dy)) <=
-						(DWORD)((UWORD)ABANDONER_RANGE * (UWORD)ABANDONER_RANGE))
+						(DWORD)((UWORD)ABANDONER_RANGE * (UWORD)ABANDONER_RANGE)*/)
 				{
 #define MAX_ABANDONERS 8
 					COUNT crew_loss;
 
-					crew_loss = ((MAX_ABANDONERS
+					/*crew_loss = ((MAX_ABANDONERS
 							* (ABANDONER_RANGE - square_root (d_squared)))
-							/ ABANDONER_RANGE) + 1;
+							/ ABANDONER_RANGE) + 1;*/
+
+					crew_loss = (1000000 + (COUNT)TFB_Random() % d_squared) / d_squared;
 					if (crew_loss >= ObjPtr->crew_level)
 						crew_loss = ObjPtr->crew_level - 1;
 

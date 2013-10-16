@@ -27,14 +27,14 @@
 #define MAX_ENERGY 18
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 9
-#define SPECIAL_ENERGY_COST 4
-#define ENERGY_WAIT 8
+#define SPECIAL_ENERGY_COST 0 //4
+#define ENERGY_WAIT 2 //8
 #define MAX_THRUST /* DISPLAY_TO_WORLD (6) */ 24
 #define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 3
 #define TURN_WAIT 1
 #define THRUST_WAIT 4
-#define WEAPON_WAIT 10
-#define SPECIAL_WAIT 9
+#define WEAPON_WAIT 4 //2 //10
+#define SPECIAL_WAIT 2 //0 //9
 
 #define SHIP_MASS 6
 #define MISSILE_LIFE 60
@@ -45,7 +45,7 @@ static RACE_DESC human_desc =
 {
 	{
 		FIRES_FORE | SEEKING_WEAPON | POINT_DEFENSE,
-		11, /* Super Melee cost */
+		38, /* Super Melee cost */
 		0 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

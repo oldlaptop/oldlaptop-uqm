@@ -41,7 +41,7 @@ static RACE_DESC druuge_desc =
 {
 	{
 		FIRES_FORE,
-		17, /* Super Melee cost */
+		15, /* Super Melee cost */
 		1400 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -127,18 +127,18 @@ cannon_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOIN
 				GetFrameIndex (ElementPtr0->next.image.frame)
 				);
 		DeltaVelocityComponents (&ElementPtr1->velocity,
-				COSINE (angle, RECOIL_VELOCITY),
-				SINE (angle, RECOIL_VELOCITY));
+				COSINE (angle, RECOIL_VELOCITY * 10),
+				SINE (angle, RECOIL_VELOCITY * 10));
 		GetCurrentVelocityComponents (&ElementPtr1->velocity,
 				&cur_delta_x, &cur_delta_y);
 		if ((long)cur_delta_x * (long)cur_delta_x
 				+ (long)cur_delta_y * (long)cur_delta_y
-				> (long)MAX_RECOIL_VELOCITY * (long)MAX_RECOIL_VELOCITY)
+				> (long)MAX_RECOIL_VELOCITY * (long)MAX_RECOIL_VELOCITY * 10 * 10)
 		{
 			angle = ARCTAN (cur_delta_x, cur_delta_y);
 			SetVelocityComponents (&ElementPtr1->velocity,
-					COSINE (angle, MAX_RECOIL_VELOCITY),
-					SINE (angle, MAX_RECOIL_VELOCITY));
+					COSINE (angle, MAX_RECOIL_VELOCITY * 10),
+					SINE (angle, MAX_RECOIL_VELOCITY * 10));
 		}
 	}
 }

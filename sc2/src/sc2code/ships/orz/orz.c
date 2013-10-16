@@ -24,12 +24,12 @@
 #include "libs/mathlib.h"
 
 
-#define MAX_CREW 16
+#define MAX_CREW 24 //16
 #define MAX_ENERGY 20
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST (MAX_ENERGY / 3)
 #define SPECIAL_ENERGY_COST 0
-#define ENERGY_WAIT 6
+#define ENERGY_WAIT 3 //6
 #define MAX_THRUST 35
 #define THRUST_INCREMENT 5
 #define TURN_WAIT 1
@@ -46,7 +46,7 @@ static RACE_DESC orz_desc =
 {
 	{
 		FIRES_FORE | SEEKING_SPECIAL,
-		23, /* Super Melee cost */
+		40, /* Super Melee cost */
 		333 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -174,7 +174,7 @@ initialize_turret_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 	return (1);
 }
 
-#define MAX_MARINES 8
+#define MAX_MARINES 12 //8
 
 static BYTE
 count_marines (STARSHIPPTR StarShipPtr, BOOLEAN FindSpot)
@@ -730,9 +730,10 @@ marine_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOIN
 
 		if (GRAVITY_MASS (ElementPtr1->mass_points))
 		{
-			ElementPtr0->state_flags |= NONSOLID | FINITE_LIFE;
+			/*ElementPtr0->state_flags |= NONSOLID | FINITE_LIFE;
 			ElementPtr0->hit_points = 0;
-			ElementPtr0->life_span = 0;
+			ElementPtr0->life_span = 0;*/
+			ElementPtr0->state_flags |= COLLISION;
 		}
 		else if ((ElementPtr1->state_flags & PLAYER_SHIP)
 				&& ((ElementPtr1->state_flags & FINITE_LIFE)
@@ -955,7 +956,7 @@ turret_postprocess (PELEMENT ElementPtr)
 						IGNORE_SIMILAR | APPEARING | CREW_OBJECT
 						| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
 				SpaceMarinePtr->life_span = NORMAL_LIFE;
-				SpaceMarinePtr->hit_points = 3;
+				SpaceMarinePtr->hit_points = 7; //3;
 				SpaceMarinePtr->mass_points = 1;
 
 				facing = FACING_TO_ANGLE (StarShipPtr->ShipFacing);

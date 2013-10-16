@@ -43,7 +43,7 @@ static RACE_DESC arilou_desc =
 {
 	{
 		/* FIRES_FORE | */ IMMEDIATE_WEAPON,
-		16, /* Super Melee cost */
+		50, /* Super Melee cost */
 		250 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -117,7 +117,7 @@ initialize_autoaim_laser (PELEMENT ShipPtr, HELEMENT LaserArray[])
 	LaserBlock.face = orig_facing = StarShipPtr->ShipFacing;
 	if ((delta_facing = TrackShip (ShipPtr, &LaserBlock.face)) > 0)
 		LaserBlock.face = NORMALIZE_FACING (orig_facing + delta_facing);
-	ShipPtr->hTarget = 0;
+	//ShipPtr->hTarget = 0;
 
 	LaserBlock.cx = ShipPtr->next.location.x;
 	LaserBlock.cy = ShipPtr->next.location.y;
@@ -128,7 +128,7 @@ initialize_autoaim_laser (PELEMENT ShipPtr, HELEMENT LaserArray[])
 	LaserBlock.pixoffs = ARILOU_OFFSET;
 	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x0A), 0x0E);
 	LaserArray[0] = initialize_laser (&LaserBlock);
-
+	
 	return (1);
 }
 
@@ -184,14 +184,29 @@ arilou_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern,
 		StarShipPtr->ship_input_state &= ~WEAPON;
 }
 
+/*static void
+arilou_collision (PELEMENT ElementPtr0, PPOINT pPt0,
+		PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	//Don't collide!
+}*/
+
 static void
 arilou_preprocess (PELEMENT ElementPtr)
 {
+	//ElementPtr->collision_func = arilou_collision;
+
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (!(ElementPtr->state_flags & NONSOLID))
 	{
+		ELEMENTPTR EnemyElementPtr;
+		STARSHIPPTR EnemyStarShipPtr;
+
+		LockElement (ElementPtr->hTarget, &EnemyElementPtr);
+		if(EnemyElementPtr)GetElementStarShip (EnemyElementPtr, &EnemyStarShipPtr);
+
 		if (ElementPtr->thrust_wait == 0)
 		{
 			ZeroVelocityComponents (&ElementPtr->velocity);
@@ -200,27 +215,56 @@ arilou_preprocess (PELEMENT ElementPtr)
 
 		if ((StarShipPtr->cur_status_flags & SPECIAL)
 				&& StarShipPtr->special_counter == 0
+				&& !(StarShipPtr->cur_status_flags & PLAY_VICTORY_DITTY)
+				&& (!EnemyElementPtr || !(EnemyStarShipPtr->RaceDescPtr->init_weapon_func == initialize_autoaim_laser))
 				&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 		{
-#define HYPER_LIFE 5
-			ZeroVelocityComponents (&ElementPtr->velocity);
-			StarShipPtr->cur_status_flags &=
-					~(SHIP_AT_MAX_SPEED | LEFT | RIGHT | THRUST | WEAPON);
+			//can't be used during victory ditty
+			//that causes bugs..
+			//can't be used against another arilou
+			//otherwise, there could be a nasty standoff...
 
-			ElementPtr->state_flags |= NONSOLID | FINITE_LIFE | CHANGING;
-			ElementPtr->life_span = HYPER_LIFE;
+			//COPIED from DoRunAway:
+			//
+			if (GetPrimType (&DisplayArray[ElementPtr->PrimIndex]) == STAMP_PRIM
+					&& ElementPtr->life_span == NORMAL_LIFE
+					&& !(ElementPtr->state_flags & FINITE_LIFE)
+					&& ElementPtr->mass_points != MAX_SHIP_MASS * 10
+					&& !(ElementPtr->state_flags & APPEARING))
+			{
+				extern void flee_preprocess (PELEMENT);
+				extern void ship_transition (PELEMENT);
+				extern void new_ship (PELEMENT);
+	
+				ElementPtr->turn_wait = 3;
+				ElementPtr->thrust_wait = MAKE_BYTE (4, 0);
+				ElementPtr->preprocess_func = flee_preprocess;
+				ElementPtr->mass_points = MAX_SHIP_MASS * 10;
+				ZeroVelocityComponents (&ElementPtr->velocity);
+				StarShipPtr->cur_status_flags &=
+						~(SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);
 
-			ElementPtr->next.image.farray =
-					StarShipPtr->RaceDescPtr->ship_data.special;
-			ElementPtr->next.image.frame =
-					StarShipPtr->RaceDescPtr->ship_data.special[0];
+				SetPrimColor (&DisplayArray[ElementPtr->PrimIndex],
+						BUILD_COLOR (MAKE_RGB15 (0x0B, 0x00, 0x00), 0x2E));
+				SetPrimType (&DisplayArray[ElementPtr->PrimIndex], STAMPFILL_PRIM);
+			
+				CyborgDescPtr->ship_input_state = 0;
 
-			ProcessSound (SetAbsSoundIndex (
-							/* HYPERJUMP */
-					StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
-			StarShipPtr->special_counter =
-					StarShipPtr->RaceDescPtr->characteristics.special_wait;
+				//copied from flee_preprocess
+				ElementPtr->death_func = new_ship;
+				ElementPtr->crew_level = 0;
+	
+				ElementPtr->life_span = HYPERJUMP_LIFE + 1;
+				ElementPtr->preprocess_func = ship_transition;
+				ElementPtr->postprocess_func = NULL_PTR;
+				SetPrimType (&DisplayArray[ElementPtr->PrimIndex], NO_PRIM);
+				ElementPtr->state_flags |= NONSOLID | FINITE_LIFE | CHANGING;
+				//end copied from flee_preprocess
+			}
+			//END COPIED FROM DoRunAway
 		}
+
+		UnlockElement (ElementPtr->hTarget);
 	}
 	else if (ElementPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.special)
 	{

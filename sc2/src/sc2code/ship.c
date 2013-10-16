@@ -359,7 +359,7 @@ collision (PELEMENT ElementPtr0, PPOINT pPt0,
 			// Collision with a planet.
 			SIZE damage;
 
-			damage = ElementPtr0->hit_points >> 2;
+			damage = ElementPtr0->hit_points >> 3;
 			if (damage == 0)
 				damage = 1;
 			do_damage ((ELEMENTPTR)ElementPtr0, damage);

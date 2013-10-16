@@ -24,27 +24,27 @@
 
 #define MAX_CREW 20
 #define MAX_ENERGY 10
-#define ENERGY_REGENERATION 2
-#define WEAPON_ENERGY_COST 1
-#define SPECIAL_ENERGY_COST MAX_ENERGY
+#define ENERGY_REGENERATION 4
+#define WEAPON_ENERGY_COST 2
+#define SPECIAL_ENERGY_COST 0 //MAX_ENERGY
 #define ENERGY_WAIT 6
 #define MAX_THRUST 20
 #define THRUST_INCREMENT 5
 #define TURN_WAIT 2
 #define THRUST_WAIT 1
 #define WEAPON_WAIT 0
-#define SPECIAL_WAIT 0
+#define SPECIAL_WAIT 7 //0
 
-#define YWING_ENERGY_REGENERATION 1
+#define YWING_ENERGY_REGENERATION 2
 #define YWING_WEAPON_ENERGY_COST 1
-#define YWING_SPECIAL_ENERGY_COST MAX_ENERGY
+#define YWING_SPECIAL_ENERGY_COST 0 //MAX_ENERGY
 #define YWING_ENERGY_WAIT 6
 #define YWING_MAX_THRUST 50
 #define YWING_THRUST_INCREMENT 10
 #define YWING_TURN_WAIT 14
 #define YWING_THRUST_WAIT 0
-#define YWING_WEAPON_WAIT 20
-#define YWING_SPECIAL_WAIT 0
+#define YWING_WEAPON_WAIT 15 //20
+#define YWING_SPECIAL_WAIT SPECIAL_WAIT //0
 
 #define SHIP_MASS 3
 #define MMRNMHRM_OFFSET 16
@@ -56,7 +56,7 @@ static RACE_DESC mmrnmhrm_desc =
 {
 	{
 		FIRES_FORE | IMMEDIATE_WEAPON,
-		19, /* Super Melee cost */
+		37, /* Super Melee cost */
 		0 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -119,7 +119,7 @@ static RACE_DESC mmrnmhrm_desc =
 };
 
 #define MISSILE_SPEED DISPLAY_TO_WORLD (20)
-#define TRACK_WAIT 5
+#define TRACK_WAIT 4 //5
 
 static void
 missile_preprocess (PELEMENT ElementPtr)
@@ -263,6 +263,7 @@ initialize_dual_weapons (PELEMENT ShipPtr, HELEMENT WeaponArray[])
 	if (ShipPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.ship)
 	{
 #define WING_OFFS DISPLAY_TO_WORLD (10)
+		COUNT i;
 		COORD ex, ey;
 		LASER_BLOCK LaserBlock;
 		ELEMENTPTR LaserPtr;
@@ -277,34 +278,34 @@ initialize_dual_weapons (PELEMENT ShipPtr, HELEMENT WeaponArray[])
 		offs_x = -SINE (angle, WING_OFFS);
 		offs_y = COSINE (angle, WING_OFFS);
 
-		LaserBlock.cx = cx + offs_x;
-		LaserBlock.cy = cy + offs_y;
-		LaserBlock.ex = ex - LaserBlock.cx;
-		LaserBlock.ey = ey - LaserBlock.cy;
-		if ((WeaponArray[0] = initialize_laser (&LaserBlock)))
+#define LASERS_ON_EACH_SIDE 2
+#define NO_LASER_IN_THE_MIDDLE true
+		for(i = 0; i <= LASERS_ON_EACH_SIDE * 2; ++i)
 		{
-			LockElement (WeaponArray[0], &LaserPtr);
-			LaserPtr->collision_func = twin_laser_collision;
-			UnlockElement (WeaponArray[0]);
+			COUNT weapon_index;
+			if(i==LASERS_ON_EACH_SIDE/* && NO_LASER_IN_THE_MIDDLE*/)continue;
+			weapon_index = i - ((NO_LASER_IN_THE_MIDDLE && i > LASERS_ON_EACH_SIDE) ? 1 : 0);
+			LaserBlock.cx = cx + (offs_x * (i - LASERS_ON_EACH_SIDE));
+			LaserBlock.cy = cy + (offs_y * (i - LASERS_ON_EACH_SIDE));
+			LaserBlock.ex = ex - LaserBlock.cx;
+			LaserBlock.ey = ey - LaserBlock.cy;
+			if ((WeaponArray[weapon_index] = initialize_laser (&LaserBlock)))
+			{
+				LockElement (WeaponArray[weapon_index], &LaserPtr);
+				LaserPtr->collision_func = twin_laser_collision;
+				UnlockElement (WeaponArray[weapon_index]);
+			}
+
 		}
 
-		LaserBlock.cx = cx - offs_x;
-		LaserBlock.cy = cy - offs_y;
-		LaserBlock.ex = ex - LaserBlock.cx;
-		LaserBlock.ey = ey - LaserBlock.cy;
-		if ((WeaponArray[1] = initialize_laser (&LaserBlock)))
-		{
-			LockElement (WeaponArray[1], &LaserPtr);
-			LaserPtr->collision_func = twin_laser_collision;
-			UnlockElement (WeaponArray[1]);
-		}
+		return (LASERS_ON_EACH_SIDE * 2 + (NO_LASER_IN_THE_MIDDLE ? 0 : 1));
 	}
 	else
 	{
 #define MISSILE_HITS 1
 #define MISSILE_DAMAGE 1
 #define MISSILE_OFFSET 0
-#define MISSILE_LIFE 40
+#define MISSILE_LIFE 120 //40
 #define LAUNCH_OFFS DISPLAY_TO_WORLD (4)
 		MISSILE_BLOCK TorpBlock;
 		ELEMENTPTR TorpPtr;
@@ -343,9 +344,8 @@ initialize_dual_weapons (PELEMENT ShipPtr, HELEMENT WeaponArray[])
 			TorpPtr->turn_wait = TRACK_WAIT;
 			UnlockElement (WeaponArray[1]);
 		}
+		return (2);
 	}
-
-	return (2);
 }
 
 static void
@@ -396,6 +396,11 @@ mmrnmhrm_postprocess (PELEMENT ElementPtr)
 				StarShipPtr->cur_status_flags |=
 						SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED;
 		}
+
+		if(ElementPtr->thrust_wait > StarShipPtr->RaceDescPtr->characteristics.thrust_wait)ElementPtr->thrust_wait = StarShipPtr->RaceDescPtr->characteristics.thrust_wait;
+		if(ElementPtr->turn_wait > StarShipPtr->RaceDescPtr->characteristics.turn_wait)ElementPtr->turn_wait = StarShipPtr->RaceDescPtr->characteristics.turn_wait;
+		if(StarShipPtr->weapon_counter > StarShipPtr->RaceDescPtr->characteristics.weapon_wait)StarShipPtr->weapon_counter = StarShipPtr->RaceDescPtr->characteristics.weapon_wait;
+		if(StarShipPtr->special_counter > StarShipPtr->RaceDescPtr->characteristics.special_wait)StarShipPtr->special_counter = StarShipPtr->RaceDescPtr->characteristics.special_wait;
 	}
 }
 
@@ -427,12 +432,12 @@ mmrnmhrm_preprocess (PELEMENT ElementPtr)
 		if ((StarShipPtr->cur_status_flags & SPECIAL)
 				&& StarShipPtr->special_counter == 0)
 		{
-			if (StarShipPtr->RaceDescPtr->ship_info.energy_level <
+			/*if (StarShipPtr->RaceDescPtr->ship_info.energy_level <
 					StarShipPtr->RaceDescPtr->characteristics.special_energy_cost)
 				DeltaEnergy (ElementPtr,
-						-StarShipPtr->RaceDescPtr->characteristics.special_energy_cost); /* so text will flash */
+						-StarShipPtr->RaceDescPtr->characteristics.special_energy_cost); // so text will flash
 			else
-			{
+			{*/
 				if (ElementPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.ship)
 					ElementPtr->next.image.farray =
 							StarShipPtr->RaceDescPtr->ship_data.special;
@@ -446,7 +451,7 @@ mmrnmhrm_preprocess (PELEMENT ElementPtr)
 	
 				StarShipPtr->special_counter =
 						StarShipPtr->RaceDescPtr->characteristics.special_wait;
-			}
+			/*}*/
 		}
 	}
 }

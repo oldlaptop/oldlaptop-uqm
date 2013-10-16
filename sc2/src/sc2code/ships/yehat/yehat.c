@@ -19,6 +19,8 @@
 #include "ships/ship.h"
 #include "ships/yehat/resinst.h"
 
+#include "colors.h"
+#include "globdata.h"
 #include "libs/mathlib.h"
 
 
@@ -26,14 +28,14 @@
 #define MAX_ENERGY 10
 #define ENERGY_REGENERATION 2
 #define WEAPON_ENERGY_COST 1
-#define SPECIAL_ENERGY_COST 3
+#define SPECIAL_ENERGY_COST 1 //3
 #define ENERGY_WAIT 6
 #define MAX_THRUST 30
 #define THRUST_INCREMENT 6
 #define TURN_WAIT 2
 #define THRUST_WAIT 2
 #define WEAPON_WAIT 0
-#define SPECIAL_WAIT 2
+#define SPECIAL_WAIT 15 //2
 
 #define SHIP_MASS 3
 #define MISSILE_SPEED DISPLAY_TO_WORLD (20)
@@ -43,7 +45,7 @@ static RACE_DESC yehat_desc =
 {
 	{
 		FIRES_FORE | SHIELD_DEFENSE,
-		23, /* Super Melee cost */
+		38, /* Super Melee cost */
 		750 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -219,82 +221,178 @@ yehat_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Con
 static void
 yehat_postprocess (PELEMENT ElementPtr)
 {
-	if (!(ElementPtr->state_flags & NONSOLID))
-	{
-		STARSHIPPTR StarShipPtr;
+	STARSHIPPTR StarShipPtr;
 
-		GetElementStarShip (ElementPtr, &StarShipPtr);
+	GetElementStarShip (ElementPtr, &StarShipPtr);
 				/* take care of shield effect */
-		if (StarShipPtr->special_counter > 0)
+	/*if (StarShipPtr->special_counter == SPECIAL_ENERGY_COST - 1)
+	{
+		if (ElementPtr->life_span == NORMAL_LIFE)
+			StarShipPtr->special_counter = 0;
+		else
 		{
-			if (ElementPtr->life_span == NORMAL_LIFE)
-				StarShipPtr->special_counter = 0;
-			else
-			{
-#ifdef OLD
-				SetPrimColor (
-						&(GLOBAL (DisplayArray))[ElementPtr->PrimIndex],
-						BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x1F), 0x0F)
-						);
-				SetPrimType (
-						&(GLOBAL (DisplayArray))[ElementPtr->PrimIndex],
-						STAMPFILL_PRIM
-						);
-#endif /* OLD */
+			ProcessSound (SetAbsSoundIndex (
+							// YEHAT_SHIELD_ON
+					StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
+			DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST);
+		}
+	}*/
 
-				ProcessSound (SetAbsSoundIndex (
-								/* YEHAT_SHIELD_ON */
-						StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
-				DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST);
+
+	//CODE COPIED FROM CHMMR
+	
+	
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		COUNT facing;
+		ELEMENTPTR EnemyElementPtr;
+
+		LockElement (ElementPtr->hTarget, &EnemyElementPtr);
+		
+		ProcessSound (SetAbsSoundIndex (
+				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1),
+				EnemyElementPtr);
+
+		UnlockElement (ElementPtr->hTarget);
+
+		facing = 0;
+		if (TrackShip (ElementPtr, &facing) >= 0)
+		{
+#define NUM_SHADOWS 5
+					
+			ELEMENTPTR EnemyElementPtr;
+
+			LockElement (ElementPtr->hTarget, &EnemyElementPtr);
+			if (!GRAVITY_MASS (EnemyElementPtr->mass_points + 1))
+			{
+				SIZE i, dx, dy;
+				COUNT angle, magnitude;
+				STARSHIPPTR EnemyStarShipPtr;
+				static const SIZE shadow_offs[] =
+				{
+					DISPLAY_TO_WORLD (8),
+					DISPLAY_TO_WORLD (8 + 9),
+					DISPLAY_TO_WORLD (8 + 9 + 11),
+					DISPLAY_TO_WORLD (8 + 9 + 11 + 14),
+					DISPLAY_TO_WORLD (8 + 9 + 11 + 14 + 18),
+				};
+				static const COLOR color_tab[] =
+				{
+					BUILD_COLOR (MAKE_RGB15 (0x00, 0x00, 0x10), 0x53),
+					BUILD_COLOR (MAKE_RGB15 (0x00, 0x00, 0x0E), 0x54),
+					BUILD_COLOR (MAKE_RGB15 (0x00, 0x00, 0x0C), 0x55),
+					BUILD_COLOR (MAKE_RGB15 (0x00, 0x00, 0x09), 0x56),
+					BUILD_COLOR (MAKE_RGB15 (0x00, 0x00, 0x07), 0x57),
+				};
+				DWORD current_speed, max_speed;
+
+				GetElementStarShip (EnemyElementPtr, &EnemyStarShipPtr);
+
+				// calculate tractor beam effect
+				angle = FACING_TO_ANGLE (EnemyStarShipPtr->ShipFacing);
+				dx = (EnemyElementPtr->next.location.x
+						+ COSINE (angle, (DISPLAY_TO_WORLD (150) / 3)
+						+ DISPLAY_TO_WORLD (18)))
+						- ElementPtr->next.location.x;
+				dy = (EnemyElementPtr->next.location.y
+						+ SINE (angle, (DISPLAY_TO_WORLD (150) / 3)
+						+ DISPLAY_TO_WORLD (18)))
+						- ElementPtr->next.location.y;
+				angle = ARCTAN (dx, dy);
+				magnitude = WORLD_TO_VELOCITY (12) / ElementPtr->mass_points;
+				DeltaVelocityComponents (&ElementPtr->velocity,
+						COSINE (angle, magnitude), SINE (angle, magnitude));
+
+				GetCurrentVelocityComponents (&ElementPtr->velocity,
+						&dx, &dy);
+				
+				// set the effected ship's speed flags
+				current_speed = VelocitySquared (dx, dy);
+				max_speed = VelocitySquared (WORLD_TO_VELOCITY (
+						StarShipPtr->RaceDescPtr->characteristics.max_thrust),
+						0);
+				StarShipPtr->cur_status_flags &= ~(SHIP_AT_MAX_SPEED
+						| SHIP_BEYOND_MAX_SPEED);
+				if (current_speed > max_speed)
+					StarShipPtr->cur_status_flags |= (SHIP_AT_MAX_SPEED
+							| SHIP_BEYOND_MAX_SPEED);
+				else if (current_speed == max_speed)
+					StarShipPtr->cur_status_flags |= SHIP_AT_MAX_SPEED;
+
+				// add tractor beam graphical effects
+				for (i = 0; i < NUM_SHADOWS; ++i)
+				{
+					HELEMENT hShadow;
+
+					hShadow = AllocElement ();
+					if (hShadow)
+					{
+						ELEMENTPTR ShadowElementPtr;
+
+						LockElement (hShadow, &ShadowElementPtr);
+
+						ShadowElementPtr->state_flags =
+								FINITE_LIFE | NONSOLID | IGNORE_SIMILAR | POST_PROCESS
+								| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
+						ShadowElementPtr->life_span = 1;
+
+						ShadowElementPtr->current = ElementPtr->next;
+						ShadowElementPtr->current.location.x +=
+								COSINE (angle, shadow_offs[i]);
+						ShadowElementPtr->current.location.y +=
+								SINE (angle, shadow_offs[i]);
+						ShadowElementPtr->next = ShadowElementPtr->current;
+
+						SetElementStarShip (ShadowElementPtr, StarShipPtr);
+						SetVelocityComponents (&ShadowElementPtr->velocity,
+								dx, dy);
+
+						SetPrimType (&(GLOBAL (DisplayArray))[
+								ShadowElementPtr->PrimIndex
+								], STAMPFILL_PRIM);
+						SetPrimColor (&(GLOBAL (DisplayArray))[
+								ShadowElementPtr->PrimIndex
+								], color_tab[i]);
+
+						UnlockElement (hShadow);
+						InsertElement (hShadow, GetHeadElement ());
+					}
+				}
 			}
+			UnlockElement (ElementPtr->hTarget);
 		}
 
-#ifdef OLD
-		if (ElementPtr->life_span > NORMAL_LIFE)
-		{
-			HELEMENT hShipElement;
+	}
+	//END OF COPIED CODE
 
-			if (hShipElement = AllocElement ())
-			{
-				ELEMENTPTR ShipElementPtr;
 
-				InsertElement (hShipElement, GetSuccElement (ElementPtr));
-				LockElement (hShipElement, &ShipElementPtr);
+}
 
-				ShipElementPtr->state_flags =
-							/* in place of APPEARING */
-						(CHANGING | PRE_PROCESS | POST_PROCESS)
-						| FINITE_LIFE | NONSOLID
-						| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
-				SetPrimType (
-						&(GLOBAL (DisplayArray))[ShipElementPtr->PrimIndex],
-						STAMP_PRIM
-						);
-
-				ShipElementPtr->life_span = 0; /* because preprocessing
-													 * will not be done
-													 */
-				ShipElementPtr->current.location = ElementPtr->next.location;
-				ShipElementPtr->current.image.farray = StarShipPtr->RaceDescPtr->ship_data.ship;
-				ShipElementPtr->current.image.frame =
-						SetAbsFrameIndex (StarShipPtr->RaceDescPtr->ship_data.ship[0],
-						StarShipPtr->ShipFacing);
-				ShipElementPtr->next = ShipElementPtr->current;
-				ShipElementPtr->preprocess_func =
-						ShipElementPtr->postprocess_func =
-						ShipElementPtr->death_func = NULL_PTR;
-				ZeroVelocityComponents (&ShipElementPtr->velocity);
-
-				UnlockElement (hShipElement);
-			}
-		}
-#endif /* OLD */
+static void
+yehat_collision (PELEMENT ElementPtr0, PPOINT pPt0,
+		PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	//shield also blocks planet damage
+	if (
+		!(ElementPtr1->state_flags & FINITE_LIFE)
+		&& GRAVITY_MASS (ElementPtr1->mass_points) //it is a planet
+		&& ElementPtr0->life_span > NORMAL_LIFE //and I have a shield
+		)
+	{
+		ElementPtr0->state_flags |= COLLISION; //collision without damage
+	}
+	else
+	{
+		collision(ElementPtr0, pPt0, ElementPtr1, pPt1); //normal collision
 	}
 }
 
 static void
 yehat_preprocess (PELEMENT ElementPtr)
 {
+	ElementPtr->collision_func = yehat_collision;
+
 	if (!(ElementPtr->state_flags & APPEARING))
 	{
 		STARSHIPPTR StarShipPtr;
@@ -321,13 +419,13 @@ yehat_preprocess (PELEMENT ElementPtr)
 			ElementPtr->state_flags |= CHANGING;
 		}
 
-		if ((StarShipPtr->cur_status_flags & SPECIAL)
-				&& StarShipPtr->special_counter == 0)
+		if (/*(StarShipPtr->cur_status_flags & SPECIAL)
+				&& */StarShipPtr->special_counter == 0)
 		{
-			if (StarShipPtr->RaceDescPtr->ship_info.energy_level < SPECIAL_ENERGY_COST)
-				DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST); /* so text will flash */
-			else
-			{
+			/*if (StarShipPtr->RaceDescPtr->ship_info.energy_level < SPECIAL_ENERGY_COST)
+				DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST);*/ /* so text will flash */
+			/*else
+			{*/
 #define SHIELD_LIFE 10
 				ElementPtr->life_span = SHIELD_LIFE + NORMAL_LIFE;
 
@@ -339,7 +437,7 @@ yehat_preprocess (PELEMENT ElementPtr)
 
 				StarShipPtr->special_counter =
 						StarShipPtr->RaceDescPtr->characteristics.special_wait;
-			}
+			/*}*/
 		}
 	}
 }

@@ -26,17 +26,17 @@
 #define MAX_CREW 20
 #define MAX_ENERGY MAX_ENERGY_SIZE
 #define ENERGY_REGENERATION 1
-#define WEAPON_ENERGY_COST 5
-#define SPECIAL_ENERGY_COST 20
-#define ENERGY_WAIT 4
-#define MAX_THRUST 36
-#define THRUST_INCREMENT 6
-#define TURN_WAIT 4
+#define WEAPON_ENERGY_COST 1 //5
+#define SPECIAL_ENERGY_COST 10 //20
+#define ENERGY_WAIT 6 //4
+#define MAX_THRUST 56 //36
+#define THRUST_INCREMENT 24 //6
+#define TURN_WAIT 6 //4
 #define THRUST_WAIT 4
-#define WEAPON_WAIT 1
-#define SPECIAL_WAIT 20
+#define WEAPON_WAIT 0
+#define SPECIAL_WAIT 10 //20
 
-#define SHIP_MASS 7
+#define SHIP_MASS 10 //7
 #define PUMPUP_SPEED DISPLAY_TO_WORLD (45)
 #define PUMPUP_LIFE 10
 
@@ -44,7 +44,7 @@ static RACE_DESC melnorme_desc =
 {
 	{
 		FIRES_FORE,
-		18, /* Super Melee cost */
+		28, /* Super Melee cost */
 		~0, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -109,7 +109,7 @@ static RACE_DESC melnorme_desc =
 #define NUM_PUMP_ANIMS 5
 #define REVERSE_DIR (BYTE)(1 << 7)
 
-static void
+/*static void
 pump_up_preprocess (PELEMENT ElementPtr)
 {
 	if (--ElementPtr->thrust_wait & 1)
@@ -139,14 +139,14 @@ pump_up_preprocess (PELEMENT ElementPtr)
 }
 
 static COUNT initialize_pump_up (PELEMENT ShipPtr, HELEMENT
-		PumpUpArray[]);
+		PumpUpArray[]);*/
 
 #define MELNORME_OFFSET 24
 #define LEVEL_COUNTER 72
-#define MAX_PUMP 4
-#define PUMPUP_DAMAGE 2
+/*#define MAX_PUMP 4
+#define PUMPUP_DAMAGE 2*/
 
-static void
+/*static void
 pump_up_postprocess (PELEMENT ElementPtr)
 {
 	if (ElementPtr->state_flags & APPEARING)
@@ -240,7 +240,7 @@ pump_up_postprocess (PELEMENT ElementPtr)
 				NO_PRIM);
 		ElementPtr->state_flags |= NONSOLID;
 	}
-}
+}*/
 
 static void
 animate (PELEMENT ElementPtr)
@@ -257,7 +257,7 @@ animate (PELEMENT ElementPtr)
 	}
 }
 
-static void
+/*static void
 pump_up_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
 	RECT r;
@@ -330,7 +330,7 @@ initialize_pump_up (PELEMENT ShipPtr, HELEMENT PumpUpArray[])
 	}
 
 	return (1);
-}
+}*/
 
 static void
 confuse_preprocess (PELEMENT ElementPtr)
@@ -505,7 +505,136 @@ initialize_confusion (PELEMENT ShipPtr, HELEMENT ConfusionArray[])
 	return (1);
 }
 
+static void
+starspray_preprocess (PELEMENT ElementPtr)
+{
+	BYTE max_turn_wait, turn_wait;
+
+	max_turn_wait = HINIBBLE (ElementPtr->turn_wait);
+	turn_wait = LONIBBLE (ElementPtr->turn_wait);
+
+	if (turn_wait > 0)
+		--turn_wait;
+	else
+	{
+		COUNT facing;
+		COUNT goal_facing;
+		SIZE delta_facing;
+
+		facing = NORMALIZE_FACING (ANGLE_TO_FACING (
+				GetVelocityTravelAngle (&ElementPtr->velocity)
+				));
+
+		SIZE speed;
+		if(max_turn_wait == 1)speed = DISPLAY_TO_WORLD (20);
+		else if(max_turn_wait == 2)speed = DISPLAY_TO_WORLD (40);
+		else speed = DISPLAY_TO_WORLD (30);
+
+		if (delta_facing = TrackShip (ElementPtr, &facing) > 0)
+		{
+			/*if (delta_facing <= ANGLE_TO_FACING (HALF_CIRCLE))
+				++facing;
+			else --facing;
+			facing = goal_facing;*/
+		}
+
+		SetVelocityVector (&ElementPtr->velocity,
+				speed, facing);
+
+		turn_wait = max_turn_wait;
+	}
+
+	ElementPtr->turn_wait = MAKE_BYTE (turn_wait, max_turn_wait);
+}
+
+
 static COUNT
+initialize_starspray (PELEMENT ShipPtr, HELEMENT StarSprayArray[])
+{
+#define STARSPRAY_OFFSET 8
+	COUNT which_type, i;
+	STARSHIPPTR StarShipPtr;
+	MISSILE_BLOCK MissileBlock;
+
+	GetElementStarShip (ShipPtr, &StarShipPtr);
+	MissileBlock.cx = ShipPtr->next.location.x;
+	MissileBlock.cy = ShipPtr->next.location.y;
+	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
+	MissileBlock.face = StarShipPtr->ShipFacing;
+	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| IGNORE_SIMILAR;
+	MissileBlock.pixoffs = MELNORME_OFFSET;
+	/*MissileBlock.speed = MISSILE_SPEED;
+	MissileBlock.hit_points = MISSILE_HITS;
+	MissileBlock.damage = MISSILE_DAMAGE;
+	MissileBlock.life = MISSILE_LIFE;*/
+	MissileBlock.preprocess_func = starspray_preprocess;
+	MissileBlock.blast_offs = STARSPRAY_OFFSET;
+
+	which_type = (COUNT)TFB_Random() % 4;
+
+	switch(which_type)
+	{
+		case 0:
+		MissileBlock.speed = DISPLAY_TO_WORLD(45);
+		MissileBlock.life = 17;
+		MissileBlock.hit_points = 1;
+		MissileBlock.damage = 1;
+		MissileBlock.index = 1;
+		break;
+		case 1:
+		MissileBlock.speed = DISPLAY_TO_WORLD(25);
+		MissileBlock.life = 15;
+		MissileBlock.hit_points = 2;
+		MissileBlock.damage = 2;
+		MissileBlock.index = 6;
+		break;
+		case 2:
+		MissileBlock.speed = DISPLAY_TO_WORLD(15);
+		MissileBlock.life = 12;
+		MissileBlock.hit_points = 2;
+		MissileBlock.damage = 2;
+		MissileBlock.index = 11;
+		break;
+		case 3:
+		MissileBlock.speed = DISPLAY_TO_WORLD(35);
+		MissileBlock.life = 9;
+		MissileBlock.hit_points = 3;
+		MissileBlock.damage = 3;
+		MissileBlock.index = 16;
+		break;
+	}
+
+	StarSprayArray[0] = initialize_missile (&MissileBlock);
+
+	if (StarSprayArray[0])
+	{
+		ELEMENTPTR SprayPtr;
+
+		LockElement (StarSprayArray[0], &SprayPtr);
+		switch(which_type)
+		{
+			case 0:
+			SprayPtr->turn_wait = MAKE_BYTE(2,2);
+			break;
+			case 1:
+			SprayPtr->turn_wait = MAKE_BYTE(4,4);
+			break;
+			case 2:
+			SprayPtr->turn_wait = MAKE_BYTE(1,1);
+			break;
+			case 3:
+			SprayPtr->turn_wait = MAKE_BYTE(3,3);
+			break;
+		}
+
+		UnlockElement (StarSprayArray[0]);
+	}
+
+	return (1);
+}
+
+/*static COUNT
 initialize_test_pump_up (PELEMENT ShipPtr, HELEMENT PumpUpArray[])
 {
 	STARSHIPPTR StarShipPtr;
@@ -530,7 +659,7 @@ initialize_test_pump_up (PELEMENT ShipPtr, HELEMENT PumpUpArray[])
 	PumpUpArray[0] = initialize_missile (&MissileBlock);
 
 	return (1);
-}
+}*/
 
 static void
 melnorme_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter)
@@ -541,7 +670,7 @@ melnorme_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT 
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
 
-	StarShipPtr->RaceDescPtr->init_weapon_func = initialize_test_pump_up;
+	StarShipPtr->RaceDescPtr->init_weapon_func = initialize_starspray;
 	old_count = StarShipPtr->weapon_counter;
 
 	if (StarShipPtr->weapon_counter == WEAPON_WAIT)
@@ -602,7 +731,7 @@ melnorme_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT 
 
 	StarShipPtr->weapon_counter = old_count;
 
-	StarShipPtr->RaceDescPtr->init_weapon_func = initialize_pump_up;
+	StarShipPtr->RaceDescPtr->init_weapon_func = initialize_starspray;
 }
 
 static void
@@ -640,7 +769,7 @@ init_melnorme (void)
 	RACE_DESCPTR RaceDescPtr;
 
 	melnorme_desc.postprocess_func = melnorme_postprocess;
-	melnorme_desc.init_weapon_func = initialize_pump_up;
+	melnorme_desc.init_weapon_func = initialize_starspray;
 	melnorme_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT
 					ConcernCounter)) melnorme_intelligence;

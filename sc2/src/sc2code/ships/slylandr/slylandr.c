@@ -43,7 +43,7 @@ static RACE_DESC slylandro_desc =
 {
 	{
 		SEEKING_WEAPON | CREW_IMMUNE,
-		17, /* Super Melee cost */
+		27, /* Super Melee cost */
 		~0, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -405,6 +405,8 @@ slylandro_preprocess (PELEMENT ElementPtr)
 			StarShipPtr->cur_status_flags &= ~SHIP_IN_GRAVITY_WELL;
 		}
 
+		ElementPtr->next.image.frame = IncFrameIndex (ElementPtr->next.image.frame);
+		ElementPtr->next.image.frame = IncFrameIndex (ElementPtr->next.image.frame);
 		ElementPtr->next.image.frame = IncFrameIndex (ElementPtr->next.image.frame);
 		ElementPtr->state_flags |= CHANGING;
 	}

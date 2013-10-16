@@ -19,6 +19,7 @@
 #include "ships/ship.h"
 #include "ships/chenjesu/resinst.h"
 
+#include "colors.h"
 #include "globdata.h"
 #include "libs/mathlib.h"
 
@@ -30,7 +31,7 @@
 #define SPECIAL_ENERGY_COST MAX_ENERGY
 #define ENERGY_WAIT 4
 #define MAX_THRUST /* DISPLAY_TO_WORLD (7) */ 27
-#define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 3
+#define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 4 //3
 #define TURN_WAIT 6
 #define THRUST_WAIT 4
 #define WEAPON_WAIT 0
@@ -48,7 +49,7 @@ static RACE_DESC chenjesu_desc =
 {
 	{
 		FIRES_FORE | SEEKING_SPECIAL | SEEKING_WEAPON,
-		28, /* Super Melee cost */
+		23, /* Super Melee cost */
 		0 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -178,6 +179,24 @@ crystal_preprocess (PELEMENT ElementPtr)
 
 		ElementPtr->postprocess_func = crystal_postprocess;
 	}
+
+	if (ElementPtr->turn_wait > 0)
+		--ElementPtr->turn_wait;
+	else
+	{
+		COUNT facing;
+
+		facing = NORMALIZE_FACING (ANGLE_TO_FACING (
+				GetVelocityTravelAngle (&ElementPtr->velocity)
+				));
+		
+		TrackShip (ElementPtr, &facing);
+
+		SetVelocityVector (&ElementPtr->velocity,
+				MISSILE_SPEED, facing);
+
+		ElementPtr->turn_wait = 7;
+	}
 }
 
 static void
@@ -224,6 +243,160 @@ crystal_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOI
 		UnlockElement (hBlastElement);
 	}
 }
+
+
+//DUPLICATE CODE FROM CHMMR
+static void
+spawn_point_defense (PELEMENT ElementPtr)
+{
+#define DEFENSE_RANGE (UWORD)64
+#define DEFENSE_WAIT 2
+	BYTE weakest;
+	UWORD best_dist;
+	STARSHIPPTR StarShipPtr;
+	HELEMENT hObject, hNextObject, hBestObject;
+	ELEMENTPTR ShipPtr, SattPtr, ObjectPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	hBestObject = 0;
+	best_dist = DEFENSE_RANGE + 1;
+	weakest = 255;
+	LockElement (StarShipPtr->hShip, &ShipPtr);
+	LockElement (ElementPtr->hTarget, &SattPtr);
+	for (hObject = GetPredElement (ElementPtr);
+			hObject; hObject = hNextObject)
+	{
+		LockElement (hObject, &ObjectPtr);
+		hNextObject = GetPredElement (ObjectPtr);
+		if (((ObjectPtr->state_flags | ShipPtr->state_flags)
+				& (GOOD_GUY | BAD_GUY)) == (GOOD_GUY | BAD_GUY)
+				&& CollisionPossible (ObjectPtr, ShipPtr)
+				&& !OBJECT_CLOAKED (ObjectPtr))
+		{
+			SIZE delta_x, delta_y;
+			UWORD dist;
+
+			delta_x = ObjectPtr->next.location.x
+					- SattPtr->next.location.x;
+			delta_y = ObjectPtr->next.location.y
+					- SattPtr->next.location.y;
+			if (delta_x < 0)
+				delta_x = -delta_x;
+			if (delta_y < 0)
+				delta_y = -delta_y;
+			delta_x = WORLD_TO_DISPLAY (delta_x);
+			delta_y = WORLD_TO_DISPLAY (delta_y);
+			if ((UWORD)delta_x <= DEFENSE_RANGE &&
+					(UWORD)delta_y <= DEFENSE_RANGE &&
+					(dist =
+					(UWORD)delta_x * (UWORD)delta_x
+					+ (UWORD)delta_y * (UWORD)delta_y) <=
+					DEFENSE_RANGE * DEFENSE_RANGE
+					&& (ObjectPtr->hit_points < weakest
+					|| (ObjectPtr->hit_points == weakest
+					&& dist < best_dist)))
+			{
+				hBestObject = hObject;
+				best_dist = dist;
+				weakest = ObjectPtr->hit_points;
+			}
+		}
+		UnlockElement (hObject);
+	}
+
+	if (hBestObject)
+	{
+		LASER_BLOCK LaserBlock;
+		HELEMENT hPointDefense;
+
+		LockElement (hBestObject, &ObjectPtr);
+
+		LaserBlock.face /*= 0;*/
+			= NORMALIZE_FACING (
+			ANGLE_TO_FACING (
+			ARCTAN ( 
+					ObjectPtr->current.location.x -
+					SattPtr->current.location.x,
+					ObjectPtr->current.location.y -
+					SattPtr->current.location.y
+			) ) );
+
+		LaserBlock.cx = SattPtr->next.location.x;
+		LaserBlock.cy = SattPtr->next.location.y;
+		LaserBlock.ex = ObjectPtr->next.location.x
+				- SattPtr->next.location.x;
+		LaserBlock.ey = ObjectPtr->next.location.y
+				- SattPtr->next.location.y;
+		LaserBlock.sender =
+				(SattPtr->state_flags & (GOOD_GUY | BAD_GUY))
+				| IGNORE_SIMILAR;
+		LaserBlock.pixoffs = 18; //0;
+		LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x00, 0x01, 0x1F), 0x4D);
+		hPointDefense = initialize_laser (&LaserBlock);
+		if (hPointDefense)
+		{
+			ELEMENTPTR PDPtr;
+
+			LockElement (hPointDefense, &PDPtr);
+			SetElementStarShip (PDPtr, StarShipPtr);
+			PDPtr->hTarget = 0;
+			UnlockElement (hPointDefense);
+
+			PutElement (hPointDefense);
+
+			SattPtr->thrust_wait = DEFENSE_WAIT;
+		}
+
+		UnlockElement (hBestObject);
+	}
+
+	UnlockElement (ElementPtr->hTarget);
+	UnlockElement (StarShipPtr->hShip);
+}
+
+static void
+doggy_postprocess (PELEMENT ElementPtr)
+{
+	STARSHIPPTR StarShipPtr;
+
+	if (ElementPtr->turn_wait || ElementPtr->life_span == 0)
+		--ElementPtr->turn_wait;
+	else
+	{
+		HELEMENT hDefense;
+
+		hDefense = AllocElement ();
+		if (hDefense)
+		{
+			ELEMENTPTR DefensePtr;
+			
+			PutElement (hDefense);
+
+			LockElement (hDefense, &DefensePtr);
+			DefensePtr->state_flags = APPEARING | NONSOLID | FINITE_LIFE
+					| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
+
+			{
+				ELEMENTPTR SuccPtr;
+
+				LockElement (GetSuccElement (ElementPtr), &SuccPtr);
+				DefensePtr->hTarget = GetPredElement (SuccPtr);
+				UnlockElement (GetSuccElement (ElementPtr));
+
+				DefensePtr->death_func = spawn_point_defense;
+			}
+
+			GetElementStarShip (ElementPtr, &StarShipPtr);
+			SetElementStarShip (DefensePtr, StarShipPtr);
+			
+			UnlockElement (hDefense);
+
+			ElementPtr->turn_wait = 5;
+		}
+	}
+}
+
+//END COPIED CODE
 
 #define DOGGY_OFFSET 18
 #define DOGGY_SPEED DISPLAY_TO_WORLD (8)
@@ -348,17 +521,18 @@ spawn_doggy (PELEMENT ElementPtr)
 
 		PutElement (hDoggyElement);
 		LockElement (hDoggyElement, &DoggyElementPtr);
-		DoggyElementPtr->hit_points = 3;
+		DoggyElementPtr->hit_points = 10; //3;
 		DoggyElementPtr->mass_points = 4;
 		DoggyElementPtr->thrust_wait = 0;
 		DoggyElementPtr->state_flags = APPEARING
-				| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
+				| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			/*	| IGNORE_SIMILAR*/;
 		DoggyElementPtr->life_span = NORMAL_LIFE;
 		SetPrimType (&(GLOBAL (DisplayArray))[DoggyElementPtr->PrimIndex],
 				STAMP_PRIM);
 		{
 			DoggyElementPtr->preprocess_func = doggy_preprocess;
-			DoggyElementPtr->postprocess_func = NULL_PTR;
+			DoggyElementPtr->postprocess_func = doggy_postprocess; //NULL_PTR;
 			DoggyElementPtr->collision_func = doggy_collision;
 			DoggyElementPtr->death_func = doggy_death;
 		}

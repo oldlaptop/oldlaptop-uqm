@@ -426,7 +426,7 @@ black_urquan_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, CO
 	}
 }
 
-#define GAS_RATE 2
+#define GAS_RATE 20 //2
 
 static void
 gas_cloud_preprocess (PELEMENT ElementPtr)

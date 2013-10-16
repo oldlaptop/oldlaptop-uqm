@@ -44,7 +44,7 @@ static RACE_DESC shofixti_desc =
 {
 	{
 		FIRES_FORE,
-		5, /* Super Melee cost */
+		11, /* Super Melee cost */
 		0 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -111,7 +111,7 @@ initialize_standard_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 {
 #define SHOFIXTI_OFFSET 15
 #define MISSILE_HITS 1
-#define MISSILE_DAMAGE 1
+#define MISSILE_DAMAGE 10
 #define MISSILE_OFFSET 1
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;

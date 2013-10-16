@@ -27,14 +27,14 @@
 #define MAX_ENERGY 40
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 1
-#define SPECIAL_ENERGY_COST 2
+#define SPECIAL_ENERGY_COST 0 //2
 #define ENERGY_WAIT 8
 #define MAX_THRUST /* DISPLAY_TO_WORLD (5) */ 21
 #define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 7
 #define TURN_WAIT 6
 #define THRUST_WAIT 4
 #define WEAPON_WAIT 0
-#define SPECIAL_WAIT 7
+#define SPECIAL_WAIT 0 //7
 
 #define SHIP_MASS 6
 #define WARP_OFFSET 46 /* How far outside of laser-range ship can warp in */
@@ -46,7 +46,7 @@ static RACE_DESC vux_desc =
 {
 	{
 		FIRES_FORE | SEEKING_SPECIAL | IMMEDIATE_WEAPON,
-		12, /* Super Melee cost */
+		33, /* Super Melee cost */
 		900 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -108,7 +108,7 @@ static RACE_DESC vux_desc =
 	0,
 };
 
-#define LIMPET_SPEED 25
+#define LIMPET_SPEED 50 //25
 
 static void
 limpet_preprocess (PELEMENT ElementPtr)
@@ -188,7 +188,7 @@ static void
 spawn_limpets (PELEMENT ElementPtr)
 {
 #define LIMPET_OFFSET 8
-#define LIMPET_LIFE 80
+#define LIMPET_LIFE 8000 //80
 #define LIMPET_HITS 1
 #define LIMPET_DAMAGE 0
 	HELEMENT Limpet;

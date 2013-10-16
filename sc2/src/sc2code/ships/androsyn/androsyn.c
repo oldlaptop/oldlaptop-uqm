@@ -25,7 +25,7 @@
 #define MAX_CREW 20
 #define MAX_ENERGY 24
 #define ENERGY_REGENERATION 1
-#define WEAPON_ENERGY_COST 3
+#define WEAPON_ENERGY_COST 1 //3
 #define SPECIAL_ENERGY_COST 2
 #define ENERGY_WAIT 8
 #define MAX_THRUST 24
@@ -41,7 +41,7 @@ static RACE_DESC androsynth_desc =
 {
 	{
 		FIRES_FORE | SEEKING_WEAPON,
-		15, /* Super Melee cost */
+		25, /* Super Melee cost */
 		~0, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -178,12 +178,13 @@ bubble_preprocess (PELEMENT ElementPtr)
 #define MISSILE_DAMAGE 2
 #define MISSILE_LIFE 200
 
-static COUNT
-initialize_bubble (PELEMENT ShipPtr, HELEMENT BubbleArray[])
+static void
+make_bubble (PELEMENT ShipPtr)
 {
 #define ANDROSYNTH_OFFSET 14
 #define MISSILE_OFFSET 3
 #define MISSILE_HITS 3
+	HELEMENT Bubble;
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
 
@@ -195,25 +196,52 @@ initialize_bubble (PELEMENT ShipPtr, HELEMENT BubbleArray[])
 	MissileBlock.index = 0;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
 			| IGNORE_SIMILAR;
-	MissileBlock.pixoffs = ANDROSYNTH_OFFSET;
+	MissileBlock.pixoffs = 0; //ANDROSYNTH_OFFSET;
 	MissileBlock.speed = MISSILE_SPEED;
 	MissileBlock.hit_points = MISSILE_HITS;
 	MissileBlock.damage = MISSILE_DAMAGE;
 	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = bubble_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
-	BubbleArray[0] = initialize_missile (&MissileBlock);
+	Bubble = initialize_missile (&MissileBlock);
 
-	if (BubbleArray[0])
+	if (Bubble)
 	{
 		ELEMENTPTR BubblePtr;
 
-		LockElement (BubbleArray[0], &BubblePtr);
+		LockElement (Bubble, &BubblePtr);
+		SetElementStarShip (BubblePtr, StarShipPtr);
+		BubblePtr->hTarget = 0;
 		BubblePtr->turn_wait = 0;
-		UnlockElement (BubbleArray[0]);
+		UnlockElement (Bubble);
+		PutElement(Bubble);
 	}
+}
 
-	return (1);
+static COUNT
+initialize_androsynth_laser (PELEMENT ShipPtr, HELEMENT LaserArray[])
+{
+	COUNT i;
+	STARSHIPPTR StarShipPtr;
+	LASER_BLOCK LaserBlock;
+
+	GetElementStarShip (ShipPtr, &StarShipPtr);
+	LaserBlock.face = StarShipPtr->ShipFacing;
+	LaserBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| IGNORE_SIMILAR;
+	LaserBlock.pixoffs = ANDROSYNTH_OFFSET;
+	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x1F), 0x0F);
+	LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), 1000);
+	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), 1000);
+
+	for(i = 0; i < 2; ++i)
+	{
+		LaserBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE (LaserBlock.face + 4), 38 * (i * 2 - 1));
+		LaserBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE (LaserBlock.face + 4), 38 * (i * 2 - 1));
+		LaserArray[i] = initialize_laser (&LaserBlock);
+	}
+	
+	return (2);
 }
 
 static void
@@ -330,6 +358,16 @@ androsynth_postprocess (PELEMENT ElementPtr)
 			/* take care of blazer effect */
 	if (ElementPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.special)
 	{
+		if(StarShipPtr->weapon_counter == 0)
+		{
+			make_bubble(ElementPtr);
+			StarShipPtr->weapon_counter = 7;
+		}
+		else
+		{
+			--StarShipPtr->weapon_counter;
+		}
+
 #define BLAZER_DEGENERATION (-1)
 		if ((StarShipPtr->cur_status_flags & SPECIAL)
 				|| StarShipPtr->RaceDescPtr->ship_info.energy_level == 0)
@@ -462,7 +500,7 @@ init_androsynth (void)
 
 	androsynth_desc.preprocess_func = androsynth_preprocess;
 	androsynth_desc.postprocess_func = androsynth_postprocess;
-	androsynth_desc.init_weapon_func = initialize_bubble;
+	androsynth_desc.init_weapon_func = initialize_androsynth_laser;
 	androsynth_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT
 					ConcernCounter)) androsynth_intelligence;

@@ -122,7 +122,7 @@ typedef struct element
 } ELEMENT;
 typedef ELEMENT *PELEMENT;
 
-#define MAX_DISPLAY_PRIMS 280
+#define MAX_DISPLAY_PRIMS 1280 //280
 extern COUNT DisplayFreeList;
 extern PRIMITIVE DisplayArray[MAX_DISPLAY_PRIMS];
 

@@ -45,7 +45,7 @@ static RACE_DESC chmmr_desc =
 {
 	{
 		FIRES_FORE | IMMEDIATE_WEAPON | SEEKING_SPECIAL | POINT_DEFENSE,
-		30, /* Super Melee cost */
+		34, /* Super Melee cost */
 		0, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -438,7 +438,7 @@ chmmr_postprocess (PELEMENT ElementPtr)
 	StarShipPtr->special_counter = 0;
 }
 
-#define SATELLITE_OFFSET DISPLAY_TO_WORLD (64)
+#define SATELLITE_OFFSET DISPLAY_TO_WORLD (100) //(64)
 
 static void
 satellite_preprocess (PELEMENT ElementPtr)
@@ -667,7 +667,7 @@ satellite_death (PELEMENT ElementPtr)
 static void
 spawn_satellites (PELEMENT ElementPtr)
 {
-#define NUM_SATELLITES 3
+#define NUM_SATELLITES 9 //3
 	COUNT i;
 	STARSHIPPTR StarShipPtr;
 
@@ -690,11 +690,11 @@ spawn_satellites (PELEMENT ElementPtr)
 						IGNORE_SIMILAR | APPEARING | FINITE_LIFE
 						| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
 				SattPtr->life_span = NORMAL_LIFE + 1;
-				SattPtr->hit_points = 10;
-				SattPtr->mass_points = 10;
+				SattPtr->hit_points = 6; //10;
+				SattPtr->mass_points = 6; //10;
 
-				angle = (i * FULL_CIRCLE + (NUM_SATELLITES >> 1))
-						/ NUM_SATELLITES;
+				angle = (i * (FULL_CIRCLE / 2) + (NUM_SATELLITES >> 1))
+						/ (NUM_SATELLITES/* - 1*/);
 				SattPtr->turn_wait = (BYTE)angle;
 				SattPtr->current.location.x = ElementPtr->next.location.x
 						+ COSINE (angle, SATELLITE_OFFSET);

@@ -29,8 +29,9 @@
 #define WEAPON_ENERGY_COST 1
 #define SPECIAL_ENERGY_COST 3
 #define ENERGY_WAIT 4
-#define MAX_THRUST 25
-#define THRUST_INCREMENT 5
+//thrust has to be higher with gravity whips everywhere
+#define MAX_THRUST 100 //75 //25
+#define THRUST_INCREMENT 20 //15 //5
 #define TURN_WAIT 2
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 0
@@ -43,7 +44,7 @@ static RACE_DESC ilwrath_desc =
 {
 	{
 		FIRES_FORE,
-		10, /* Super Melee cost */
+		44, /* Super Melee cost */
 		1410 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -165,16 +166,21 @@ ilwrath_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT C
 				&& !(StarShipPtr->ship_input_state & WEAPON))
 			StarShipPtr->ship_input_state |= SPECIAL;
 	}
+	
+	StarShipPtr->ship_input_state &= ~WEAPON;
 }
+
+
+#define ILWRATH_OFFSET 29
+#define MISSILE_SPEED 25 //MAX_THRUST
+#define MISSILE_HITS 1
+#define MISSILE_DAMAGE 1
+#define MISSILE_OFFSET 0
 
 static COUNT
 initialize_flame (PELEMENT ShipPtr, HELEMENT FlameArray[])
 {
-#define ILWRATH_OFFSET 29
-#define MISSILE_SPEED MAX_THRUST
-#define MISSILE_HITS 1
-#define MISSILE_DAMAGE 1
-#define MISSILE_OFFSET 0
+	COUNT i;
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
 
@@ -182,7 +188,6 @@ initialize_flame (PELEMENT ShipPtr, HELEMENT FlameArray[])
 	MissileBlock.cx = ShipPtr->next.location.x;
 	MissileBlock.cy = ShipPtr->next.location.y;
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
-	MissileBlock.face = StarShipPtr->ShipFacing;
 	MissileBlock.index = 0;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
 			| IGNORE_SIMILAR;
@@ -193,25 +198,37 @@ initialize_flame (PELEMENT ShipPtr, HELEMENT FlameArray[])
 	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = flame_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
-	FlameArray[0] = initialize_missile (&MissileBlock);
-
-	if (FlameArray[0])
+	
+	for (i = 0; i <= 4; ++i)
 	{
-		SIZE dx, dy;
-		ELEMENTPTR FlamePtr;
+		MissileBlock.face =
+			NORMALIZE_FACING (StarShipPtr->ShipFacing
+			+ ((ANGLE_TO_FACING (FULL_CIRCLE) / 16) * (i - 2)));
 
-		LockElement (FlameArray[0], &FlamePtr);
-		GetCurrentVelocityComponents (&ShipPtr->velocity, &dx, &dy);
-		DeltaVelocityComponents (&FlamePtr->velocity, dx, dy);
-		FlamePtr->current.location.x -= VELOCITY_TO_WORLD (dx);
-		FlamePtr->current.location.y -= VELOCITY_TO_WORLD (dy);
+		HELEMENT hFlame;
 
-		FlamePtr->collision_func = flame_collision;
-		FlamePtr->turn_wait = 0;
-		UnlockElement (FlameArray[0]);
+		FlameArray[i] = initialize_missile (&MissileBlock);
+		if (FlameArray[i])
+		{
+			SIZE dx, dy;
+			ELEMENTPTR FlamePtr;
+
+			LockElement (FlameArray[i] , &FlamePtr);
+			SetElementStarShip (FlamePtr, StarShipPtr);
+			FlamePtr->hTarget = 0;
+
+			GetCurrentVelocityComponents (&ShipPtr->velocity, &dx, &dy);
+			DeltaVelocityComponents (&FlamePtr->velocity, dx, dy);
+			FlamePtr->current.location.x -= VELOCITY_TO_WORLD (dx);
+			FlamePtr->current.location.y -= VELOCITY_TO_WORLD (dy);
+	
+			FlamePtr->collision_func = flame_collision;
+			FlamePtr->turn_wait = 0;
+			UnlockElement (FlameArray[i] );
+		}
 	}
 
-	return (1);
+	return (5);
 }
 
 static void
