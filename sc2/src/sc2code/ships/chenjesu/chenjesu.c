@@ -165,6 +165,8 @@ crystal_postprocess (PELEMENT ElementPtr)
 			StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
 }
 
+#define CRYSTAL_TURN_WAIT 7
+
 static void
 crystal_preprocess (PELEMENT ElementPtr)
 {
@@ -195,7 +197,7 @@ crystal_preprocess (PELEMENT ElementPtr)
 		SetVelocityVector (&ElementPtr->velocity,
 				MISSILE_SPEED, facing);
 
-		ElementPtr->turn_wait = 7;
+		ElementPtr->turn_wait = CRYSTAL_TURN_WAIT;
 	}
 }
 
@@ -698,6 +700,7 @@ initialize_crystal (PELEMENT ShipPtr, HELEMENT CrystalArray[])
 
 		LockElement (CrystalArray[0], &CrystalPtr);
 		CrystalPtr->collision_func = crystal_collision;
+		CrystalPtr->turn_wait = CRYSTAL_TURN_WAIT;
 		UnlockElement (CrystalArray[0]);
 	}
 

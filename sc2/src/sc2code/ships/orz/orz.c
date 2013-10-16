@@ -24,22 +24,22 @@
 #include "libs/mathlib.h"
 
 
-#define MAX_CREW 24 //16
+#define MAX_CREW 16
 #define MAX_ENERGY 20
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST (MAX_ENERGY / 3)
-#define SPECIAL_ENERGY_COST 0
+#define SPECIAL_ENERGY_COST 1 //0
 #define ENERGY_WAIT 3 //6
 #define MAX_THRUST 35
 #define THRUST_INCREMENT 5
 #define TURN_WAIT 1
-#define THRUST_WAIT 0
+#define THRUST_WAIT 1 //0
 #define WEAPON_WAIT 4
-#define SPECIAL_WAIT 12
+#define SPECIAL_WAIT 0 //15 //12
 
 #define SHIP_MASS 4
 #define ORZ_OFFSET 9
-#define MISSILE_SPEED DISPLAY_TO_WORLD (30)
+#define MISSILE_SPEED DISPLAY_TO_WORLD (55) //(30)
 #define MISSILE_LIFE 12
 
 static RACE_DESC orz_desc =
@@ -122,8 +122,8 @@ howitzer_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPO
 static COUNT
 initialize_turret_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 {
-#define MISSILE_HITS 2
-#define MISSILE_DAMAGE 3
+#define MISSILE_HITS 10 //2
+#define MISSILE_DAMAGE 6 //3
 #define MISSILE_OFFSET 1
 #define NUM_MISSILES 2
 #define MISSILE_SPACING 70
@@ -138,7 +138,7 @@ initialize_turret_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
 
 	LockElement (GetSuccElement (ShipPtr), &TurretPtr);
-	if (TurretPtr->turn_wait == 0
+	/*if (TurretPtr->turn_wait == 0
 			&& (StarShipPtr->cur_status_flags & SPECIAL)
 			&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT)))
 	{
@@ -148,7 +148,7 @@ initialize_turret_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 			--TurretPtr->thrust_wait;
 
 		TurretPtr->turn_wait = TURRET_WAIT + 1;
-	}
+	}*/
 	MissileBlock.face = MissileBlock.index =
 			NORMALIZE_FACING (StarShipPtr->ShipFacing
 			+ TurretPtr->thrust_wait);
@@ -187,7 +187,7 @@ initialize_turret_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 	return (NUM_MISSILES);
 }
 
-#define MAX_MARINES 12 //8
+#define MAX_MARINES 1 //12 //8
 
 static BYTE
 count_marines (STARSHIPPTR StarShipPtr, BOOLEAN FindSpot)
@@ -431,7 +431,7 @@ LeftShip:
 				ElementPtr->thrust_wait = MARINE_WAIT;
 
 				randval = (BYTE)TFB_Random ();
-				if (randval < (0x0100 / 16))
+				if (randval < (0/*x0100 / 16*/))
 				{
 					ElementPtr->life_span = 0;
 					ElementPtr->state_flags |= DISAPPEARING;
@@ -440,7 +440,7 @@ LeftShip:
 							StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 4), ElementPtr);
 					goto LeftShip;
 				}
-				else if (randval < (0x0100 / 2 + 0x0100 / 16))
+				else if (randval < (0x0100 / 2 + 0/*x0100 / 16*/))
 				{
 					if (!DeltaCrew (ShipPtr, -1))
 						ShipPtr->life_span = 0;
@@ -727,6 +727,7 @@ PELEMENT ElementPtr;
 void
 marine_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
+	ElementPtr0->hit_points = 10000;
 	if (ElementPtr0->life_span
 			&& !(ElementPtr0->state_flags & (NONSOLID | COLLISION))
 			&& !(ElementPtr1->state_flags & FINITE_LIFE))
@@ -838,6 +839,7 @@ turret_postprocess (PELEMENT ElementPtr)
 		if (StarShipPtr->hShip)
 		{
 			COUNT facing;
+			SIZE delta_facing;
 			HELEMENT hTurret, hSpaceMarine;
 			ELEMENTPTR ShipPtr;
 
@@ -858,17 +860,36 @@ turret_postprocess (PELEMENT ElementPtr)
 				TurretPtr->turn_wait = ElementPtr->turn_wait;
 				TurretPtr->thrust_wait = ElementPtr->thrust_wait;
 
+				facing = NORMALIZE_FACING (StarShipPtr->ShipFacing
+						+ TurretPtr->thrust_wait);
+
 				if (TurretPtr->turn_wait)
 					--TurretPtr->turn_wait;
-				else if ((StarShipPtr->cur_status_flags & SPECIAL)
-						&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT)))
+				else
 				{
-					if (StarShipPtr->cur_status_flags & RIGHT)
-						++TurretPtr->thrust_wait;
-					else
-						--TurretPtr->thrust_wait;
+					delta_facing = TrackShip(ElementPtr, &facing);
+					if(!ElementPtr->hTarget)
+						delta_facing = NORMALIZE_FACING(-TurretPtr->thrust_wait);
 
-					TurretPtr->turn_wait = TURRET_WAIT;
+					if(delta_facing <= 0)
+					{
+					}
+					else if(delta_facing < 8)
+					{
+						++TurretPtr->thrust_wait;
+						TurretPtr->turn_wait = TURRET_WAIT;
+					}
+					else if(delta_facing > 8)
+					{
+						--TurretPtr->thrust_wait;
+						TurretPtr->turn_wait = TURRET_WAIT;
+					}
+					else
+					{
+						TurretPtr->thrust_wait += ((TFB_Random() & 1) << 1) - 1;
+						TurretPtr->turn_wait = TURRET_WAIT;
+					}
+					ElementPtr->hTarget = 0;
 				}
 				facing = NORMALIZE_FACING (StarShipPtr->ShipFacing
 						+ TurretPtr->thrust_wait);
@@ -955,8 +976,8 @@ turret_postprocess (PELEMENT ElementPtr)
 			}
 
 			if (StarShipPtr->special_counter == 0
-					&& (StarShipPtr->cur_status_flags & SPECIAL)
-					&& (StarShipPtr->cur_status_flags & WEAPON)
+					//&& (StarShipPtr->cur_status_flags & SPECIAL)
+					//&& (StarShipPtr->cur_status_flags & WEAPON)
 					&& ShipPtr->crew_level > 1
 					&& count_marines (StarShipPtr, FALSE) < MAX_MARINES
 					&& TrackShip (ShipPtr, &facing) >= 0
@@ -964,12 +985,14 @@ turret_postprocess (PELEMENT ElementPtr)
 			{
 				ELEMENTPTR SpaceMarinePtr;
 
+				ShipPtr->hTarget = 0;
+
 				LockElement (hSpaceMarine, &SpaceMarinePtr);
 				SpaceMarinePtr->state_flags =
 						IGNORE_SIMILAR | APPEARING | CREW_OBJECT
 						| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
 				SpaceMarinePtr->life_span = NORMAL_LIFE;
-				SpaceMarinePtr->hit_points = 3;
+				SpaceMarinePtr->hit_points = 10000; //3;
 				SpaceMarinePtr->mass_points = 1;
 
 				facing = FACING_TO_ANGLE (StarShipPtr->ShipFacing);
@@ -1013,6 +1036,62 @@ turret_postprocess (PELEMENT ElementPtr)
 }
 
 static void
+spawn_fin_lasers (PELEMENT ElementPtr)
+{
+	COUNT i;
+	STARSHIPPTR StarShipPtr;
+	LASER_BLOCK LaserBlock;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	LaserBlock.face = StarShipPtr->ShipFacing;
+	LaserBlock.sender = (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| IGNORE_SIMILAR;
+	LaserBlock.pixoffs = 0;
+	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x08, 0x14), 0);
+
+	for(i = 0; i < 2; ++i)
+	{
+		HELEMENT hLaser;
+
+		LaserBlock.cx = ElementPtr->next.location.x
+				+ COSINE(FACING_TO_ANGLE (LaserBlock.face + 4), 55 * (i * 2 - 1))
+				- COSINE(FACING_TO_ANGLE (LaserBlock.face), 48);
+		LaserBlock.cy = ElementPtr->next.location.y
+				+ SINE(FACING_TO_ANGLE (LaserBlock.face + 4), 55 * (i * 2 - 1))
+				- SINE(FACING_TO_ANGLE (LaserBlock.face), 48);
+		LaserBlock.ex = COSINE(FACING_TO_ANGLE(NORMALIZE_FACING(LaserBlock.face + (i * 14 - 7))), 500);
+		LaserBlock.ey = SINE(FACING_TO_ANGLE(NORMALIZE_FACING(LaserBlock.face + (i * 14 - 7))), 500);
+
+		hLaser = initialize_laser (&LaserBlock);
+		if(hLaser)
+		{
+			ELEMENTPTR LaserPtr;
+
+			LockElement(hLaser, &LaserPtr);
+			SetElementStarShip(LaserPtr, StarShipPtr);
+			LaserPtr->mass_points = 2;
+			UnlockElement(hLaser);
+			PutElement(hLaser);
+		}
+	}
+}
+
+static void
+orz_postprocess (PELEMENT ElementPtr)
+{
+	STARSHIPPTR StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& StarShipPtr->special_counter == 0
+			&& CleanDeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		spawn_fin_lasers(ElementPtr);
+	}
+}
+
+static void
 orz_preprocess (PELEMENT ElementPtr)
 {
 	STARSHIPPTR StarShipPtr;
@@ -1020,20 +1099,20 @@ orz_preprocess (PELEMENT ElementPtr)
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (!(ElementPtr->state_flags & APPEARING))
 	{
-		if (((StarShipPtr->cur_status_flags
+		/*if (((StarShipPtr->cur_status_flags
 				| StarShipPtr->old_status_flags) & SPECIAL)
 				&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT))
 				&& ElementPtr->turn_wait == 0)
 		{
 			++ElementPtr->turn_wait;
-		}
+		}*/
 
-		if ((StarShipPtr->cur_status_flags & SPECIAL)
+		/*if ((StarShipPtr->cur_status_flags & SPECIAL)
 				&& (StarShipPtr->cur_status_flags & WEAPON)
 				&& StarShipPtr->weapon_counter == 0)
 		{
 			++StarShipPtr->weapon_counter;
-		}
+		}*/
 	}
 	else
 	{
@@ -1070,6 +1149,7 @@ init_orz (void)
 	RACE_DESCPTR RaceDescPtr;
 
 	orz_desc.preprocess_func = orz_preprocess;
+	orz_desc.postprocess_func = orz_postprocess;
 	orz_desc.init_weapon_func = initialize_turret_missile;
 	orz_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT

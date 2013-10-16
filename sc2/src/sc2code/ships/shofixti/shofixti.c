@@ -120,8 +120,8 @@ shofixti_self_destruct_death (PELEMENT ElementPtr)
 	ElementPtr->postprocess_func = ElementPtr->death_func = NULL_PTR;
 }
 
-static void
-shofixti_fighter_preprocess (PELEMENT ElementPtr)
+void
+thrust_hack (PELEMENT ElementPtr)
 {
 	STARSHIPPTR StarShipPtr;
 
@@ -164,6 +164,12 @@ shofixti_fighter_preprocess (PELEMENT ElementPtr)
 		StarShipPtr->RaceDescPtr->characteristics.max_thrust = MAX_THRUST;
 		StarShipPtr->RaceDescPtr->characteristics.thrust_increment = THRUST_INCREMENT;
 	}
+}
+
+static void
+shofixti_fighter_preprocess (PELEMENT ElementPtr)
+{
+	thrust_hack(ElementPtr);
 }
 
 static void
@@ -535,21 +541,27 @@ shofixti_postprocess (PELEMENT ElementPtr)
 	}
 }
 
-static COUNT shofixties_present;
+static COUNT shofixties_present = 0;
+
+void
+clearGraphicsHack (FRAME farray[])
+{
+	DestroyDrawable(ReleaseDrawable(farray[0]));
+	farray[0] = (FRAME)0;
+	DestroyDrawable(ReleaseDrawable(farray[1]));
+	farray[1] = (FRAME)0;
+	DestroyDrawable(ReleaseDrawable(farray[2]));
+	farray[2] = (FRAME)0;
+}
 
 static void
-slylandro_dispose_graphics (RACE_DESCPTR RaceDescPtr)
+shofixti_dispose_graphics (RACE_DESCPTR RaceDescPtr)
 {
 	--shofixties_present;
 
 	if(!shofixties_present)
 	{
-		DestroyDrawable(ReleaseDrawable(carrierGraphicsHack[0]));
-		carrierGraphicsHack[0] = (FRAME)0;
-		DestroyDrawable(ReleaseDrawable(carrierGraphicsHack[1]));
-		carrierGraphicsHack[1] = (FRAME)0;
-		DestroyDrawable(ReleaseDrawable(carrierGraphicsHack[2]));
-		carrierGraphicsHack[2] = (FRAME)0;
+		clearGraphicsHack(carrierGraphicsHack);
 	}
 }
 
@@ -592,6 +604,7 @@ init_shofixti (void)
 	shofixti_desc.preprocess_func = shofixti_preprocess;
 	shofixti_desc.postprocess_func = shofixti_postprocess;
 	shofixti_desc.init_weapon_func = initialize_standard_missile;
+	shofixti_desc.uninit_func = shofixti_dispose_graphics;
 	shofixti_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT
 					ConcernCounter)) shofixti_intelligence;

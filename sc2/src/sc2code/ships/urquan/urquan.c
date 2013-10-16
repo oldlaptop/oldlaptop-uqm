@@ -45,7 +45,7 @@ static RACE_DESC urquan_desc =
 {
 	{
 		FIRES_FORE | SEEKING_SPECIAL,
-		28, /* Super Melee cost */
+		42, /* Super Melee cost */
 		2666 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

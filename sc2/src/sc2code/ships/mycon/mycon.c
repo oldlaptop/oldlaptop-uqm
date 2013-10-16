@@ -374,6 +374,7 @@ mycon_postprocess (PELEMENT ElementPtr)
 				//if you're in a mirror match, DIE!
 			}
 		}
+		UnlockElement(hShip);
 	}
 
 	if ((StarShipPtr->cur_status_flags & SPECIAL) && ElementPtr->turn_wait < TURN_WAIT)

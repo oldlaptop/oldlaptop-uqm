@@ -34,7 +34,7 @@
 #define TURN_WAIT 0
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 0
-#define SPECIAL_WAIT 1 //16
+#define SPECIAL_WAIT 5 //16
 
 #define SHIP_MASS 1
 #define MISSILE_SPEED DISPLAY_TO_WORLD (24)
@@ -177,13 +177,15 @@ initialize_bug_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 
 static HELEMENT hPhoenix = 0;
 
-static void
-pkunk_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter)
+void
+charge_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter)
 {
+	SIZE delta_facing, facing;
+
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
-	if (hPhoenix && StarShipPtr->special_counter)
+	/*if (hPhoenix && StarShipPtr->special_counter)
 	{
 		RemoveElement (hPhoenix);
 		FreeElement (hPhoenix);
@@ -197,7 +199,37 @@ pkunk_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Con
 		StarShipPtr->ship_input_state |= SPECIAL;
 	else
 		StarShipPtr->ship_input_state &= ~SPECIAL;
-	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
+	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);*/
+
+	facing = StarShipPtr->ShipFacing;
+	delta_facing = TrackShip(ShipPtr, &facing);
+	
+	StarShipPtr->ship_input_state |= THRUST | WEAPON;
+	if(delta_facing == -1)
+	{
+		StarShipPtr->ship_input_state &= ~WEAPON;
+		delta_facing = NORMALIZE_FACING(ANGLE_TO_FACING(GetVelocityTravelAngle(&ShipPtr->velocity)) + 8 - StarShipPtr->ShipFacing);
+		if(delta_facing == 0)
+		{
+			StarShipPtr->ship_input_state |= THRUST;
+			StarShipPtr->ship_input_state &= ~(LEFT | RIGHT);
+		}
+		else if(delta_facing < 8)
+		{
+			StarShipPtr->ship_input_state &= ~THRUST;
+			StarShipPtr->ship_input_state |= RIGHT;
+		}
+		else //(delta_facing >= 8)
+		{
+			StarShipPtr->ship_input_state &= ~THRUST;
+			StarShipPtr->ship_input_state |= LEFT;
+		}
+	}
+	else if(delta_facing > 0 && delta_facing < 8)
+		StarShipPtr->ship_input_state |= RIGHT;
+	else if(delta_facing > 8)
+		StarShipPtr->ship_input_state |= LEFT;
+	else StarShipPtr->ship_input_state &= ~(LEFT | RIGHT);
 }
 
 static void pkunk_preprocess (PELEMENT ElementPtr);
@@ -546,8 +578,8 @@ PELEMENT ElementPtr;
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (StarShipPtr->RaceDescPtr->characteristics.special_wait)
 		--StarShipPtr->RaceDescPtr->characteristics.special_wait;
-	else if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& StarShipPtr->RaceDescPtr->ship_info.energy_level <
+	else if (/*(StarShipPtr->cur_status_flags & SPECIAL)
+			&& */StarShipPtr->RaceDescPtr->ship_info.energy_level <
 			StarShipPtr->RaceDescPtr->ship_info.max_energy)
 	{
 		COUNT CurSound;
@@ -579,12 +611,8 @@ init_pkunk (void)
 	pkunk_desc.postprocess_func = pkunk_postprocess;
 	pkunk_desc.init_weapon_func = initialize_bug_missile;
 	pkunk_desc.cyborg_control.intelligence_func =
-			(void (*) (PVOID ShipPtr,
-					PVOID
-					ObjectsOfConcern,
-					COUNT
-					ConcernCounter))
-					pkunk_intelligence;
+			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT
+					ConcernCounter)) charge_intelligence;
 
 	RaceDescPtr = &pkunk_desc;
 

@@ -23,13 +23,41 @@
 #include "sounds.h"
 #include "weapon.h"
 #include "libs/mathlib.h"
+#include "colors.h"
 
-extern void explosion_preprocess (PELEMENT ShipPtr);
+#define PLANET_RESPAWN_WAIT 48
+static COUNT planet_respawn_wait = 0;
+static BOOLEAN planet_respawn_wait_decremented = false;
+
+static void respawn_planet_reset (PELEMENT ElementPtr)
+{
+	planet_respawn_wait_decremented = false;
+}
 
 static void respawn_planet (PELEMENT ElementPtr)
 {
-	spawn_planet();
+	if(!planet_respawn_wait)
+	{
+		planet_respawn_wait = PLANET_RESPAWN_WAIT;
+		ElementPtr->preprocess_func = ElementPtr->death_func = NULL_PTR;
+		spawn_planet();
+	}
+	else
+	{
+		ElementPtr->life_span = 4;
+		ElementPtr->state_flags &= ~DISAPPEARING;
+		ElementPtr->preprocess_func = respawn_planet;
+		ElementPtr->postprocess_func = respawn_planet_reset;
+
+		if(!planet_respawn_wait_decremented)
+		{
+			--planet_respawn_wait;
+			planet_respawn_wait_decremented = true;
+		}
+	}
 }
+
+extern void explosion_preprocess (PELEMENT ShipPtr);
 
 static void
 planet_blows_up (PELEMENT ElementPtr)
@@ -74,7 +102,8 @@ spawn_planet (void)
 			PlanetElementPtr->current.location.y =
 					WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
 		} while (CalculateGravity (PlanetElementPtr)
-				|| TimeSpaceMatterConflict (PlanetElementPtr));
+				|| TimeSpaceMatterConflict (PlanetElementPtr)
+				|| AtLeastOneShipIsPainfullyClose(PlanetElementPtr));
 		PlanetElementPtr->mass_points = 200; //PlanetElementPtr->hit_points;
 		UnlockElement (hPlanetElement);
 
@@ -132,6 +161,8 @@ void spin_asteroid (PELEMENT ElementPtr)
 	}
 }
 
+static void asteroid_preprocess (PELEMENT ElementPtr);
+
 static void
 asteroid_chasing_preprocess (PELEMENT ElementPtr)
 {
@@ -143,6 +174,12 @@ asteroid_chasing_preprocess (PELEMENT ElementPtr)
 		COUNT angle;
 		ELEMENTPTR EnemyElementPtr;
 		LockElement (ElementPtr->hTarget, &EnemyElementPtr);
+
+		if(OBJECT_CLOAKED(EnemyElementPtr))
+		{
+			ElementPtr->preprocess_func = asteroid_preprocess;
+			return;
+		}
 
 		dx = EnemyElementPtr->next.location.x - ElementPtr->next.location.x;
 		dy = EnemyElementPtr->next.location.y - ElementPtr->next.location.y;

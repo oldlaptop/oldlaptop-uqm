@@ -505,6 +505,30 @@ initialize_confusion (PELEMENT ShipPtr, HELEMENT ConfusionArray[])
 	return (1);
 }
 
+BOOLEAN
+spawn_confusion(PELEMENT ShipPtr/*, FRAME farray[]*/)
+{
+	HELEMENT Confusion;
+
+	initialize_confusion (ShipPtr, &Confusion);
+	if (Confusion)
+	{
+		ELEMENTPTR CMissilePtr;
+		LockElement (Confusion, &CMissilePtr);
+		
+		/*CMissilePtr->next.image.farray = farray;
+		CMissilePtr->next.image.frame =
+				SetEquFrameIndex (CMissilePtr->next.image.farray[0],
+				CMissilePtr->next.image.frame);
+		CMissilePtr->state_flags |= CHANGING;*/
+		
+		UnlockElement (Confusion);
+		PutElement (Confusion);
+		return true;
+	}
+	else return false;
+}
+
 static void
 starspray_preprocess (PELEMENT ElementPtr)
 {
@@ -744,7 +768,14 @@ melnorme_postprocess (PELEMENT ElementPtr)
 			&& StarShipPtr->special_counter == 0
 			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{
-		HELEMENT Confusion;
+		if(spawn_confusion(ElementPtr/*, StarShipPtr->RaceDescPtr->ship_data.special*/))
+		{
+			ProcessSound (SetAbsSoundIndex (
+					StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
+			StarShipPtr->special_counter =
+					StarShipPtr->RaceDescPtr->characteristics.special_wait;
+		}
+		/*HELEMENT Confusion;
 
 		initialize_confusion (ElementPtr, &Confusion);
 		if (Confusion)
@@ -759,7 +790,7 @@ melnorme_postprocess (PELEMENT ElementPtr)
 			PutElement (Confusion);
 			StarShipPtr->special_counter =
 					StarShipPtr->RaceDescPtr->characteristics.special_wait;
-		}
+		}*/
 	}
 }
 

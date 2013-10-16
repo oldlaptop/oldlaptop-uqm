@@ -19,6 +19,7 @@
 #include "ships/ship.h"
 #include "ships/blackurq/resinst.h"
 
+#include "colors.h"
 #include "globdata.h"
 
 
@@ -209,6 +210,11 @@ buzztrack_preprocess (PELEMENT ElementPtr)
 			if(ElementPtr->hTarget)
 			{
 				LockElement (ElementPtr->hTarget, &EnemyElementPtr);
+				if(OBJECT_CLOAKED(EnemyElementPtr))
+				{
+					goto dont_chase;
+				}
+
 				dx = EnemyElementPtr->next.location.x - ElementPtr->next.location.x;
 				dy = EnemyElementPtr->next.location.y - ElementPtr->next.location.y;
 
@@ -231,6 +237,7 @@ buzztrack_preprocess (PELEMENT ElementPtr)
 			SetVelocityComponents(&ElementPtr->velocity, dx, dy);
 		}
 	}
+	dont_chase:
 
 	spin_preprocess (ElementPtr);
 }

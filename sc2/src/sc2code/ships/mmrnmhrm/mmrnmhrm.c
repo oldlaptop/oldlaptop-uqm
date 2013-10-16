@@ -167,7 +167,7 @@ mmrnmhrm_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT 
 	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
 
 	StarShipPtr->ship_input_state &= ~SPECIAL;
-	if (CanTransform
+	/*if (CanTransform
 			&& lpEvalDesc->ObjectPtr
 			&& !(StarShipPtr->ship_input_state & WEAPON))
 	{
@@ -224,12 +224,27 @@ mmrnmhrm_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT 
 							) > HALF_CIRCLE)
 				StarShipPtr->ship_input_state |= SPECIAL;
 		}
+	}*/
+
+	if (CanTransform && lpEvalDesc->ObjectPtr)
+	{
+		SIZE dx, dy;
+		dx = WRAP_DELTA_X(ShipPtr->current.location.x - lpEvalDesc->ObjectPtr->current.location.x);
+		dy = WRAP_DELTA_Y(ShipPtr->current.location.y - lpEvalDesc->ObjectPtr->current.location.y);
+		if((long)dx*dx + (long)dy*dy < LASER_RANGE * LASER_RANGE && ShipPtr->current.image.farray == StarShipPtr->RaceDescPtr->ship_data.special)
+		{
+			StarShipPtr->ship_input_state |= SPECIAL;
+		}
+		if((long)dx*dx + (long)dy*dy > LASER_RANGE * LASER_RANGE && ShipPtr->current.image.farray == StarShipPtr->RaceDescPtr->ship_data.ship)
+		{
+			StarShipPtr->ship_input_state |= SPECIAL;
+		}
 	}
 
 	if (ShipPtr->current.image.farray == StarShipPtr->RaceDescPtr->ship_data.special)
 	{
 		if (!(StarShipPtr->ship_input_state & SPECIAL)
-				&& lpEvalDesc->ObjectPtr)
+				/*&& lpEvalDesc->ObjectPtr*/)
 			StarShipPtr->ship_input_state |= WEAPON;
 		else
 			StarShipPtr->ship_input_state &= ~WEAPON;

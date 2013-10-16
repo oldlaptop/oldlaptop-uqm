@@ -26,6 +26,8 @@
 #include "sounds.h"
 #include "libs/mathlib.h"
 
+#include "ires_ind.h"
+
 
 void
 animation_preprocess (PELEMENT ElementPtr)
@@ -465,9 +467,19 @@ spawn_ship (STARSHIPPTR StarShipPtr)
 						StarShipPtr->ShipFacing + 1, 0);
 				StarShipPtr->ShipFacing = facing;
 			}
-			ShipElementPtr->current.image.frame =
-					SetAbsFrameIndex (RDPtr->ship_data.ship[0],
-					StarShipPtr->ShipFacing);
+			if(StarShipPtr->RaceResIndex == SLYLANDRO_SHIP_INDEX)
+			{
+				ShipElementPtr->current.image.frame =
+						SetAbsFrameIndex (RDPtr->ship_data.ship[0],
+						StarShipPtr->ShipFacing * 2);
+			}
+			else
+			{
+				ShipElementPtr->current.image.frame =
+						SetAbsFrameIndex (RDPtr->ship_data.ship[0],
+						StarShipPtr->ShipFacing);
+			}
+
 			do
 			{
 				ShipElementPtr->current.location.x =

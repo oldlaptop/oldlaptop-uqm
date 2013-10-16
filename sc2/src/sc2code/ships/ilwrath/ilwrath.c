@@ -383,9 +383,10 @@ init_ilwrath (void)
 
 	ilwrath_desc.preprocess_func = ilwrath_preprocess;
 	ilwrath_desc.init_weapon_func = initialize_flame;
+	extern void charge_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter);
 	ilwrath_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT
-					ConcernCounter)) ilwrath_intelligence;
+					ConcernCounter)) charge_intelligence;
 
 	RaceDescPtr = &ilwrath_desc;
 

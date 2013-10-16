@@ -26,7 +26,7 @@
 
 
 #define RACES_PER_PLAYER 7
-#define MAX_SHIPS_PER_SIDE 14
+#define MAX_SHIPS_PER_SIDE 30 //14
 
 /* heat of battle specific flags */
 #define LEFT                   (1 << 0)

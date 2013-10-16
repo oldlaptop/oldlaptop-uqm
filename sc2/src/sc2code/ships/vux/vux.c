@@ -25,10 +25,10 @@
 
 #define MAX_CREW 20
 #define MAX_ENERGY 40
-#define ENERGY_REGENERATION 1
+#define ENERGY_REGENERATION 8 //1
 #define WEAPON_ENERGY_COST 1
 #define SPECIAL_ENERGY_COST 0 //2
-#define ENERGY_WAIT 8
+#define ENERGY_WAIT 24 //8
 #define MAX_THRUST /* DISPLAY_TO_WORLD (5) */ 21
 #define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 7
 #define TURN_WAIT 6
@@ -331,7 +331,7 @@ vux_postprocess (PELEMENT ElementPtr)
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if ((StarShipPtr->cur_status_flags & SPECIAL)
 			&& StarShipPtr->special_counter == 0
-			/*&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST)*/)
+			&& /*kill regen*/ DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{
 		ProcessSound (SetAbsSoundIndex (
 						/* LAUNCH_LIMPET */

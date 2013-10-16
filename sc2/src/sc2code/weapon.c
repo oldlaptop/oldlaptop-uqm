@@ -343,7 +343,8 @@ TrackShip (ELEMENTPTR Tracker, PCOUNT pfacing)
 CheckTracking:
 			GetElementStarShip (Trackee, &StarShipPtr);
 			if (Trackee->life_span
-					&& StarShipPtr->RaceDescPtr->ship_info.crew_level)
+					&& StarShipPtr->RaceDescPtr->ship_info.crew_level
+					&& !OBJECT_CLOAKED(Trackee))
 			{
 				SIZE delta_x, delta_y, delta_facing;
 

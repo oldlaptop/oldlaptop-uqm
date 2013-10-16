@@ -91,8 +91,8 @@ enum
 
 #define MELEE_X_OFFS 2
 #define MELEE_Y_OFFS 21
-#define MELEE_BOX_WIDTH 34
-#define MELEE_BOX_HEIGHT 34
+#define MELEE_BOX_WIDTH 24 //34
+#define MELEE_BOX_HEIGHT 24 //34
 #define MELEE_BOX_SPACE 1
 
 #define MENU_X_OFFS 29
@@ -253,6 +253,8 @@ static void
 DrawShipBox (COUNT side, COUNT row, COUNT col, BYTE ship, BOOLEAN HiLite)
 {
 	RECT r;
+
+	log_add (log_All, "lol");
 
 	GetShipBox (&r, side, row, col);
 

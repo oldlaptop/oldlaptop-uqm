@@ -19,6 +19,9 @@
 #include "ships/ship.h"
 #include "ships/spathi/resinst.h"
 
+#include "colors.h"
+#include "globdata.h"
+
 #define MAX_CREW 30
 #define MAX_ENERGY 10
 #define ENERGY_REGENERATION 1
@@ -156,7 +159,7 @@ butt_missile_preprocess (PELEMENT ElementPtr)
 			delta_facing = NORMALIZE_FACING (
 					ANGLE_TO_FACING (ARCTAN (delta_x, delta_y)) - facing);
 	
-			if (delta_facing > 0)
+			if (delta_facing > 0 && !OBJECT_CLOAKED(EnemyPtr))
 			{
 				if (delta_facing == ANGLE_TO_FACING (HALF_CIRCLE))
 					facing += (((BYTE)TFB_Random () & 1) << 1) - 1;
@@ -173,6 +176,8 @@ butt_missile_preprocess (PELEMENT ElementPtr)
 	
 			SetVelocityVector (&ElementPtr->velocity,
 					DISCRIMINATOR_SPEED, facing);
+
+			UnlockElement (ElementPtr->hTarget);
 		}
 		else if (TrackShip (ElementPtr, &facing) > 0)
 		{

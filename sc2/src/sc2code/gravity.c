@@ -21,6 +21,46 @@
 #include "units.h"
 #include "libs/log.h"
 
+
+#define PAINFUL_DISTANCE DISPLAY_TO_WORLD (400)
+
+BOOLEAN
+AtLeastOneShipIsPainfullyClose (PELEMENT ElementPtr)
+{
+	HELEMENT hTestElement, hSuccElement;
+	for (hTestElement = GetHeadElement ();
+			hTestElement != 0; hTestElement = hSuccElement)
+	{
+		ELEMENTPTR TestElementPtr;
+		LockElement (hTestElement, &TestElementPtr);
+		
+		if(TestElementPtr->state_flags & PLAYER_SHIP)
+		{
+			SIZE dx, dy;
+			dx = ElementPtr->current.location.x
+					- TestElementPtr->current.location.x;
+			dy = ElementPtr->current.location.y
+					- TestElementPtr->current.location.y;
+			dx = WRAP_DELTA_X (dx);
+			dy = WRAP_DELTA_Y (dy);
+			dx = dx >= 0 ? dx : -dx;
+			dy = dy >= 0 ? dy : -dy;
+	
+	
+			if(dx <= PAINFUL_DISTANCE && dy <= PAINFUL_DISTANCE)
+			{
+				if((long)dx * dx + (long)dy * dy 
+						<= (long)PAINFUL_DISTANCE * PAINFUL_DISTANCE)
+					return true;
+			}
+		}
+
+		UnlockElement (hTestElement);
+		hSuccElement = GetSuccElement (TestElementPtr);
+	}
+	return false;
+}
+
 //#define DEBUG_GRAVITY
 
 BOOLEAN
