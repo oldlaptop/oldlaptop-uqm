@@ -732,6 +732,10 @@ marine_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOIN
 			&& !(ElementPtr0->state_flags & (NONSOLID | COLLISION))
 			&& !(ElementPtr1->state_flags & FINITE_LIFE))
 	{
+		STARSHIPPTR EnemyStarShipPtr;
+
+		GetElementStarShip(ElementPtr1, &EnemyStarShipPtr);
+
 		if ((ElementPtr0->state_flags & (GOOD_GUY | BAD_GUY))
 				!= (ElementPtr1->state_flags & (GOOD_GUY | BAD_GUY)))
 		{
@@ -751,7 +755,8 @@ marine_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOIN
 		}
 		else if ((ElementPtr1->state_flags & PLAYER_SHIP)
 				&& ((ElementPtr1->state_flags & FINITE_LIFE)
-				|| ElementPtr1->life_span == NORMAL_LIFE))
+				|| ElementPtr1->life_span == NORMAL_LIFE)
+				&& !(EnemyStarShipPtr->RaceDescPtr->ship_info.ship_flags & CREW_IMMUNE))
 		{
 			ElementPtr1->state_flags &= ~COLLISION;
 
@@ -1099,6 +1104,7 @@ orz_preprocess (PELEMENT ElementPtr)
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (!(ElementPtr->state_flags & APPEARING))
 	{
+		StarShipPtr->special_counter = HYPERJUMP_LIFE + 1;
 		/*if (((StarShipPtr->cur_status_flags
 				| StarShipPtr->old_status_flags) & SPECIAL)
 				&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT))

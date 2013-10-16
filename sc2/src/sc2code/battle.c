@@ -324,8 +324,32 @@ DoBattle (BATTLE_STATE *bs)
 	}
 	else
 	{
+		COUNT real_frame_rate;
+		HELEMENT hShip, hNextShip;
+		ELEMENTPTR PkunkElementPtr;
+		STARSHIPPTR PkunkStarShipPtr;
+		BOOLEAN found_a_pkunk = false;
+	
+		for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+		{
+			LockElement (hShip, &PkunkElementPtr);
+			hNextShip = GetSuccElement (PkunkElementPtr);
+			GetElementStarShip (PkunkElementPtr, &PkunkStarShipPtr);
+			if ((PkunkElementPtr->state_flags & PLAYER_SHIP)
+				&& PkunkStarShipPtr->RaceResIndex == PKUNK_SHIP_INDEX)
+			{
+				found_a_pkunk = true;
+				UnlockElement(hShip);
+				break;
+			}
+			UnlockElement(hShip);
+		}
+		
+		real_frame_rate = BATTLE_FRAME_RATE;
+		if(found_a_pkunk)real_frame_rate *= 2;
+		
 		SleepThreadUntil (bs->NextTime
-				+ BATTLE_FRAME_RATE / (battle_speed + 1));
+				+ real_frame_rate / (battle_speed + 1));
 		bs->NextTime = GetTimeCounter ();
 	}
 

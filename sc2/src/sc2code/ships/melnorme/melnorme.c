@@ -400,7 +400,12 @@ confuse_preprocess (PELEMENT ElementPtr)
 static void
 confusion_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
-	if (ElementPtr1->state_flags & PLAYER_SHIP)
+	STARSHIPPTR EnemyStarShipPtr;
+
+	GetElementStarShip (ElementPtr1, &EnemyStarShipPtr);
+
+	if (ElementPtr1->state_flags & PLAYER_SHIP
+		&& !(EnemyStarShipPtr->RaceDescPtr->ship_info.ship_flags & CREW_IMMUNE))
 	{
 		HELEMENT hConfusionElement, hNextElement;
 		ELEMENTPTR ConfusionPtr;

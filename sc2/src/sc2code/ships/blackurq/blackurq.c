@@ -507,6 +507,7 @@ spawn_gas_cloud (PELEMENT ElementPtr)
 #define GAS_OFFSET 2
 #define NUM_GAS_CLOUDS 16
 	SIZE dx, dy;
+	COUNT i;
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
 
@@ -528,12 +529,16 @@ spawn_gas_cloud (PELEMENT ElementPtr)
 	MissileBlock.blast_offs = GAS_OFFSET;
 
 	GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
-	for (MissileBlock.face = 0;
+
+	/*for (MissileBlock.face = 0;
 			MissileBlock.face < ANGLE_TO_FACING (FULL_CIRCLE);
 			MissileBlock.face +=
-			(ANGLE_TO_FACING (FULL_CIRCLE) / NUM_GAS_CLOUDS))
+			(ANGLE_TO_FACING (FULL_CIRCLE) / NUM_GAS_CLOUDS))*/
+	for (i = 0; i < NUM_GAS_CLOUDS; ++i)
 	{
 		HELEMENT hGasCloud;
+
+		MissileBlock.face = ANGLE_TO_FACING (FULL_CIRCLE * i / NUM_GAS_CLOUDS);
 
 		hGasCloud = initialize_missile (&MissileBlock);
 		if (hGasCloud)
@@ -545,6 +550,11 @@ spawn_gas_cloud (PELEMENT ElementPtr)
 			GasCloudPtr->hTarget = 0;
 			GasCloudPtr->turn_wait = GAS_RATE - 1;
 			GasCloudPtr->collision_func = gas_cloud_collision;
+
+			SetVelocityComponents (&GasCloudPtr->velocity,
+					COSINE(FULL_CIRCLE * i / NUM_GAS_CLOUDS, WORLD_TO_VELOCITY (GAS_SPEED)),
+					SINE(FULL_CIRCLE * i / NUM_GAS_CLOUDS, WORLD_TO_VELOCITY (GAS_SPEED)));
+
 			DeltaVelocityComponents (&GasCloudPtr->velocity, dx, dy);
 			UnlockElement (hGasCloud);
 			PutElement (hGasCloud);

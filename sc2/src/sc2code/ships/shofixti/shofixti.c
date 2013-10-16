@@ -121,30 +121,37 @@ shofixti_self_destruct_death (PELEMENT ElementPtr)
 }
 
 void
-thrust_hack (PELEMENT ElementPtr)
+thrust_hack (PELEMENT ElementPtr, COUNT thrust_increment, COUNT max_thrust, BOOLEAN ion_trail)
 {
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 
-	extern void spawn_ion_trail (PELEMENT ElementPtr);
 	//major hack!
-	ElementPtr->state_flags |= PLAYER_SHIP;
-	spawn_ion_trail (ElementPtr);
-	ElementPtr->state_flags &= ~PLAYER_SHIP;
+	if(ion_trail)
+	{
+		extern void spawn_ion_trail (PELEMENT ElementPtr);
+
+		ElementPtr->state_flags |= PLAYER_SHIP;
+		spawn_ion_trail (ElementPtr);
+		ElementPtr->state_flags &= ~PLAYER_SHIP;
+	}
 
 	//major hack!
 	{
 		COUNT orig_facing;
+		COUNT orig_max_thrust, orig_thrust_increment;
 		DWORD current_speed, max_speed;
 		ELEMENT_FLAGS orig_flags;
 		SIZE dx, dy;
 
 		orig_facing = StarShipPtr->ShipFacing;
 		orig_flags = StarShipPtr->cur_status_flags;
+		orig_thrust_increment = StarShipPtr->RaceDescPtr->characteristics.thrust_increment;
+		orig_max_thrust = StarShipPtr->RaceDescPtr->characteristics.max_thrust;
 
 		GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
-		max_speed = VelocitySquared (WORLD_TO_VELOCITY (SCOUT_MAX_THRUST), 0);
+		max_speed = VelocitySquared (WORLD_TO_VELOCITY (max_thrust), 0);
 		current_speed = VelocitySquared (dx, dy);
 
 		if(current_speed == max_speed)StarShipPtr->cur_status_flags |= SHIP_AT_MAX_SPEED;
@@ -154,22 +161,22 @@ thrust_hack (PELEMENT ElementPtr)
 		if(CalculateGravity (ElementPtr))StarShipPtr->cur_status_flags |= SHIP_IN_GRAVITY_WELL;
 		else StarShipPtr->cur_status_flags &= ~SHIP_IN_GRAVITY_WELL;
 		StarShipPtr->ShipFacing = GetFrameIndex(ElementPtr->current.image.frame);
-		StarShipPtr->RaceDescPtr->characteristics.max_thrust = SCOUT_MAX_THRUST;
-		StarShipPtr->RaceDescPtr->characteristics.thrust_increment = SCOUT_THRUST_INCREMENT;
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust = max_thrust;
+		StarShipPtr->RaceDescPtr->characteristics.thrust_increment = thrust_increment;
 
 		inertial_thrust(ElementPtr);
 
 		StarShipPtr->ShipFacing = orig_facing;
 		StarShipPtr->cur_status_flags = orig_flags;
-		StarShipPtr->RaceDescPtr->characteristics.max_thrust = MAX_THRUST;
-		StarShipPtr->RaceDescPtr->characteristics.thrust_increment = THRUST_INCREMENT;
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust = orig_max_thrust;
+		StarShipPtr->RaceDescPtr->characteristics.thrust_increment = orig_thrust_increment;
 	}
 }
 
 static void
 shofixti_fighter_preprocess (PELEMENT ElementPtr)
 {
-	thrust_hack(ElementPtr);
+	thrust_hack(ElementPtr, SCOUT_THRUST_INCREMENT, SCOUT_MAX_THRUST, true);
 }
 
 static void
@@ -531,6 +538,7 @@ shofixti_postprocess (PELEMENT ElementPtr)
 	}
 	
 	//shofixti reproduce fast ;)
+	if(ElementPtr->crew_level >= 2)
 	{
 		/*COUNT i;
 		for(i = 0; i < (ElementPtr->crew_level / 2); ++i)

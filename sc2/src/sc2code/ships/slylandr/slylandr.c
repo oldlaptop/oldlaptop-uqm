@@ -152,7 +152,7 @@ static COUNT
 initialize_nukes (PELEMENT ShipPtr, HELEMENT MissileArray[])
 {
 #define MISSILE_DAMAGE 4
-#define MISSILE_HITS 8
+#define MISSILE_HITS 1
 #define NUKE_OFFSET 8
 	COUNT i;
 	STARSHIPPTR StarShipPtr;

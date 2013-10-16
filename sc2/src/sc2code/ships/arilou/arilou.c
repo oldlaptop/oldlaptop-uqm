@@ -151,7 +151,6 @@ arilou_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern,
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
 
-	ObjectsOfConcern[ENEMY_SHIP_INDEX].MoveState = AVOID;
 	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
 
 	if(StarShipPtr->RaceDescPtr->ship_info.energy_level >= DEMON_ENERGY_COST)
@@ -207,6 +206,8 @@ spawn_magic_missile (PELEMENT ElementPtr)
 			real_angle = NORMALIZE_ANGLE(ARCTAN (delta_x, delta_y) + (((TFB_Random() & 3) + 1) / 2) - 1);
 
 			MissileBlock.face = MissileBlock.index = ANGLE_TO_FACING (real_angle);
+
+			UnlockElement(ElementPtr->hTarget);
 		}
 		else MissileBlock.face = MissileBlock.index = NORMALIZE_FACING (orig_facing + delta_facing);
 	}

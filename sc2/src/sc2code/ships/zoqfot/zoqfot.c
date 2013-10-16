@@ -37,14 +37,14 @@
 
 #define SHIP_MASS 5
 #define MISSILE_SPEED DISPLAY_TO_WORLD (10)
-#define MISSILE_LIFE 100 //10
+#define MISSILE_LIFE 50 //10
 #define MISSILE_RANGE (MISSILE_SPEED * MISSILE_LIFE)
 
 static RACE_DESC zoqfotpik_desc =
 {
 	{
 		FIRES_FORE,
-		14, /* Super Melee cost */
+		16, /* Super Melee cost */
 		320 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -107,7 +107,7 @@ static RACE_DESC zoqfotpik_desc =
 };
 
 #define ZOQFOTPIK_OFFSET 13
-#define SPIT_WAIT 2
+#define SPIT_WAIT 4 //2
 
 static void
 spit_preprocess (PELEMENT ElementPtr)
@@ -121,8 +121,10 @@ spit_preprocess (PELEMENT ElementPtr)
 		ElementPtr->next.image.frame =
 				IncFrameIndex (ElementPtr->next.image.frame);
 		angle = GetVelocityTravelAngle (&ElementPtr->velocity);
-		if ((index = GetFrameIndex (ElementPtr->next.image.frame)) == 1)
-			angle = angle + (((COUNT)TFB_Random () % 3) - 1);
+
+		index = GetFrameIndex (ElementPtr->next.image.frame);
+		/*if ((index = GetFrameIndex (ElementPtr->next.image.frame)) == 1)
+			angle = angle + (((COUNT)TFB_Random () % 3) - 1);*/
 
 		speed = WORLD_TO_VELOCITY (DISPLAY_TO_WORLD (
 				GetFrameCount (ElementPtr->next.image.frame) - index) << 1);
@@ -135,6 +137,19 @@ spit_preprocess (PELEMENT ElementPtr)
 	}
 }
 
+/*static void
+spit_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	COUNT original_mass;
+	original_mass = ElementPtr0->mass_points;
+	if(!(ElementPtr1->state_flags & PLAYER_SHIP))
+	{
+		ElementPtr0->mass_points = 5;
+	}
+	weapon_collision(ElementPtr0, pPt0, ElementPtr1, pPt1);
+	ElementPtr0->mass_points = original_mass;
+}*/
+
 static COUNT
 initialize_spit (PELEMENT ShipPtr, HELEMENT SpitArray[])
 {
@@ -143,6 +158,7 @@ initialize_spit (PELEMENT ShipPtr, HELEMENT SpitArray[])
 #define MISSILE_OFFSET 0
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
+	COUNT i;
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
 	MissileBlock.cx = ShipPtr->next.location.x;
@@ -160,9 +176,28 @@ initialize_spit (PELEMENT ShipPtr, HELEMENT SpitArray[])
 	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = spit_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
-	SpitArray[0] = initialize_missile (&MissileBlock);
+	//SpitArray[0] = initialize_missile (&MissileBlock);
+	
+	for(i = 0; i < 5; ++i)
+	{
+		SpitArray[i] = initialize_missile (&MissileBlock);
 
-	return (1);
+		if(SpitArray[i])
+		{
+			ELEMENTPTR SpitPtr;
+			LockElement(SpitArray[i], &SpitPtr);
+
+			SetVelocityComponents (&SpitPtr->velocity,
+					COSINE (NORMALIZE_ANGLE(FACING_TO_ANGLE(MissileBlock.face) + i - 2), WORLD_TO_VELOCITY(MissileBlock.speed)),
+					SINE (NORMALIZE_ANGLE(FACING_TO_ANGLE(MissileBlock.face) + i - 2), WORLD_TO_VELOCITY(MissileBlock.speed)));
+
+			//SpitPtr->collision_func = spit_collision;
+
+			UnlockElement(SpitArray[i]);
+		}
+	}
+
+	return (5);
 }
 
 static void spawn_tongue (PELEMENT ElementPtr);

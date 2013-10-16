@@ -255,7 +255,9 @@ compel_enemy (PELEMENT ElementPtr)
 		{
 			LockElement (hShip, &EnemyElementPtr);
 			hNextShip = GetSuccElement (EnemyElementPtr);
+			GetElementStarShip (EnemyElementPtr, &EnemyStarShipPtr);
 			if ((EnemyElementPtr->state_flags & PLAYER_SHIP)
+				&& !(EnemyStarShipPtr->RaceDescPtr->ship_info.ship_flags & CREW_IMMUNE)
 				&& ((EnemyElementPtr->state_flags & (GOOD_GUY | BAD_GUY)) !=
 				(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))))
 			{
@@ -266,9 +268,7 @@ compel_enemy (PELEMENT ElementPtr)
 		}
 		
 		if(!found_an_enemy)return;
-		
-		GetElementStarShip (EnemyElementPtr, &EnemyStarShipPtr);
-	
+			
 		EnemyStarShipPtr->ship_input_state |= THRUST;
 		EnemyStarShipPtr->ship_input_state &= ~(LEFT | RIGHT);
 	

@@ -30,7 +30,7 @@
 #define SPECIAL_ENERGY_COST 2
 #define ENERGY_WAIT 0
 #define MAX_THRUST 128 //64
-#define THRUST_INCREMENT 32 //16
+#define THRUST_INCREMENT 24 //32 //16
 #define TURN_WAIT 0
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 0
