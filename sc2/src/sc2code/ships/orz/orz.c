@@ -28,14 +28,14 @@
 #define MAX_ENERGY 20
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST (MAX_ENERGY / 3)
-#define SPECIAL_ENERGY_COST 1 //0
-#define ENERGY_WAIT 3 //6
+#define SPECIAL_ENERGY_COST (MAX_ENERGY) //0
+#define ENERGY_WAIT 6
 #define MAX_THRUST 35
 #define THRUST_INCREMENT 5
 #define TURN_WAIT 1
 #define THRUST_WAIT 1 //0
 #define WEAPON_WAIT 4
-#define SPECIAL_WAIT 0 //15 //12
+#define SPECIAL_WAIT 120 //0 //15 //12
 
 #define SHIP_MASS 4
 #define ORZ_OFFSET 9
@@ -980,10 +980,10 @@ turret_postprocess (PELEMENT ElementPtr)
 				InsertElement (hTurret, GetSuccElement (ElementPtr));
 			}
 
-			if (StarShipPtr->special_counter == 0
+			if (//StarShipPtr->special_counter == 0
 					//&& (StarShipPtr->cur_status_flags & SPECIAL)
 					//&& (StarShipPtr->cur_status_flags & WEAPON)
-					&& ShipPtr->crew_level > 1
+					/*&&*/ ShipPtr->crew_level > 1
 					&& count_marines (StarShipPtr, FALSE) < MAX_MARINES
 					&& TrackShip (ShipPtr, &facing) >= 0
 					&& (hSpaceMarine = AllocElement ()))
@@ -1031,8 +1031,8 @@ turret_postprocess (PELEMENT ElementPtr)
 						StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1),
 						SpaceMarinePtr);
 
-				StarShipPtr->special_counter =
-						StarShipPtr->RaceDescPtr->characteristics.special_wait;
+				/*StarShipPtr->special_counter =
+						StarShipPtr->RaceDescPtr->characteristics.special_wait;*/
 			}
 
 			UnlockElement (StarShipPtr->hShip);
@@ -1040,10 +1040,10 @@ turret_postprocess (PELEMENT ElementPtr)
 	}
 }
 
-static void
+/*static void
 spawn_fin_lasers (PELEMENT ElementPtr)
 {
-	COUNT i;
+	COUNT i,j;
 	STARSHIPPTR StarShipPtr;
 	LASER_BLOCK LaserBlock;
 
@@ -1054,16 +1054,22 @@ spawn_fin_lasers (PELEMENT ElementPtr)
 	LaserBlock.pixoffs = 0;
 	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x08, 0x14), 0);
 
-	for(i = 0; i < 2; ++i)
-	{
+	for(i = 0; i < 2; ++i){for(j = 0; j < 3; ++j){
 		HELEMENT hLaser;
 
 		LaserBlock.cx = ElementPtr->next.location.x
 				+ COSINE(FACING_TO_ANGLE (LaserBlock.face + 4), 55 * (i * 2 - 1))
-				- COSINE(FACING_TO_ANGLE (LaserBlock.face), 48);
+				- COSINE(FACING_TO_ANGLE (LaserBlock.face), 44);
 		LaserBlock.cy = ElementPtr->next.location.y
 				+ SINE(FACING_TO_ANGLE (LaserBlock.face + 4), 55 * (i * 2 - 1))
-				- SINE(FACING_TO_ANGLE (LaserBlock.face), 48);
+				- SINE(FACING_TO_ANGLE (LaserBlock.face), 44);
+
+		if(j != 2)
+		{
+			LaserBlock.cx += COSINE(FACING_TO_ANGLE(LaserBlock.face), ((j << 1) - 1) * 28);
+			LaserBlock.cy += SINE(FACING_TO_ANGLE(LaserBlock.face), ((j << 1) - 1) * 28);
+		}
+
 		LaserBlock.ex = COSINE(FACING_TO_ANGLE(NORMALIZE_FACING(LaserBlock.face + (i * 14 - 7))), 500);
 		LaserBlock.ey = SINE(FACING_TO_ANGLE(NORMALIZE_FACING(LaserBlock.face + (i * 14 - 7))), 500);
 
@@ -1074,14 +1080,46 @@ spawn_fin_lasers (PELEMENT ElementPtr)
 
 			LockElement(hLaser, &LaserPtr);
 			SetElementStarShip(LaserPtr, StarShipPtr);
-			LaserPtr->mass_points = 2;
+			//LaserPtr->mass_points = 2;
 			UnlockElement(hLaser);
 			PutElement(hLaser);
 		}
-	}
-}
+	}}
+}*/
 
 static void
+destructo_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	BYTE old_offs;
+	COUNT old_crew_level;
+	COUNT old_life;
+	COUNT old_mass;
+	HELEMENT hBlastElement;
+
+	old_crew_level = ElementPtr0->crew_level;
+	old_life = ElementPtr0->life_span;
+	old_offs = ElementPtr0->blast_offset;
+	old_mass = ElementPtr0->mass_points;
+	ElementPtr0->blast_offset = 0;
+	ElementPtr0->mass_points = 7;
+	hBlastElement = weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	if (hBlastElement)
+	{
+		RemoveElement (hBlastElement);
+		FreeElement (hBlastElement);
+	}
+	ElementPtr0->mass_points = old_mass;
+	ElementPtr0->blast_offset = old_offs;
+	ElementPtr0->life_span = old_life;
+	ElementPtr0->crew_level = old_crew_level;
+
+	ElementPtr0->state_flags &= ~(DISAPPEARING | NONSOLID);
+
+	if (!(ElementPtr1->state_flags & FINITE_LIFE))
+		ElementPtr0->state_flags |= COLLISION;
+}
+
+/*static void
 orz_postprocess (PELEMENT ElementPtr)
 {
 	STARSHIPPTR StarShipPtr;
@@ -1092,19 +1130,77 @@ orz_postprocess (PELEMENT ElementPtr)
 			&& StarShipPtr->special_counter == 0
 			&& CleanDeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{
-		spawn_fin_lasers(ElementPtr);
+		//spawn_fin_lasers(ElementPtr);
+
+		COUNT dummy_var;
+		dummy_var = 0;
+		TrackShip(ElementPtr, &dummy_var);
+
+		if(ElementPtr->hTarget)
+		{
+			ELEMENTPTR EnemyPtr;
+			LockElement (ElementPtr->hTarget, &EnemyPtr);
+
+			ZeroVelocityComponents(&ElementPtr->hTarget);
+
+			do
+			{
+				EnemyPtr->current.location.x = EnemyPtr->next.location.x = EnemyPtr->current.location.x =
+						WRAP_X (DISPLAY_ALIGN_X (TFB_Random ()));
+				EnemyPtr->current.location.x = EnemyPtr->next.location.y = EnemyPtr->current.location.y =
+						WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
+			}
+			while(TimeSpaceMatterConflict(EnemyPtr));
+
+			UnlockElement(ElementPtr->hTarget);
+		}
+
+		ElementPtr->hTarget = 0;
+	}
+}*/
+
+static void
+orz_preprocess (PELEMENT ElementPtr)
+{
+	PPRIMITIVE lpPrim;
+	STARSHIPPTR StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& StarShipPtr->special_counter == 0
+			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		StarShipPtr->special_counter = 
+				StarShipPtr->RaceDescPtr->characteristics.special_wait;
+	}
+
+	lpPrim = &(GLOBAL (DisplayArray))[ElementPtr->PrimIndex];
+	if(StarShipPtr->special_counter)
+	{	
+		SetPrimColor (lpPrim, BUILD_COLOR (MAKE_RGB15 (0x1F, 0x08, 0x14), 0));
+		SetPrimType (lpPrim, STAMPFILL_PRIM);
+		ElementPtr->life_span = NORMAL_LIFE + 5;
+		ElementPtr->collision_func = destructo_collision;
+		DeltaEnergy(ElementPtr, -StarShipPtr->RaceDescPtr->ship_info.energy_level);
+	}
+	else
+	{
+		SetPrimType (lpPrim, STAMP_PRIM);
+		ElementPtr->life_span = NORMAL_LIFE;
+		ElementPtr->collision_func = collision;
 	}
 }
 
 static void
-orz_preprocess (PELEMENT ElementPtr)
+orz_arrival_preprocess (PELEMENT ElementPtr)
 {
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (!(ElementPtr->state_flags & APPEARING))
 	{
-		StarShipPtr->special_counter = HYPERJUMP_LIFE + 1;
+		StarShipPtr->special_counter = 1;
 		/*if (((StarShipPtr->cur_status_flags
 				| StarShipPtr->old_status_flags) & SPECIAL)
 				&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT))
@@ -1146,6 +1242,7 @@ orz_preprocess (PELEMENT ElementPtr)
 			UnlockElement (hTurret);
 			InsertElement (hTurret, GetSuccElement (ElementPtr));
 		}
+		StarShipPtr->RaceDescPtr->preprocess_func = orz_preprocess;
 	}
 }
 
@@ -1154,8 +1251,8 @@ init_orz (void)
 {
 	RACE_DESCPTR RaceDescPtr;
 
-	orz_desc.preprocess_func = orz_preprocess;
-	orz_desc.postprocess_func = orz_postprocess;
+	orz_desc.preprocess_func = orz_arrival_preprocess;
+	//orz_desc.postprocess_func = orz_postprocess;
 	orz_desc.init_weapon_func = initialize_turret_missile;
 	orz_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT

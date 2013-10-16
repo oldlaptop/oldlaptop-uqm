@@ -44,7 +44,7 @@ static RACE_DESC melnorme_desc =
 {
 	{
 		FIRES_FORE,
-		28, /* Super Melee cost */
+		21, /* Super Melee cost */
 		~0, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

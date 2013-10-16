@@ -346,7 +346,13 @@ DoBattle (BATTLE_STATE *bs)
 		}
 		
 		real_frame_rate = BATTLE_FRAME_RATE;
-		if(found_a_pkunk)real_frame_rate *= 2;
+		if(found_a_pkunk)
+		{
+			real_frame_rate *= 2;
+#ifdef NETPLAY
+			battleFrameCount++;
+#endif
+		}
 		
 		SleepThreadUntil (bs->NextTime
 				+ real_frame_rate / (battle_speed + 1));

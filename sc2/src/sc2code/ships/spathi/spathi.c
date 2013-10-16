@@ -44,7 +44,7 @@ static RACE_DESC spathi_desc =
 {
 	{
 		FIRES_FORE | FIRES_AFT | SEEKING_SPECIAL | DONT_CHASE,
-		22, /* Super Melee cost */
+		35, /* Super Melee cost */
 		1000 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -298,7 +298,7 @@ MISSILE_BLOCK setup_for_one_primary_shot(PELEMENT ShipPtr)
 #define MISSILE_HITS 3 //1
 #define MISSILE_DAMAGE 2 //1
 #define MISSILE_OFFSET 1
-#define NUM_MISSILES 12
+#define NUM_MISSILES 36
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
 
@@ -312,8 +312,8 @@ MISSILE_BLOCK setup_for_one_primary_shot(PELEMENT ShipPtr)
 	MissileBlock.preprocess_func = NULL_PTR;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 
-	MissileBlock.cx = ShipPtr->next.location.x + COSINE (FACING_TO_ANGLE (StarShipPtr->ShipFacing + 4), (COUNT)TFB_Random() % 221 - 110);
-	MissileBlock.cy = ShipPtr->next.location.y + SINE (FACING_TO_ANGLE (StarShipPtr->ShipFacing + 4), (COUNT)TFB_Random() % 221 - 110);
+	MissileBlock.cx = ShipPtr->next.location.x + COSINE (FACING_TO_ANGLE (StarShipPtr->ShipFacing + 4), (COUNT)TFB_Random() % 261 - 130);
+	MissileBlock.cy = ShipPtr->next.location.y + SINE (FACING_TO_ANGLE (StarShipPtr->ShipFacing + 4), (COUNT)TFB_Random() % 261 - 130);
 
 	//MissileBlock.face = MissileBlock.index = NORMALIZE_FACING (StarShipPtr->ShipFacing + (COUNT)TFB_Random() % 3 - 1);
 	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
@@ -338,8 +338,6 @@ fix_one_primary_shot(PELEMENT MissilePtr)
 
 	SetVelocityComponents(&MissilePtr->velocity, COSINE(angle, speed), SINE(angle, speed));
 }
-
-#define NUM_MISSILES 12
 
 static void
 make_extra_missiles (PELEMENT ShipPtr)

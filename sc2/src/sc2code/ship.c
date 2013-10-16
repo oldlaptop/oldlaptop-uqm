@@ -298,7 +298,7 @@ ship_postprocess (PELEMENT ElementPtr)
 			-RDPtr->characteristics.weapon_energy_cost))
 	{
 		COUNT num_weapons;
-		HELEMENT Weapon[6];
+		HELEMENT Weapon[50];
 
 		num_weapons = (*RDPtr->init_weapon_func) (ElementPtr, Weapon);
 
@@ -389,6 +389,30 @@ collision (PELEMENT ElementPtr0, PPOINT pPt0,
 	(void) pPt0;  /* Satisfying compiler (unused parameter) */
 	(void) pPt1;  /* Satisfying compiler (unused parameter) */
 }
+
+void
+less_planet_damage_collision (PELEMENT ElementPtr0, PPOINT pPt0,
+		PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	STARSHIPPTR StarShipPtr;
+	GetElementStarShip(ElementPtr0, &StarShipPtr);
+
+	//Take minimal damage from hitting planets
+	if (!(ElementPtr1->state_flags & FINITE_LIFE))
+	{
+		ElementPtr0->state_flags |= COLLISION;
+		if (GRAVITY_MASS (ElementPtr1->mass_points))
+		{
+			if(!(ElementPtr0->state_flags & PLAYER_SHIP) || !(StarShipPtr->planet_hit_counter))
+			{
+				do_damage ((ELEMENTPTR)ElementPtr0, 1);
+				ProcessSound (SetAbsSoundIndex (GameSounds, TARGET_DAMAGED_FOR_1_PT), ElementPtr0);
+			}
+			if(ElementPtr0->state_flags & PLAYER_SHIP)StarShipPtr->planet_hit_counter = 2;
+		}
+	}
+}
+
 
 static BOOLEAN
 spawn_ship (STARSHIPPTR StarShipPtr)

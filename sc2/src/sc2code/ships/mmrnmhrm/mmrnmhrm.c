@@ -24,8 +24,8 @@
 
 #define MAX_CREW 20
 #define MAX_ENERGY 10
-#define ENERGY_REGENERATION 4
-#define WEAPON_ENERGY_COST 2
+#define ENERGY_REGENERATION 2
+#define WEAPON_ENERGY_COST 1
 #define SPECIAL_ENERGY_COST 0 //MAX_ENERGY
 #define ENERGY_WAIT 6
 #define MAX_THRUST 20
@@ -298,7 +298,7 @@ initialize_dual_weapons (PELEMENT ShipPtr, HELEMENT WeaponArray[])
 		for(i = 0; i <= LASERS_ON_EACH_SIDE * 2; ++i)
 		{
 			COUNT weapon_index;
-			if(i==LASERS_ON_EACH_SIDE/* && NO_LASER_IN_THE_MIDDLE*/)continue;
+			if(i==LASERS_ON_EACH_SIDE && NO_LASER_IN_THE_MIDDLE)continue;
 			weapon_index = i - ((NO_LASER_IN_THE_MIDDLE && i > LASERS_ON_EACH_SIDE) ? 1 : 0);
 			LaserBlock.cx = cx + (offs_x * (i - LASERS_ON_EACH_SIDE));
 			LaserBlock.cy = cy + (offs_y * (i - LASERS_ON_EACH_SIDE));

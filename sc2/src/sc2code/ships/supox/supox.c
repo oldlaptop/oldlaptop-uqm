@@ -243,15 +243,18 @@ supox_preprocess (PELEMENT ElementPtr)
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
+
 	if ((StarShipPtr->cur_status_flags & SPECIAL)
 /*
 			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST)
 */
 			)
 	{
-		SIZE add_facing;
+		//SIZE add_facing;
+		SIZE not_facing;
+		not_facing = 0;
 
-		add_facing = 0;
+		/*add_facing = 0;
 		if (StarShipPtr->cur_status_flags & THRUST)
 		{
 			if (ElementPtr->thrust_wait == 0)
@@ -280,14 +283,16 @@ supox_preprocess (PELEMENT ElementPtr)
 				add_facing = ANGLE_TO_FACING (QUADRANT);
 		}
 
-		if (add_facing)
+		if (add_facing)*/
+		if ((not_facing = TrackShip(ElementPtr, &not_facing)) != -1)
 		{
 			COUNT facing;
 			UWORD thrust_status;
 
 			facing = StarShipPtr->ShipFacing;
 			StarShipPtr->ShipFacing = NORMALIZE_FACING (
-					facing + add_facing
+					//facing + add_facing
+					not_facing + 8
 					);
 			thrust_status = inertial_thrust (ElementPtr);
 			StarShipPtr->cur_status_flags &=

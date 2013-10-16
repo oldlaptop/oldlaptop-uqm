@@ -343,8 +343,7 @@ intercept_pkunk_death (PELEMENT ElementPtr)
 #define TRANSITION_LIFE 1
 
 void
-spawn_phoenix_trail (PELEMENT
-		ElementPtr)
+spawn_phoenix_trail (PELEMENT ElementPtr)
 {
 	static const COLOR color_tab[] =
 	{
@@ -394,8 +393,7 @@ spawn_phoenix_trail (PELEMENT
 #define PHOENIX_LIFE 12
 
 void
-phoenix_transition (PELEMENT
-		ElementPtr)
+phoenix_transition (PELEMENT ElementPtr)
 {
 	HELEMENT hShipImage;
 	ELEMENTPTR ShipImagePtr;
@@ -464,7 +462,7 @@ phoenix_transition (PELEMENT
 	UnlockElement (StarShipPtr->hShip);
 }
 
-static void
+/*static void
 pkunk_collision (PELEMENT ElementPtr0, PPOINT pPt0,
 		PELEMENT ElementPtr1, PPOINT pPt1)
 {
@@ -474,26 +472,30 @@ pkunk_collision (PELEMENT ElementPtr0, PPOINT pPt0,
 		ElementPtr0->state_flags |= COLLISION;
 		if (GRAVITY_MASS (ElementPtr1->mass_points))
 		{
+
 			do_damage ((ELEMENTPTR)ElementPtr0, 1);
 
 			ProcessSound (SetAbsSoundIndex (GameSounds, TARGET_DAMAGED_FOR_1_PT), ElementPtr0);
 		}
 	}
-}
+}*/
 
 
 static void
-pkunk_preprocess (ElementPtr)
-PELEMENT ElementPtr;
+pkunk_preprocess (PELEMENT ElementPtr)
 {
-	if (ElementPtr->state_flags & APPEARING)
-	{
-		ElementPtr->collision_func = pkunk_collision;
-	}
-
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
+	
+	if (ElementPtr->state_flags & APPEARING)
+	{
+		extern void less_planet_damage_collision
+				(PELEMENT ElementPtr0, PPOINT pPt0,
+				PELEMENT ElementPtr1, PPOINT pPt1);
+		ElementPtr->collision_func = less_planet_damage_collision;
+	}
+
 	if (ElementPtr->state_flags & APPEARING)
 	{
 		ELEMENTPTR PhoenixPtr;
@@ -547,6 +549,7 @@ PELEMENT ElementPtr;
 
 	if (StarShipPtr->RaceDescPtr->preprocess_func)
 	{
+		ZeroVelocityComponents (&((ELEMENTPTR)ElementPtr)->velocity);
 		StarShipPtr->cur_status_flags &=
 				~(LEFT | RIGHT | THRUST | WEAPON | SPECIAL);
 
@@ -572,8 +575,7 @@ PELEMENT ElementPtr;
 }
 
 static void
-pkunk_postprocess (ElementPtr)
-PELEMENT ElementPtr;
+pkunk_postprocess (PELEMENT ElementPtr)
 {
 	STARSHIPPTR StarShipPtr;
 

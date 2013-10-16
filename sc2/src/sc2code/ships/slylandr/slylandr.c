@@ -23,7 +23,7 @@
 #include "libs/mathlib.h"
 
 
-#define MAX_CREW 25
+#define MAX_CREW 12
 #define MAX_ENERGY 30
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 7
@@ -38,8 +38,8 @@
 
 #define SHIP_MASS 3
 #define SLYLANDRO_OFFSET 9
-#define MISSILE_SPEED DISPLAY_TO_WORLD(43)
-#define MISSILE_LIFE 10
+#define MISSILE_SPEED DISPLAY_TO_WORLD (20) //(43)
+#define MISSILE_LIFE 18 //10
 
 static RACE_DESC slylandro_desc =
 {
@@ -173,7 +173,19 @@ initialize_nukes (PELEMENT ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.preprocess_func = NULL_PTR;
 	MissileBlock.blast_offs = NUKE_OFFSET;
 
-	MissileArray[0] = initialize_missile (&MissileBlock);
+#define NUM_MISSILES 8
+#define MISSILE_SPACING 42
+
+	for(i = 0; i < NUM_MISSILES; ++i)
+	{
+		MissileBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE(MissileBlock.face + 4), (i*2 + 1 - NUM_MISSILES) * MISSILE_SPACING / 2);
+		MissileBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE(MissileBlock.face + 4), (i*2 + 1 - NUM_MISSILES) * MISSILE_SPACING / 2);
+		MissileArray[i] = initialize_missile (&MissileBlock);
+	}
+
+	return (NUM_MISSILES);
+
+	/*MissileArray[0] = initialize_missile (&MissileBlock);
 	MissileBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE(MissileBlock.face + 4), 30);
 	MissileBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE(MissileBlock.face + 4), 30);
 	MissileArray[1] = initialize_missile (&MissileBlock);
@@ -181,7 +193,7 @@ initialize_nukes (PELEMENT ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.cy = ShipPtr->next.location.y - SINE(FACING_TO_ANGLE(MissileBlock.face + 4), 30);
 	MissileArray[2] = initialize_missile (&MissileBlock);
 
-	return (3);
+	return (3);*/
 }
 
 static void

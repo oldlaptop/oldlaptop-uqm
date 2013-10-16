@@ -122,11 +122,11 @@ static void
 cone_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
 	COUNT original_mass;
+	HELEMENT hBlastElement;
+
 	original_mass = ElementPtr0->mass_points;
 		//don't kill planets so fast (makes for some lame strategy)
 	if(GRAVITY_MASS(ElementPtr1->mass_points))ElementPtr0->mass_points = 7;
-
-	HELEMENT hBlastElement;
 
 	hBlastElement = weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
 	if (hBlastElement)

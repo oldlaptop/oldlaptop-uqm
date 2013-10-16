@@ -211,6 +211,7 @@ spawn_magic_missile (PELEMENT ElementPtr)
 		}
 		else MissileBlock.face = MissileBlock.index = NORMALIZE_FACING (orig_facing + delta_facing);
 	}
+	else MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
 
 	MissileBlock.cx = ElementPtr->next.location.x;
 	MissileBlock.cy = ElementPtr->next.location.y;
@@ -720,6 +721,8 @@ arilou_preprocess (PELEMENT ElementPtr)
 	{
 		COUNT life_span;
 
+		ZeroVelocityComponents(&ElementPtr->velocity); //just in case
+
 		StarShipPtr->cur_status_flags =
 				(StarShipPtr->cur_status_flags
 				& ~(LEFT | RIGHT | THRUST | WEAPON | SPECIAL))
@@ -734,7 +737,7 @@ arilou_preprocess (PELEMENT ElementPtr)
 		if ((life_span = ElementPtr->life_span) == NORMAL_LIFE)
 		{
 			ElementPtr->state_flags &= ~(NONSOLID | FINITE_LIFE);
-			ElementPtr->state_flags |= APPEARING;
+			//ElementPtr->state_flags |= APPEARING;
 			ElementPtr->current.image.farray =
 					ElementPtr->next.image.farray =
 					StarShipPtr->RaceDescPtr->ship_data.ship;
