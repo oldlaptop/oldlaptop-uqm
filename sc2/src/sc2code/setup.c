@@ -130,6 +130,10 @@ LoadKernel (int argc, char *argv[])
 	return TRUE;
 }
 
+//do not increase this value
+//this is the maximum it can be without screwing up
+#define NUM_QUEUE_ELEMENTS 255
+
 BOOLEAN
 InitContexts (void)
 {
@@ -155,7 +159,7 @@ InitContexts (void)
 	if (OffScreenContext == NULL)
 		return FALSE;
 
-	if (!InitQueue (&disp_q, 100, sizeof (ELEMENT)))
+	if (!InitQueue (&disp_q, NUM_QUEUE_ELEMENTS, sizeof (ELEMENT)))
 		return FALSE;
 
 	return TRUE;

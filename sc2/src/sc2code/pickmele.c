@@ -121,8 +121,8 @@ static void
 PickMelee_ChangedSelection (GETMELEE_STATE *gms)
 {
 	LockMutex (GraphicsLock);
-	gms->flash_rect.corner.x = PICK_X_OFFS + ((ICON_WIDTH + 2) * gms->col);
-	gms->flash_rect.corner.y = PICK_Y_OFFS + ((ICON_HEIGHT + 2) * gms->row)
+	gms->flash_rect.corner.x = PICK_X_OFFS + ((ICON_X_SHIFT + 2) * gms->col);
+	gms->flash_rect.corner.y = PICK_Y_OFFS + ((ICON_Y_SHIFT + 2) * gms->row)
 			+ ((1 - gms->which_player) * PICK_SIDE_OFFS);
 	SetFlashRect (&gms->flash_rect, (FRAME)0);
 	UnlockMutex (GraphicsLock);
@@ -353,9 +353,9 @@ GetMeleeStarShip (STARSHIPPTR LastStarShipPtr, COUNT which_player)
 
 				gmstate.col = LastStarShipPtr->ShipFacing;
 				s.origin.x = 3
-					+ ((ICON_WIDTH + 2) * (gmstate.col % NUM_MELEE_COLS_ORIG));
+					+ ((ICON_X_SHIFT + 2) * (gmstate.col % NUM_MELEE_COLS_ORIG));
 				s.origin.y = 9
-					+ ((ICON_HEIGHT + 2) * (gmstate.col / NUM_MELEE_COLS_ORIG));
+					+ ((ICON_Y_SHIFT + 2) * (gmstate.col / NUM_MELEE_COLS_ORIG));
 				s.frame = SetAbsFrameIndex (StatusFrame, 3);
 				DrawStamp (&s);
 				s.frame = SetAbsFrameIndex (PickMeleeFrame, which_player);

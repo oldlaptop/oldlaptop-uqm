@@ -2093,8 +2093,8 @@ BuildAndDrawShipList (PMELEE_STATE pMS)
 
 				row = GetShipRow (index);
 				col = GetShipColumn (index);
-				s.origin.x = 4 + ((ICON_WIDTH + 2) * col);
-				s.origin.y = 10 + ((ICON_HEIGHT + 2) * row);
+				s.origin.x = 4 + ((ICON_X_SHIFT + 2) * col);
+				s.origin.y = 10 + ((ICON_Y_SHIFT + 2) * row);
 				s.frame = StarShipPtr->RaceDescPtr->ship_info.icons;
 				DrawStamp (&s);
 
@@ -2651,8 +2651,8 @@ InitPreBuilt (PMELEE_STATE pMS)
 		FleetShipIndex i = 0;
 		utf8StringCopy (pMS->PreBuiltList[0].TeamName,
 				sizeof (pMS->PreBuiltList[0].TeamName),
-				/*GAME_STRING (MELEE_STRING_BASE + 4)*/ "14 ships random team");
-		for(f=0; f<14; ++f)
+				/*GAME_STRING (MELEE_STRING_BASE + 4)*/ "all ships random");
+		for(f=0; f<MELEE_FLEET_SIZE; ++f)
 		{
 			pMS->PreBuiltList[0].ShipList[i++] = TFB_Random() % NUM_MELEE_SHIPS;
 		}
@@ -2665,32 +2665,40 @@ InitPreBuilt (PMELEE_STATE pMS)
 		FleetShipIndex i = 0;
 		utf8StringCopy (pMS->PreBuiltList[1].TeamName,
 				sizeof (pMS->PreBuiltList[1].TeamName),
-				/*GAME_STRING (MELEE_STRING_BASE + 5)*/ "14 ships no dupes random team");
-
-		do
+				/*GAME_STRING (MELEE_STRING_BASE + 5)*/ "all ships random no dupes");
+		if(MELEE_FLEET_SIZE >= NUM_MELEE_SHIPS)
 		{
-			COUNT q;
-			success = true;
-			i = 0;
-			for(f=0; f<14; ++f)
+			for(f=0; f<NUM_MELEE_SHIPS; ++f)
 			{
-				pMS->PreBuiltList[1].ShipList[i++] = TFB_Random() % NUM_MELEE_SHIPS;
+				pMS->PreBuiltList[1].ShipList[i++] = f;
 			}
-
-			for(f=0; f<14; ++f)
+		}
+		else
+		{
+			do
 			{
-				for(q=0; q<14; ++q)
-				{
-					if(q != f && pMS->PreBuiltList[1].ShipList[f] == pMS->PreBuiltList[1].ShipList[q])
+				COUNT q;
+				success = true;
+				i = 0;
+				for(f=0; f<MELEE_FLEET_SIZE; ++f)
 					{
-						success = false;
+					pMS->PreBuiltList[1].ShipList[i++] = TFB_Random() % NUM_MELEE_SHIPS;
+				}
+	
+				for(f=0; f<MELEE_FLEET_SIZE; ++f)
+				{
+					for(q=0; q<MELEE_FLEET_SIZE; ++q)
+					{
+						if(q != f && pMS->PreBuiltList[1].ShipList[f] == pMS->PreBuiltList[1].ShipList[q])
+						{
+							success = false;
+						}
 					}
 				}
 			}
+			while(!success);
 		}
-		while(!success);
 	}
-
 	{
 		/* "200 points" */
 		FleetShipIndex i = 0;

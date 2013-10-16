@@ -33,7 +33,7 @@
 #define SCOUT_MAX_THRUST 35
 #define THRUST_INCREMENT 5
 #define SCOUT_THRUST_INCREMENT 5
-#define TURN_WAIT 6 //1
+#define TURN_WAIT 4 //1
 #define THRUST_WAIT 2 //0
 #define WEAPON_WAIT 0 //3
 #define SPECIAL_WAIT 18 //0
@@ -523,14 +523,15 @@ shofixti_postprocess (PELEMENT ElementPtr)
 	
 	//shofixti reproduce fast ;)
 	{
-		COUNT i;
+		/*COUNT i;
 		for(i = 0; i < (ElementPtr->crew_level / 2); ++i)
 		{
 			if(!(TFB_Random() & 127))
 			{
 				DeltaCrew(ElementPtr, 1);
 			}
-		}
+		}*/
+		if(!(TFB_Random() & 15))DeltaCrew(ElementPtr, 1);
 	}
 }
 
