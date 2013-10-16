@@ -279,7 +279,7 @@ DrawCaptainsWindow (STARSHIPPTR StarShipPtr)
 }
 
 BOOLEAN
-DeltaEnergy (ELEMENTPTR ElementPtr, SIZE energy_delta)
+CleanDeltaEnergy (ELEMENTPTR ElementPtr, SIZE energy_delta)
 {
 	BOOLEAN retval;
 	STARSHIPPTR StarShipPtr;
@@ -309,12 +309,21 @@ DeltaEnergy (ELEMENTPTR ElementPtr, SIZE energy_delta)
 	else
 	{
 		StarShipPtr->cur_status_flags &= ~LOW_ON_ENERGY;
-		StarShipPtr->energy_counter =
-				StarShipPtr->RaceDescPtr->characteristics.energy_wait;
 
 		DeltaStatistics (StarShipPtr, 0, energy_delta);
 	}
 
+	return (retval);
+}
+
+BOOLEAN
+DeltaEnergy (ELEMENTPTR ElementPtr, SIZE energy_delta)
+{
+	BOOLEAN retval;
+	STARSHIPPTR StarShipPtr;
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	retval = CleanDeltaEnergy(ElementPtr, energy_delta);
+	if(retval)StarShipPtr->energy_counter = StarShipPtr->RaceDescPtr->characteristics.energy_wait;
 	return (retval);
 }
 

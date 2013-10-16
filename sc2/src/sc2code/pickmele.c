@@ -78,7 +78,7 @@ MeleeShipByQueueIndex (const QUEUE *queue, COUNT index)
 			break;
 		}
 		hNextShip = _GetSuccLink (StarShipPtr);
-		UnlockStarShip (queue, ship);
+		UnlockStarShip (queue, hShip); //ship);
 	}
 
 	return hShip;

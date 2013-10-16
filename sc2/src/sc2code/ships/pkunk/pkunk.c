@@ -34,7 +34,7 @@
 #define TURN_WAIT 0
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 0
-#define SPECIAL_WAIT 16
+#define SPECIAL_WAIT 1 //16
 
 #define SHIP_MASS 1
 #define MISSILE_SPEED DISPLAY_TO_WORLD (24)

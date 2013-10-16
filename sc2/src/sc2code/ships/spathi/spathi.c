@@ -23,14 +23,14 @@
 #define MAX_ENERGY 10
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST MAX_ENERGY //2
-#define SPECIAL_ENERGY_COST 1 //3
+#define SPECIAL_ENERGY_COST 2 //3
 #define ENERGY_WAIT 10
 #define MAX_THRUST 48
 #define THRUST_INCREMENT 12
 #define TURN_WAIT 1
 #define THRUST_WAIT 1
 #define WEAPON_WAIT 2 //0 (needs to be more than 0 so I can check whether you've just fired)
-#define SPECIAL_WAIT 4 //7
+#define SPECIAL_WAIT 18 //7
 
 #define SHIP_MASS 5
 #define MISSILE_SPEED DISPLAY_TO_WORLD (30)
@@ -103,7 +103,7 @@ static RACE_DESC spathi_desc =
 	0,
 };
 
-#define DISCRIMINATOR_SPEED DISPLAY_TO_WORLD (8)
+#define DISCRIMINATOR_SPEED DISPLAY_TO_WORLD (16) //(8)
 #define TRACK_WAIT 1
 
 static void
@@ -114,9 +114,67 @@ butt_missile_preprocess (PELEMENT ElementPtr)
 	else
 	{
 		COUNT facing;
+		COUNT num_frames;
+		SIZE delta_x, delta_y, delta_facing;
+		ELEMENTPTR EnemyPtr;
 
 		facing = GetFrameIndex (ElementPtr->next.image.frame);
-		if (TrackShip (ElementPtr, &facing) > 0)
+		/*if (TrackShip (ElementPtr, &facing) > 0)
+		{
+			ElementPtr->next.image.frame =
+					SetAbsFrameIndex (ElementPtr->next.image.frame,
+					facing);
+			ElementPtr->state_flags |= CHANGING;
+	
+			SetVelocityVector (&ElementPtr->velocity,
+					DISCRIMINATOR_SPEED, facing);
+		}*/
+		
+		if(ElementPtr->hTarget)
+		{
+			LockElement (ElementPtr->hTarget, &EnemyPtr);
+			delta_x = EnemyPtr->current.location.x
+					- ElementPtr->current.location.x;
+			delta_x = WRAP_DELTA_X (delta_x);
+			delta_y = EnemyPtr->current.location.y
+					- ElementPtr->current.location.y;
+			delta_y = WRAP_DELTA_Y (delta_y);
+	
+			num_frames = (square_root ((long)delta_x * delta_x
+					+ (long)delta_y * delta_y)) / DISCRIMINATOR_SPEED;
+			if (num_frames == 0)
+				num_frames = 1;
+	
+			GetNextVelocityComponents (&EnemyPtr->velocity,
+					&delta_x, &delta_y, num_frames);
+	
+			delta_x = (EnemyPtr->current.location.x + (delta_x / 2))
+					- ElementPtr->current.location.x;
+			delta_y = (EnemyPtr->current.location.y + (delta_y / 2))
+					- ElementPtr->current.location.y;
+	
+			delta_facing = NORMALIZE_FACING (
+					ANGLE_TO_FACING (ARCTAN (delta_x, delta_y)) - facing);
+	
+			if (delta_facing > 0)
+			{
+				if (delta_facing == ANGLE_TO_FACING (HALF_CIRCLE))
+					facing += (((BYTE)TFB_Random () & 1) << 1) - 1;
+				else if (delta_facing < ANGLE_TO_FACING (HALF_CIRCLE))
+					++facing;
+				else
+					--facing;
+			}
+	
+			ElementPtr->next.image.frame =
+					SetAbsFrameIndex (ElementPtr->next.image.frame,
+					facing);
+			ElementPtr->state_flags |= CHANGING;
+	
+			SetVelocityVector (&ElementPtr->velocity,
+					DISCRIMINATOR_SPEED, facing);
+		}
+		else if (TrackShip (ElementPtr, &facing) > 0)
 		{
 			ElementPtr->next.image.frame =
 					SetAbsFrameIndex (ElementPtr->next.image.frame,
@@ -137,7 +195,7 @@ spawn_butt_missile (PELEMENT ShipPtr)
 #define SPATHI_REAR_OFFSET 20
 #define DISCRIMINATOR_LIFE 30
 #define DISCRIMINATOR_HITS 1
-#define DISCRIMINATOR_DAMAGE 2
+#define DISCRIMINATOR_DAMAGE 3 //2
 #define DISCRIMINATOR_OFFSET 4
 	HELEMENT ButtMissile;
 	STARSHIPPTR StarShipPtr;
@@ -232,8 +290,8 @@ spathi_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Co
 MISSILE_BLOCK setup_for_one_primary_shot(PELEMENT ShipPtr)
 {
 #define SPATHI_FORWARD_OFFSET 16
-#define MISSILE_HITS 1
-#define MISSILE_DAMAGE 2
+#define MISSILE_HITS 3 //1
+#define MISSILE_DAMAGE 2 //1
 #define MISSILE_OFFSET 1
 #define NUM_MISSILES 12
 	STARSHIPPTR StarShipPtr;
@@ -249,15 +307,31 @@ MISSILE_BLOCK setup_for_one_primary_shot(PELEMENT ShipPtr)
 	MissileBlock.preprocess_func = NULL_PTR;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 
-	MissileBlock.cx = ShipPtr->next.location.x + COSINE (StarShipPtr->ShipFacing, (COUNT)TFB_Random() % 281 - 140);
-	MissileBlock.cy = ShipPtr->next.location.y + SINE (StarShipPtr->ShipFacing, (COUNT)TFB_Random() % 281 - 140);
+	MissileBlock.cx = ShipPtr->next.location.x + COSINE (FACING_TO_ANGLE (StarShipPtr->ShipFacing + 4), (COUNT)TFB_Random() % 221 - 110);
+	MissileBlock.cy = ShipPtr->next.location.y + SINE (FACING_TO_ANGLE (StarShipPtr->ShipFacing + 4), (COUNT)TFB_Random() % 221 - 110);
 
-	MissileBlock.face = MissileBlock.index = NORMALIZE_FACING (StarShipPtr->ShipFacing + (COUNT)TFB_Random() % 3 - 1);
+	//MissileBlock.face = MissileBlock.index = NORMALIZE_FACING (StarShipPtr->ShipFacing + (COUNT)TFB_Random() % 3 - 1);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
 
-	MissileBlock.speed = MISSILE_SPEED + TFB_Random() % 41 - 20;
+	MissileBlock.speed = MISSILE_SPEED + ((COUNT)TFB_Random() % ((DISPLAY_TO_WORLD(20) + 1))) - DISPLAY_TO_WORLD(10);
 	MissileBlock.life = MISSILE_LIFE + TFB_Random() % 17 - 8;
 
 	return MissileBlock;
+}
+
+static void
+fix_one_primary_shot(PELEMENT MissilePtr)
+{
+	SIZE angle, dx, dy, speed;
+
+	angle = GetVelocityTravelAngle (&MissilePtr->velocity);
+	GetCurrentVelocityComponents(&MissilePtr->velocity, &dx, &dy);
+
+	speed = square_root (dx*dx + dy*dy);
+
+	angle += ((COUNT)TFB_Random() % 9) - 4;
+
+	SetVelocityComponents(&MissilePtr->velocity, COSINE(angle, speed), SINE(angle, speed));
 }
 
 #define NUM_MISSILES 12
@@ -285,6 +359,9 @@ make_extra_missiles (PELEMENT ShipPtr)
 			SetElementStarShip (MissilePtr, StarShipPtr);
 			MissilePtr->hTarget = 0;
 			MissilePtr->turn_wait = 0;
+
+			fix_one_primary_shot(MissilePtr);
+
 			UnlockElement (hMissile);
 			PutElement (hMissile);
 		}
@@ -321,6 +398,17 @@ initialize_standard_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 		MissileBlock = setup_for_one_primary_shot(ShipPtr);
 
 		MissileArray[i] = initialize_missile (&MissileBlock);
+		
+		if (MissileArray[i])
+		{
+			ELEMENTPTR MissilePtr;
+
+			LockElement (MissileArray[i], &MissilePtr);
+
+			fix_one_primary_shot(MissilePtr);
+
+			UnlockElement (MissileArray[i]);
+		}
 	}
 
 	return (NUM_MISSILES / 2);
@@ -334,7 +422,7 @@ spathi_postprocess (PELEMENT ElementPtr)
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if ((StarShipPtr->cur_status_flags & SPECIAL)
 			&& StarShipPtr->special_counter == 0
-			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+			&& CleanDeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{
 		spawn_butt_missile (ElementPtr);
 

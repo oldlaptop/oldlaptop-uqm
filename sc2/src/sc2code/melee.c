@@ -1059,6 +1059,8 @@ LoadTeamImage (DIRENTRY DirEntry, TEAM_IMAGE* pTI,
 	return status;
 }
 
+static void InitPreBuilt (PMELEE_STATE pMS);
+
 static void
 DrawFileStrings (PMELEE_STATE pMS, int HiLiteState)
 {
@@ -1136,7 +1138,10 @@ DrawFileStrings (PMELEE_STATE pMS, int HiLiteState)
 				STAMP s;
 
 				if (++bot < NUM_PREBUILT)
+				{
 					pMS->FileList[bot - top] = pMS->PreBuiltList[bot];
+					InitPreBuilt(pMS);
+				}
 				else
 				{
 					pMS->TeamDE = SetAbsDirEntryTableIndex (
@@ -2642,38 +2647,48 @@ InitPreBuilt (PMELEE_STATE pMS)
 
 	{
 		/* "Balanced Team 1" */
+		COUNT f;
 		FleetShipIndex i = 0;
 		utf8StringCopy (pMS->PreBuiltList[0].TeamName,
 				sizeof (pMS->PreBuiltList[0].TeamName),
-				GAME_STRING (MELEE_STRING_BASE + 4));
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_ANDROSYNTH;
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_CHMMR;
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_DRUUGE;
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_URQUAN;
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_MELNORME;
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_ORZ;
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_SPATHI;
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_SYREEN;
-		pMS->PreBuiltList[0].ShipList[i++] = MELEE_UTWIG;
+				/*GAME_STRING (MELEE_STRING_BASE + 4)*/ "14 ships random team");
+		for(f=0; f<14; ++f)
+		{
+			pMS->PreBuiltList[0].ShipList[i++] = TFB_Random() % NUM_MELEE_SHIPS;
+		}
 	}
 
 	{
 		/* "Balanced Team 2" */
+		COUNT f;
+		BOOLEAN success;
 		FleetShipIndex i = 0;
 		utf8StringCopy (pMS->PreBuiltList[1].TeamName,
 				sizeof (pMS->PreBuiltList[1].TeamName),
-				GAME_STRING (MELEE_STRING_BASE + 5));
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_ARILOU;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_CHENJESU;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_EARTHLING;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_KOHR_AH;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_MYCON;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_YEHAT;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_PKUNK;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_SUPOX;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_THRADDASH;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_ZOQFOTPIK;
-		pMS->PreBuiltList[1].ShipList[i++] = MELEE_SHOFIXTI;
+				/*GAME_STRING (MELEE_STRING_BASE + 5)*/ "14 ships no dupes random team");
+
+		do
+		{
+			COUNT q;
+			success = true;
+			i = 0;
+			for(f=0; f<14; ++f)
+			{
+				pMS->PreBuiltList[1].ShipList[i++] = TFB_Random() % NUM_MELEE_SHIPS;
+			}
+
+			for(f=0; f<14; ++f)
+			{
+				for(q=0; q<14; ++q)
+				{
+					if(q != f && pMS->PreBuiltList[1].ShipList[f] == pMS->PreBuiltList[1].ShipList[q])
+					{
+						success = false;
+					}
+				}
+			}
+		}
+		while(!success);
 	}
 
 	{

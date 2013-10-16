@@ -41,7 +41,7 @@ static RACE_DESC androsynth_desc =
 {
 	{
 		FIRES_FORE | SEEKING_WEAPON,
-		25, /* Super Melee cost */
+		18, /* Super Melee cost */
 		~0, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -231,13 +231,13 @@ initialize_androsynth_laser (PELEMENT ShipPtr, HELEMENT LaserArray[])
 			| IGNORE_SIMILAR;
 	LaserBlock.pixoffs = ANDROSYNTH_OFFSET;
 	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x1F), 0x0F);
-	LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), 1000);
-	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), 1000);
+	LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), 1023);
+	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), 1023);
 
 	for(i = 0; i < 2; ++i)
 	{
-		LaserBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE (LaserBlock.face + 4), 38 * (i * 2 - 1));
-		LaserBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE (LaserBlock.face + 4), 38 * (i * 2 - 1));
+		LaserBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE (LaserBlock.face + 4), 34 * (i * 2 - 1));
+		LaserBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE (LaserBlock.face + 4), 34 * (i * 2 - 1));
 		LaserArray[i] = initialize_laser (&LaserBlock);
 	}
 	
@@ -358,25 +358,25 @@ androsynth_postprocess (PELEMENT ElementPtr)
 			/* take care of blazer effect */
 	if (ElementPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.special)
 	{
-		if(StarShipPtr->weapon_counter == 0)
+		/*if(StarShipPtr->weapon_counter == 0)
 		{
 			make_bubble(ElementPtr);
 			StarShipPtr->weapon_counter = 7;
-		}
-		else
+		}*/
+/*		else
 		{
 			--StarShipPtr->weapon_counter;
-		}
+		}*/
 
 #define BLAZER_DEGENERATION (-1)
-		if ((StarShipPtr->cur_status_flags & SPECIAL)
+		if (((StarShipPtr->cur_status_flags & SPECIAL) && !(StarShipPtr->old_status_flags & SPECIAL))
 				|| StarShipPtr->RaceDescPtr->ship_info.energy_level == 0)
 		{
 			StarShipPtr->RaceDescPtr->characteristics.energy_regeneration =
 					(BYTE)BLAZER_DEGENERATION;
 			StarShipPtr->energy_counter = ENERGY_WAIT;
 
-			if (StarShipPtr->cur_status_flags & SPECIAL)
+			if ((StarShipPtr->cur_status_flags & SPECIAL) && !(StarShipPtr->old_status_flags & SPECIAL))
 			{
 				ProcessSound (SetAbsSoundIndex (
 						StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1),
@@ -417,13 +417,13 @@ androsynth_preprocess (PELEMENT ElementPtr)
 	cur_status_flags = StarShipPtr->cur_status_flags;
 	if (ElementPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.ship)
 	{
-		if (cur_status_flags & SPECIAL)
+		if ((StarShipPtr->cur_status_flags & SPECIAL) && !(StarShipPtr->old_status_flags & SPECIAL))
 		{
 			if (StarShipPtr->RaceDescPtr->ship_info.energy_level < SPECIAL_ENERGY_COST)
 				DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST); /* so text will flash */
 			else
 			{
-				cur_status_flags &= ~WEAPON;
+				//cur_status_flags &= ~WEAPON;
 
 				ElementPtr->next.image.farray =
 						StarShipPtr->RaceDescPtr->ship_data.special;
@@ -436,7 +436,32 @@ androsynth_preprocess (PELEMENT ElementPtr)
 	}
 	else
 	{
-		cur_status_flags &= ~(THRUST | WEAPON | SPECIAL);
+		//cur_status_flags &= ~(THRUST | WEAPON | SPECIAL);
+		cur_status_flags &= ~WEAPON;
+
+		if(cur_status_flags & THRUST)
+		{
+			SIZE facing, delta_facing;
+			facing = StarShipPtr->ShipFacing;
+			delta_facing = TrackShip(ElementPtr, &facing);
+			if(delta_facing == -1 || delta_facing == 0)
+			{
+				cur_status_flags &= ~(LEFT | RIGHT);
+			}
+			else if(delta_facing < ANGLE_TO_FACING(HALF_CIRCLE)
+				|| (delta_facing == ANGLE_TO_FACING(HALF_CIRCLE) && (TFB_Random() & 1)))
+			{
+				cur_status_flags |= RIGHT;
+				cur_status_flags &= ~LEFT;
+			}
+			else
+			{
+				cur_status_flags |= LEFT;
+				cur_status_flags &= ~RIGHT;
+			}
+		}
+
+		cur_status_flags &= ~THRUST;
 
 					/* protection against vux */
 		if (StarShipPtr->RaceDescPtr->characteristics.turn_wait > BLAZER_TURN_WAIT)
@@ -447,7 +472,8 @@ androsynth_preprocess (PELEMENT ElementPtr)
 			StarShipPtr->RaceDescPtr->characteristics.turn_wait = BLAZER_TURN_WAIT;
 		}
 
-		if (StarShipPtr->RaceDescPtr->ship_info.energy_level == 0)
+		if (StarShipPtr->RaceDescPtr->ship_info.energy_level == 0
+			|| ((StarShipPtr->cur_status_flags & SPECIAL) && !(StarShipPtr->old_status_flags & SPECIAL)))
 		{
 			ZeroVelocityComponents (&ElementPtr->velocity);
 			cur_status_flags &= ~(LEFT | RIGHT

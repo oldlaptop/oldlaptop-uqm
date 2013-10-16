@@ -107,6 +107,74 @@ static RACE_DESC urquan_desc =
 	0,
 };
 
+#define MISSILE_TURN_WAIT 1
+
+static void
+fusion_return_preprocess (PELEMENT ElementPtr)
+{
+	if (ElementPtr->turn_wait > 0)
+		--ElementPtr->turn_wait;
+	else
+	{
+		COUNT facing;
+		STARSHIPPTR StarShipPtr;
+
+		GetElementStarShip (ElementPtr, &StarShipPtr);
+
+		facing = GetFrameIndex (ElementPtr->next.image.frame);
+		
+		ElementPtr->hTarget = StarShipPtr->hShip;
+		if(TrackShip (ElementPtr, &facing) > 0)
+		{
+			ElementPtr->next.image.frame =
+					SetAbsFrameIndex (ElementPtr->next.image.frame,
+					facing);
+			ElementPtr->state_flags |= CHANGING;
+		}
+
+		SetVelocityVector (&ElementPtr->velocity,
+				MISSILE_SPEED, facing);
+
+		ElementPtr->turn_wait = MISSILE_TURN_WAIT;
+	}
+}
+
+static void
+fusion_return_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	if ((ElementPtr1->state_flags & PLAYER_SHIP)
+		&& ((ElementPtr0->state_flags & (GOOD_GUY | BAD_GUY)) == (ElementPtr1->state_flags & (GOOD_GUY | BAD_GUY))))
+	{
+		CleanDeltaEnergy(ElementPtr1, WEAPON_ENERGY_COST);
+		ElementPtr0->state_flags |= DISAPPEARING | COLLISION;
+	}
+
+	if((ElementPtr0->state_flags & (GOOD_GUY | BAD_GUY)) != (ElementPtr1->state_flags & (GOOD_GUY | BAD_GUY))) weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+}
+
+static void
+fusion_preprocess (PELEMENT ElementPtr)
+{
+	if(ElementPtr->life_span == 1)
+	{
+		COUNT i;
+		SIZE dx, dy;
+		ElementPtr->next.image.frame = SetAbsFrameIndex(ElementPtr->next.image.frame, NORMALIZE_FACING(GetFrameIndex(ElementPtr->next.image.frame) + 8));
+		GetCurrentVelocityComponents(&ElementPtr->velocity, &dx, &dy);
+		SetVelocityComponents(&ElementPtr->velocity, -dx, -dy);
+		ElementPtr->life_span = MISSILE_LIFE * 2;
+		ElementPtr->preprocess_func = fusion_return_preprocess;
+		ElementPtr->state_flags &= ~IGNORE_SIMILAR;
+		ElementPtr->collision_func = fusion_return_collision;
+	}
+}
+
+static void
+fusion_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	if((ElementPtr0->state_flags & (GOOD_GUY | BAD_GUY)) != (ElementPtr1->state_flags & (GOOD_GUY | BAD_GUY))) weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+}
+
 static COUNT
 initialize_fusion (PELEMENT ShipPtr, HELEMENT FusionArray[])
 {
@@ -129,9 +197,18 @@ initialize_fusion (PELEMENT ShipPtr, HELEMENT FusionArray[])
 	MissileBlock.hit_points = MISSILE_HITS;
 	MissileBlock.damage = MISSILE_DAMAGE;
 	MissileBlock.life = MISSILE_LIFE;
-	MissileBlock.preprocess_func = NULL_PTR;
+	MissileBlock.preprocess_func = fusion_preprocess; //NULL_PTR;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 	FusionArray[0] = initialize_missile (&MissileBlock);
+
+	if(FusionArray[0])
+	{
+		ELEMENTPTR FusionPtr;
+		
+		LockElement (FusionArray[0], &FusionPtr);
+		FusionPtr->collision_func = fusion_collision;
+		UnlockElement (FusionArray[0]);
+	}
 
 	return (1);
 }
@@ -354,6 +431,10 @@ fighter_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOI
 		}
 
 		ElementPtr0->state_flags |= DISAPPEARING | COLLISION;
+	}
+	else if (ElementPtr1->preprocess_func == fusion_return_preprocess)
+	{
+		//no collision! nothing happens!
 	}
 	else if (ElementPtr0->pParent != ElementPtr1->pParent)
 	{

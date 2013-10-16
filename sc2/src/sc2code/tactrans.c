@@ -528,7 +528,7 @@ ship_death (PELEMENT ShipPtr)
 	ShipPtr->postprocess_func = PostProcessStatus;
 	ShipPtr->death_func = new_ship;
 	ShipPtr->hTarget = 0;
-	ZeroVelocityComponents (&((ELEMENTPTR)ShipPtr)->velocity);
+	//ZeroVelocityComponents (&((ELEMENTPTR)ShipPtr)->velocity);
 	if (ShipPtr->crew_level) /* only happens for shofixti self-destruct */
 	{
 

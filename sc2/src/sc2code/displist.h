@@ -21,7 +21,8 @@
 
 #include "memlib.h"
 
-#define QUEUE_TABLE
+//dynamically allocate elements by NOT defining this:
+//#define QUEUE_TABLE
 
 #ifdef QUEUE_TABLE
 typedef PVOID QUEUE_HANDLE;

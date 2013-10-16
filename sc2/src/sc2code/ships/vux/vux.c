@@ -225,23 +225,64 @@ spawn_limpets (PELEMENT ElementPtr)
 	}
 }
 
-static COUNT
-initialize_horrific_laser (PELEMENT ShipPtr, HELEMENT LaserArray[])
+static COUNT initialize_horrific_laser (PELEMENT ElementPtr, HELEMENT
+		LaserArray[]);
+
+static void
+horrific_laser_postprocess (PELEMENT ElementPtr)
 {
+	if (ElementPtr->turn_wait
+			&& !(ElementPtr->state_flags & COLLISION))
+	{
+		HELEMENT Laser;
+
+		initialize_horrific_laser (ElementPtr, &Laser);
+		if (Laser)
+			PutElement (Laser);
+	}
+}
+
+static void
+horrific_laser_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	ElementPtr0->turn_wait = 0;
+	weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+}
+
+
+static COUNT
+initialize_horrific_laser (PELEMENT ElementPtr, HELEMENT LaserArray[])
+{
+	BOOLEAN isFirstSegment;
 	STARSHIPPTR StarShipPtr;
 	LASER_BLOCK LaserBlock;
 
-	GetElementStarShip (ShipPtr, &StarShipPtr);
+	isFirstSegment = (ElementPtr->state_flags & PLAYER_SHIP);
+	GetElementStarShip (ElementPtr, &StarShipPtr);
 	LaserBlock.face = StarShipPtr->ShipFacing;
-	LaserBlock.cx = ShipPtr->next.location.x;
-	LaserBlock.cy = ShipPtr->next.location.y;
-	LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
-	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
-	LaserBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+	LaserBlock.cx = ElementPtr->next.location.x;
+	LaserBlock.cy = ElementPtr->next.location.y;
+	LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), 1023);
+	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), 1023);
+	LaserBlock.sender = (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
 			| IGNORE_SIMILAR;
-	LaserBlock.pixoffs = VUX_OFFSET;
+	LaserBlock.pixoffs = isFirstSegment ? VUX_OFFSET : 0;
 	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x0A, 0x1F, 0x0A), 0x0A);
 	LaserArray[0] = initialize_laser (&LaserBlock);
+
+	if(LaserArray[0])
+	{
+		ELEMENTPTR LaserPtr;
+		
+		LockElement(LaserArray[0], &LaserPtr);
+
+		SetElementStarShip (LaserPtr, StarShipPtr);
+		LaserPtr->postprocess_func = horrific_laser_postprocess;
+		LaserPtr->collision_func = horrific_laser_collision;
+		LaserPtr->turn_wait = isFirstSegment ? 25 : ElementPtr->turn_wait - 1;
+
+		UnlockElement(LaserArray[0]);
+	}
 
 	return (1);
 }
@@ -290,7 +331,7 @@ vux_postprocess (PELEMENT ElementPtr)
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if ((StarShipPtr->cur_status_flags & SPECIAL)
 			&& StarShipPtr->special_counter == 0
-			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+			/*&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST)*/)
 	{
 		ProcessSound (SetAbsSoundIndex (
 						/* LAUNCH_LIMPET */
@@ -315,6 +356,7 @@ vux_preprocess (PELEMENT ElementPtr)
 		if (LOBYTE (GLOBAL (CurrentActivity)) != IN_ENCOUNTER
 				&& TrackShip (ElementPtr, &facing) >= 0)
 		{
+			SIZE distance;
 			ELEMENTPTR OtherShipPtr;
 
 			LockElement (ElementPtr->hTarget, &OtherShipPtr);
@@ -327,7 +369,7 @@ vux_preprocess (PELEMENT ElementPtr)
 				// But in reality this should be relative to the laser-range
 #define MAXX_ENTRY_DIST DISPLAY_TO_WORLD ((LASER_BASE + VUX_OFFSET + WARP_OFFSET) << 1)
 #define MAXY_ENTRY_DIST DISPLAY_TO_WORLD ((LASER_BASE + VUX_OFFSET + WARP_OFFSET) << 1)
-				SIZE dx, dy;
+				/*SIZE dx, dy;
 
 				ElementPtr->current.location.x =
 						(OtherShipPtr->current.location.x -
@@ -351,9 +393,28 @@ vux_preprocess (PELEMENT ElementPtr)
 				ElementPtr->current.location.x =
 						WRAP_X (DISPLAY_ALIGN (ElementPtr->current.location.x));
 				ElementPtr->current.location.y =
-						WRAP_Y (DISPLAY_ALIGN (ElementPtr->current.location.y));
-			} while (CalculateGravity (ElementPtr)
-					|| TimeSpaceMatterConflict (ElementPtr));
+						WRAP_Y (DISPLAY_ALIGN (ElementPtr->current.location.y));*/
+				SIZE dx, dy;
+
+				ElementPtr->current.location.x =
+						WRAP_X (DISPLAY_ALIGN_X (TFB_Random ()));
+				ElementPtr->current.location.y =
+						WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
+
+				dx = WRAP_DELTA_X(OtherShipPtr->current.location.x -
+						ElementPtr->current.location.x);
+				dy = WRAP_DELTA_Y(OtherShipPtr->current.location.y -
+						ElementPtr->current.location.y);
+				distance = square_root (dx*dx + dy*dy);
+
+				facing = NORMALIZE_FACING (
+						ANGLE_TO_FACING (ARCTAN (-dx, -dy))
+						);
+				ElementPtr->current.image.frame =
+						SetAbsFrameIndex (ElementPtr->current.image.frame,
+						facing);
+			} while ((CalculateGravity (ElementPtr)
+					|| TimeSpaceMatterConflict (ElementPtr)) && distance > DISPLAY_TO_WORLD(700));
 
 			UnlockElement (ElementPtr->hTarget);
 			ElementPtr->hTarget = 0;
