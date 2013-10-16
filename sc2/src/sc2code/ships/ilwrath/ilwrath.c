@@ -44,7 +44,7 @@ static RACE_DESC ilwrath_desc =
 {
 	{
 		FIRES_FORE,
-		44, /* Super Melee cost */
+		41, /* Super Melee cost */
 		1410 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

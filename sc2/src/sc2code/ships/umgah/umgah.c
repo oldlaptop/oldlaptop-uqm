@@ -43,7 +43,7 @@ static RACE_DESC umgah_desc =
 {
 	{
 		FIRES_FORE | IMMEDIATE_WEAPON,
-		16, /* Super Melee cost */
+		26, /* Super Melee cost */
 		833 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

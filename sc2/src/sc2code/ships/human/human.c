@@ -28,12 +28,12 @@
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 9
 #define SPECIAL_ENERGY_COST 0 //4
-#define ENERGY_WAIT 2 //8
+#define ENERGY_WAIT 8
 #define MAX_THRUST /* DISPLAY_TO_WORLD (6) */ 24
 #define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 3
 #define TURN_WAIT 1
 #define THRUST_WAIT 4
-#define WEAPON_WAIT 4 //2 //10
+#define WEAPON_WAIT 10
 #define SPECIAL_WAIT 2 //0 //9
 
 #define SHIP_MASS 6
@@ -139,7 +139,7 @@ nuke_preprocess (PELEMENT ElementPtr)
 		if ((speed = MISSILE_SPEED +
 				((MISSILE_LIFE - ElementPtr->life_span) *
 				THRUST_SCALE)) > MAX_MISSILE_SPEED)
-			speed = MAX_MISSILE_SPEED;
+			/*speed = MAX_MISSILE_SPEED*/;
 		SetVelocityVector (&ElementPtr->velocity,
 				speed, facing);
 	}
@@ -215,8 +215,8 @@ spawn_point_defense (PELEMENT ElementPtr)
 
 					if (!PaidFor)
 					{
-						if (!DeltaEnergy (ShipPtr, -SPECIAL_ENERGY_COST))
-							break;
+						//if (!DeltaEnergy (ShipPtr, -SPECIAL_ENERGY_COST))
+						//	break;
 
 						ProcessSound (SetAbsSoundIndex (
 										/* POINT_DEFENSE_LASER */
@@ -329,7 +329,8 @@ human_postprocess (PELEMENT ElementPtr)
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& StarShipPtr->special_counter == 0)
+			&& StarShipPtr->special_counter == 0
+			&& StarShipPtr->weapon_counter == 0)
 	{
 		spawn_point_defense (ElementPtr);
 	}

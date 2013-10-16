@@ -228,19 +228,22 @@ initialize_standard_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.cx = ShipPtr->next.location.x;
 	MissileBlock.cy = ShipPtr->next.location.y;
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
-	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + (TFB_Random() & 1) - (TFB_Random() & 1);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
 			| IGNORE_SIMILAR;
 	MissileBlock.pixoffs = 15;
 	MissileBlock.speed = DISPLAY_TO_WORLD(24);
 	MissileBlock.hit_points = 1;
-	MissileBlock.damage = 1;
+	MissileBlock.damage = 2;
 	MissileBlock.life = 10;
 	MissileBlock.preprocess_func = NULL_PTR;
 	MissileBlock.blast_offs = 1;
-	MissileArray[0] = initialize_missile (&MissileBlock);
 
-	return (1);
+	MissileArray[0] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + (((TFB_Random() & 1) << 1) - 1);
+	MissileArray[1] = initialize_missile (&MissileBlock);
+
+	return (2);
 }
 
 static void
@@ -537,7 +540,7 @@ shofixti_postprocess (PELEMENT ElementPtr)
 				DeltaCrew(ElementPtr, 1);
 			}
 		}*/
-		if(!(TFB_Random() & 15))DeltaCrew(ElementPtr, 1);
+		if(!(TFB_Random() & 31))DeltaCrew(ElementPtr, 1);
 	}
 }
 

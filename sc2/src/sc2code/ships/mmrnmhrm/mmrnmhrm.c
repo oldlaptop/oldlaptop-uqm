@@ -56,7 +56,7 @@ static RACE_DESC mmrnmhrm_desc =
 {
 	{
 		FIRES_FORE | IMMEDIATE_WEAPON,
-		37, /* Super Melee cost */
+		32, /* Super Melee cost */
 		0 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

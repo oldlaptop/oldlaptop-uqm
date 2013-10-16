@@ -47,7 +47,7 @@ static RACE_DESC syreen_desc =
 {
 	{
 		FIRES_FORE,
-		39, /* Super Melee cost */
+		42, /* Super Melee cost */
 		0 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, SYREEN_MAX_CREW_SIZE,
 		MAX_ENERGY, MAX_ENERGY,

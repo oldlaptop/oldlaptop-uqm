@@ -46,7 +46,7 @@ static RACE_DESC orz_desc =
 {
 	{
 		FIRES_FORE | SEEKING_SPECIAL,
-		40, /* Super Melee cost */
+		43, /* Super Melee cost */
 		333 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

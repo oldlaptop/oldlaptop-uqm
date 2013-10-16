@@ -24,6 +24,7 @@
 #include "weapon.h"
 #include "libs/mathlib.h"
 #include "colors.h"
+#include "intel.h"
 
 #define PLANET_RESPAWN_WAIT 48
 static COUNT planet_respawn_wait = 0;
@@ -212,7 +213,24 @@ asteroid_preprocess (PELEMENT ElementPtr)
 		{
 			LockElement (hShip, &Victim);
 			hNextShip = GetSuccElement (Victim);
-			if (Victim->state_flags & PLAYER_SHIP)
+			if
+			(
+				Victim->state_flags & PLAYER_SHIP
+				&& !
+				(
+					(
+						Victim->state_flags & GOOD_GUY
+						&&
+						PlayerControl[0] & CYBORG_CONTROL
+					)
+					||
+					(
+						Victim->state_flags & BAD_GUY
+						&&
+						PlayerControl[1] & CYBORG_CONTROL
+					)
+				)
+			)
 			{
 				if(
 					(passed_a_ship

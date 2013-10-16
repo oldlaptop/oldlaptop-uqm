@@ -498,7 +498,7 @@ PELEMENT ElementPtr;
 	{
 		ELEMENTPTR PhoenixPtr;
 
-		if (((BYTE)TFB_Random () & 1)
+		if ((/*(BYTE)TFB_Random () & 1*/ StarShipPtr->RaceDescPtr->characteristics.energy_wait == 0)
 				&& (hPhoenix = AllocElement ()))
 		{
 
@@ -514,6 +514,8 @@ PELEMENT ElementPtr;
 
 			UnlockElement (hPhoenix);
 			InsertElement (hPhoenix, GetHeadElement ());
+
+			StarShipPtr->RaceDescPtr->characteristics.energy_wait = 1;
 		}
 
 		if (ElementPtr->hTarget == 0)

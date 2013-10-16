@@ -177,7 +177,7 @@ InitShips (void)
 			free_gravity_well ();
 		else
 		{
-#define NUM_ASTEROIDS 12 //5
+#define NUM_ASTEROIDS 10 //5
 			for (i = 0; i < NUM_ASTEROIDS; ++i)
 				spawn_asteroid (NULL_PTR);
 #define NUM_PLANETS 14 //1

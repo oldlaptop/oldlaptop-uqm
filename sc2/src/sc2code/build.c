@@ -362,7 +362,7 @@ NameCaptain (PQUEUE pQueue, STARSHIPPTR StarShipPtr)
 				BOOLEAN SameName;
 
 				if (LOBYTE (GLOBAL (CurrentActivity)) == SUPER_MELEE)
-					SameName = (BOOLEAN)(
+					SameName = (TFB_Random() & 15) && (BOOLEAN)(
 							name_index == TestShipPtr->captains_name_index
 							);
 				else

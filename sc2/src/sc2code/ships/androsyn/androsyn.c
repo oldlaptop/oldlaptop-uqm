@@ -41,7 +41,7 @@ static RACE_DESC androsynth_desc =
 {
 	{
 		FIRES_FORE | SEEKING_WEAPON,
-		18, /* Super Melee cost */
+		24, /* Super Melee cost */
 		~0, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
