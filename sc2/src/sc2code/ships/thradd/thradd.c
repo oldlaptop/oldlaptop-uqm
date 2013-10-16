@@ -44,7 +44,7 @@ static RACE_DESC thraddash_desc =
 {
 	{
 		FIRES_FORE,
-		30, /* Super Melee cost */
+		40, /* Super Melee cost */
 		833 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

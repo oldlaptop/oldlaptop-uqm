@@ -28,10 +28,10 @@
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 2 //5
 #define SPECIAL_ENERGY_COST 10 //20
-#define ENERGY_WAIT 6 //4
+#define ENERGY_WAIT 5 //4
 #define MAX_THRUST 56 //36
 #define THRUST_INCREMENT 24 //6
-#define TURN_WAIT 6 //4
+#define TURN_WAIT 5 //4
 #define THRUST_WAIT 4
 #define WEAPON_WAIT 0
 #define SPECIAL_WAIT 10 //20

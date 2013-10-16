@@ -349,9 +349,6 @@ DoBattle (BATTLE_STATE *bs)
 		if(found_a_pkunk)
 		{
 			real_frame_rate *= 2;
-#ifdef NETPLAY
-			battleFrameCount++;
-#endif
 		}
 		
 		SleepThreadUntil (bs->NextTime

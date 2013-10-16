@@ -285,8 +285,8 @@ CalcView (PPOINT pNewScrollPt, SIZE next_reduction,
 	dy = WRAP_DELTA_Y (dy);
 	if (ships_alive == 1)
 	{
-#define ORG_JUMP_X ((SIZE)DISPLAY_ALIGN(LOG_SPACE_WIDTH / 75))
-#define ORG_JUMP_Y ((SIZE)DISPLAY_ALIGN(LOG_SPACE_HEIGHT / 75))
+#define ORG_JUMP_X ((SIZE)DISPLAY_ALIGN(LOG_SPACE_WIDTH / 50 /*75*/))
+#define ORG_JUMP_Y ((SIZE)DISPLAY_ALIGN(LOG_SPACE_HEIGHT / 50 /*75*/))
 		if (dx > ORG_JUMP_X)
 			dx = ORG_JUMP_X;
 		else if (dx < -ORG_JUMP_X)

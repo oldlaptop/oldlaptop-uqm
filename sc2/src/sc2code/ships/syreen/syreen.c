@@ -28,14 +28,14 @@
 #define MAX_ENERGY 32 //16
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 1
-#define SPECIAL_ENERGY_COST 1 //5
+#define SPECIAL_ENERGY_COST 10 //1 //5
 #define ENERGY_WAIT 5 //6
 #define MAX_THRUST /* DISPLAY_TO_WORLD (8) */ 36
 #define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 9
 #define TURN_WAIT 1
 #define THRUST_WAIT 1
 #define WEAPON_WAIT 0 //8
-#define SPECIAL_WAIT 0 //20
+#define SPECIAL_WAIT 24 //more like SPECIAL_DURATION //0 //20
 
 #define SHIP_MASS 2
 #define MISSILE_SPEED DISPLAY_TO_WORLD (30)
@@ -541,7 +541,7 @@ syreen_postprocess (PELEMENT ElementPtr)
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 
-	if ((StarShipPtr->cur_status_flags & SPECIAL)
+	/*if ((StarShipPtr->cur_status_flags & SPECIAL)
 			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{
 #define SONG_WAIT 22
@@ -554,7 +554,20 @@ syreen_postprocess (PELEMENT ElementPtr)
 		}
 
 		compel_enemy(ElementPtr);
+	}*/
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& StarShipPtr->special_counter == 0
+			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		ProcessSound (SetAbsSoundIndex (
+						// SYREEN_SONG
+				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
+		StarShipPtr->special_counter = StarShipPtr->RaceDescPtr->characteristics.special_wait;
 	}
+	
+	if(StarShipPtr->special_counter)
+		compel_enemy(ElementPtr);
 }
 
 static COUNT syreen_present = 0;

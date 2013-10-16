@@ -380,7 +380,7 @@ mmrnmhrm_postprocess (PELEMENT ElementPtr)
 		DeltaEnergy (ElementPtr,
 				-StarShipPtr->RaceDescPtr->characteristics.special_energy_cost);
 
-		StarShipPtr->weapon_counter = 0;
+		//StarShipPtr->weapon_counter = 0;
 
 		t = otherwing_desc[WHICH_SIDE(ElementPtr->state_flags)];
 		otherwing_desc[WHICH_SIDE(ElementPtr->state_flags)] = StarShipPtr->RaceDescPtr->characteristics;
@@ -414,7 +414,7 @@ mmrnmhrm_postprocess (PELEMENT ElementPtr)
 
 		if(ElementPtr->thrust_wait > StarShipPtr->RaceDescPtr->characteristics.thrust_wait)ElementPtr->thrust_wait = StarShipPtr->RaceDescPtr->characteristics.thrust_wait;
 		if(ElementPtr->turn_wait > StarShipPtr->RaceDescPtr->characteristics.turn_wait)ElementPtr->turn_wait = StarShipPtr->RaceDescPtr->characteristics.turn_wait;
-		if(StarShipPtr->weapon_counter > StarShipPtr->RaceDescPtr->characteristics.weapon_wait)StarShipPtr->weapon_counter = StarShipPtr->RaceDescPtr->characteristics.weapon_wait;
+		if(StarShipPtr->weapon_counter > StarShipPtr->RaceDescPtr->characteristics.weapon_wait)StarShipPtr->weapon_counter = StarShipPtr->RaceDescPtr->characteristics.weapon_wait + 1;
 		if(StarShipPtr->special_counter > StarShipPtr->RaceDescPtr->characteristics.special_wait)StarShipPtr->special_counter = StarShipPtr->RaceDescPtr->characteristics.special_wait;
 	}
 }

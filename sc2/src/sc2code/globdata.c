@@ -309,7 +309,7 @@ InitSIS (void)
 
 	GLOBAL (CurrentActivity) = IN_INTERPLANETARY | START_INTERPLANETARY;
 
-	GLOBAL_SIS (ResUnits) = 0;
+	GLOBAL_SIS (ResUnits) = 1000000L; //0;
 	GLOBAL (CrewCost) = 3;
 	GLOBAL (FuelCost) = 20;
 	GLOBAL (ModuleCost[PLANET_LANDER]) = 500 / MODULE_COST_SCALE;

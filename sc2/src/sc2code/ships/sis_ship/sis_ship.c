@@ -781,13 +781,13 @@ InitDriveSlots (RACE_DESCPTR RaceDescPtr, const BYTE *DriveSlots) {
 		switch (DriveSlots[i])
 		{
 			case FUSION_THRUSTER:
-				RaceDescPtr->characteristics.max_thrust += 2;
+				RaceDescPtr->characteristics.max_thrust += 8; //2;
 				++RaceDescPtr->characteristics.thrust_wait;
 				break;
 		}
 	}
 	RaceDescPtr->characteristics.thrust_wait = (BYTE)(
-			THRUST_WAIT - (RaceDescPtr->characteristics.thrust_wait >> 1));
+			THRUST_WAIT - ((RaceDescPtr->characteristics.thrust_wait + 1) >> 1));
 	RaceDescPtr->characteristics.max_thrust =
 			((RaceDescPtr->characteristics.max_thrust /
 			RaceDescPtr->characteristics.thrust_increment) + 1)

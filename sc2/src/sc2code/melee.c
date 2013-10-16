@@ -1354,7 +1354,7 @@ GetNewList:
 
 		status = LoadTeamImage (pMS->TeamDE, &TI, file);
 
-		if (status == -1)
+		/*if (status == -1)
 		{
 			BOOLEAN deleteStatus;
 
@@ -1368,7 +1368,7 @@ GetNewList:
 				exit (EXIT_FAILURE);
 			}
 			goto GetNewList;
-		}
+		}*/
 
 		if (pbuf && stricmp (file, pbuf) == 0)
 		{
@@ -2653,7 +2653,7 @@ InitPreBuilt (PMELEE_STATE pMS)
 		FleetShipIndex i = 0;
 		utf8StringCopy (pMS->PreBuiltList[0].TeamName,
 				sizeof (pMS->PreBuiltList[0].TeamName),
-				/*GAME_STRING (MELEE_STRING_BASE + 4)*/ "all ships random");
+				/*GAME_STRING (MELEE_STRING_BASE + 4)*/ "All ships random");
 		for(f=0; f<MELEE_FLEET_SIZE; ++f)
 		{
 			pMS->PreBuiltList[0].ShipList[i++] = TFB_Random() % NUM_MELEE_SHIPS;
@@ -2667,7 +2667,7 @@ InitPreBuilt (PMELEE_STATE pMS)
 		FleetShipIndex i = 0;
 		utf8StringCopy (pMS->PreBuiltList[1].TeamName,
 				sizeof (pMS->PreBuiltList[1].TeamName),
-				/*GAME_STRING (MELEE_STRING_BASE + 5)*/ "all ships random no dupes");
+				/*GAME_STRING (MELEE_STRING_BASE + 5)*/ "One of each ship");
 		if(MELEE_FLEET_SIZE >= NUM_MELEE_SHIPS)
 		{
 			for(f=0; f<NUM_MELEE_SHIPS; ++f)
@@ -2860,6 +2860,8 @@ InitPreBuilt (PMELEE_STATE pMS)
 		utf8StringCopy (pMS->PreBuiltList[11].TeamName,
 				sizeof (pMS->PreBuiltList[11].TeamName),
 				"Old Alliance Ships");
+		while(i < 28)
+		{
 		pMS->PreBuiltList[11].ShipList[i++] = MELEE_ARILOU;
 		pMS->PreBuiltList[11].ShipList[i++] = MELEE_CHENJESU;
 		pMS->PreBuiltList[11].ShipList[i++] = MELEE_EARTHLING;
@@ -2867,6 +2869,7 @@ InitPreBuilt (PMELEE_STATE pMS)
 		pMS->PreBuiltList[11].ShipList[i++] = MELEE_SHOFIXTI;
 		pMS->PreBuiltList[11].ShipList[i++] = MELEE_SYREEN;
 		pMS->PreBuiltList[11].ShipList[i++] = MELEE_YEHAT;
+		}
 	}
 
 	{
@@ -2874,6 +2877,8 @@ InitPreBuilt (PMELEE_STATE pMS)
 		utf8StringCopy (pMS->PreBuiltList[12].TeamName,
 				sizeof (pMS->PreBuiltList[12].TeamName),
 				"Old Hierarchy Ships");
+		while(i < 28)
+		{
 		pMS->PreBuiltList[12].ShipList[i++] = MELEE_ANDROSYNTH;
 		pMS->PreBuiltList[12].ShipList[i++] = MELEE_ILWRATH;
 		pMS->PreBuiltList[12].ShipList[i++] = MELEE_MYCON;
@@ -2881,6 +2886,7 @@ InitPreBuilt (PMELEE_STATE pMS)
 		pMS->PreBuiltList[12].ShipList[i++] = MELEE_UMGAH;
 		pMS->PreBuiltList[12].ShipList[i++] = MELEE_URQUAN;
 		pMS->PreBuiltList[12].ShipList[i++] = MELEE_VUX;
+		}
 	}
 
 	{

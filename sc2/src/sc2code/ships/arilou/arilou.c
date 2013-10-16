@@ -180,6 +180,7 @@ spawn_magic_missile (PELEMENT ElementPtr)
 		{
 			ELEMENTPTR EnemyPtr;
 			COUNT num_frames;
+			COUNT e;
 			SIZE delta_x, delta_y;
 
 			LockElement (ElementPtr->hTarget, &EnemyPtr);
@@ -195,8 +196,20 @@ spawn_magic_missile (PELEMENT ElementPtr)
 			if (num_frames == 0)
 				num_frames = 1;
 	
-			GetNextVelocityComponents (&EnemyPtr->velocity,
-					&delta_x, &delta_y, num_frames);
+			//GetNextVelocityComponents (&EnemyPtr->velocity,
+			//		&delta_x, &delta_y, num_frames);
+	e = (COUNT)((COUNT)EnemyPtr->velocity.error.width +
+			((COUNT)EnemyPtr->velocity.fract.width * num_frames));
+	delta_x = (EnemyPtr->velocity.vector.width * num_frames)
+			+ ((SIZE)((SBYTE)LOBYTE (EnemyPtr->velocity.incr.width))
+			* (e >> VELOCITY_SHIFT));
+
+	e = (COUNT)((COUNT)EnemyPtr->velocity.error.height +
+			((COUNT)EnemyPtr->velocity.fract.height * num_frames));
+	delta_y = (EnemyPtr->velocity.vector.height * num_frames)
+			+ ((SIZE)((SBYTE)LOBYTE (EnemyPtr->velocity.incr.height))
+			* (e >> VELOCITY_SHIFT));
+
 	
 			delta_x = (EnemyPtr->next.location.x + (delta_x / 2))
 					- ElementPtr->next.location.x;

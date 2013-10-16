@@ -34,7 +34,7 @@
 
 #define SHIP_MASS 5
 #define MISSILE_SPEED DISPLAY_TO_WORLD (30)
-#define MISSILE_LIFE 20
+#define MISSILE_LIFE 20 //actually forever
 #define MISSILE_RANGE (MISSILE_SPEED * MISSILE_LIFE)
 
 static RACE_DESC druuge_desc =
@@ -143,6 +143,17 @@ cannon_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOIN
 	}
 }
 
+
+static void
+cannon_preprocess (PELEMENT ElementPtr)
+{
+	if(ElementPtr->life_span < (MISSILE_LIFE - 1))
+	{
+		++ElementPtr->life_span;
+		ElementPtr->state_flags &= ~IGNORE_SIMILAR;
+	}
+}
+
 static COUNT
 initialize_cannon (PELEMENT ShipPtr, HELEMENT CannonArray[])
 {
@@ -166,7 +177,7 @@ initialize_cannon (PELEMENT ShipPtr, HELEMENT CannonArray[])
 	MissileBlock.hit_points = MISSILE_HITS;
 	MissileBlock.damage = MISSILE_DAMAGE;
 	MissileBlock.life = MISSILE_LIFE;
-	MissileBlock.preprocess_func = NULL_PTR;
+	MissileBlock.preprocess_func = cannon_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 	CannonArray[0] = initialize_missile (&MissileBlock);
 

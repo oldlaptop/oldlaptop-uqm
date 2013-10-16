@@ -48,7 +48,7 @@ static RACE_DESC shofixti_desc =
 {
 	{
 		FIRES_FORE,
-		25, /* Super Melee cost */
+		34, /* Super Melee cost */
 		0 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
