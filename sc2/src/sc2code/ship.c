@@ -342,6 +342,9 @@ ship_postprocess (PELEMENT ElementPtr)
 	if (StarShipPtr->special_counter)
 		--StarShipPtr->special_counter;
 
+	if (StarShipPtr->planet_hit_counter)
+		--StarShipPtr->planet_hit_counter;
+
 	if (RDPtr->postprocess_func)
 		(*RDPtr->postprocess_func) (ElementPtr);
 
@@ -353,26 +356,34 @@ void
 collision (PELEMENT ElementPtr0, PPOINT pPt0,
 		PELEMENT ElementPtr1, PPOINT pPt1)
 {
+	STARSHIPPTR StarShipPtr;
+	GetElementStarShip(ElementPtr0, &StarShipPtr);
+
 	if (!(ElementPtr1->state_flags & FINITE_LIFE))
 	{
 		ElementPtr0->state_flags |= COLLISION;
 		if (GRAVITY_MASS (ElementPtr1->mass_points))
 		{
 			// Collision with a planet.
-			SIZE damage;
-			SIZE dx, dy;
+			if(!(ElementPtr0->state_flags & PLAYER_SHIP) || !(StarShipPtr->planet_hit_counter))
+			{
+				SIZE damage;
+				SIZE dx, dy;
 
-			GetCurrentVelocityComponents(&ElementPtr0->velocity, &dx, &dy);
+				GetCurrentVelocityComponents(&ElementPtr0->velocity, &dx, &dy);
 #define SPEED_PER_ONE_DAMAGE  WORLD_TO_VELOCITY (42)
-			damage = (ElementPtr0->hit_points >> 3) + (square_root((dx*dx) + (dy*dy)) / SPEED_PER_ONE_DAMAGE);
-			if (damage == 0)
-				damage = 1;
-			do_damage ((ELEMENTPTR)ElementPtr0, damage);
+				damage = (ElementPtr0->hit_points >> 3) + (square_root((dx*dx) + (dy*dy)) / SPEED_PER_ONE_DAMAGE);
+				if (damage == 0)
+					damage = 1;
+				do_damage ((ELEMENTPTR)ElementPtr0, damage);
+	
+				damage = TARGET_DAMAGED_FOR_1_PT + (damage >> 1);
+				if (damage > TARGET_DAMAGED_FOR_6_PLUS_PT)
+					damage = TARGET_DAMAGED_FOR_6_PLUS_PT;
+				ProcessSound (SetAbsSoundIndex (GameSounds, damage), ElementPtr0);
+			}
 
-			damage = TARGET_DAMAGED_FOR_1_PT + (damage >> 1);
-			if (damage > TARGET_DAMAGED_FOR_6_PLUS_PT)
-				damage = TARGET_DAMAGED_FOR_6_PLUS_PT;
-			ProcessSound (SetAbsSoundIndex (GameSounds, damage), ElementPtr0);
+			if(ElementPtr0->state_flags & PLAYER_SHIP)StarShipPtr->planet_hit_counter = 2;
 		}
 	}
 	(void) pPt0;  /* Satisfying compiler (unused parameter) */
@@ -413,6 +424,8 @@ spawn_ship (STARSHIPPTR StarShipPtr)
 	StarShipPtr->energy_counter = 0;
 	StarShipPtr->weapon_counter = 0;
 	StarShipPtr->special_counter = 0;
+
+	StarShipPtr->planet_hit_counter = 0;
 
 	hShip = StarShipPtr->hShip;
 	if (hShip == 0)

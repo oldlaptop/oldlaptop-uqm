@@ -267,6 +267,8 @@ typedef struct
 	BYTE special_counter;
 	BYTE energy_counter;
 
+	BYTE planet_hit_counter;
+
 	BYTE ship_input_state;
 	UWORD cur_status_flags _ALIGNED_ON(sizeof (UWORD));
 	UWORD old_status_flags _ALIGNED_ON(sizeof (UWORD));

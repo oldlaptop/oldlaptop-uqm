@@ -189,7 +189,7 @@ initialize_homing_laser (PELEMENT ElementPtr, HELEMENT LaserArray[])
 	LaserBlock.ey = SINE (isFirstSegment ? (FACING_TO_ANGLE (LaserBlock.face)) : NORMALIZE_ANGLE (angle + rotation), DISPLAY_TO_WORLD(8));
 	LaserBlock.sender = (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
 			| IGNORE_SIMILAR;
-	LaserBlock.pixoffs = /*isFirstSegment ? SYREEN_OFFSET : */0;
+	LaserBlock.pixoffs = 0;
 	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x07, 0x03), 0);
 	LaserArray[0] = initialize_laser (&LaserBlock);
 
@@ -214,128 +214,77 @@ initialize_homing_laser (PELEMENT ElementPtr, HELEMENT LaserArray[])
 static void
 compel_enemy (PELEMENT ElementPtr)
 {
-	HELEMENT original_target;
-	ELEMENTPTR EnemyElementPtr;
-	STARSHIPPTR EnemyStarShipPtr;
-	COUNT delta_facing, facing;
-
-	HELEMENT hShip, hNextShip;
-	BOOLEAN found_an_enemy = false;
-
-	for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+	if(ElementPtr->state_flags & PLAYER_SHIP)
 	{
-		LockElement (hShip, &EnemyElementPtr);
-		hNextShip = GetSuccElement (EnemyElementPtr);
-		if (EnemyElementPtr->state_flags & PLAYER_SHIP
-			&& (EnemyElementPtr->state_flags & (GOOD_GUY | BAD_GUY)) !=
-			(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY)))
+		HELEMENT hCompulsion;
+		hCompulsion = AllocElement ();
+		if(hCompulsion)
 		{
-			found_an_enemy = true;
-			break;
-		}
-	}
-
-	if(!found_an_enemy)return;
-
-	//LockElement (ElementPtr->hTarget, &EnemyElementPtr);
-	GetElementStarShip (EnemyElementPtr, &EnemyStarShipPtr);
-
-	EnemyStarShipPtr->ship_input_state |= THRUST;
-	EnemyStarShipPtr->ship_input_state &= ~(LEFT | RIGHT);
-
-	original_target = EnemyElementPtr->hTarget;
-	
-	facing = EnemyStarShipPtr->ShipFacing;
-	delta_facing = TrackShip (EnemyElementPtr, &facing);
-	if(delta_facing > 0 && delta_facing < 8)EnemyStarShipPtr->ship_input_state |= RIGHT;
-	else if(delta_facing > 8)EnemyStarShipPtr->ship_input_state |= LEFT;
-	else if(delta_facing == 8)EnemyStarShipPtr->ship_input_state |= (TFB_Random() & 1) ? LEFT : RIGHT;
-
-	EnemyElementPtr->hTarget = original_target;
-	//UnlockElement (ElementPtr->hTarget);
-}
-
-/*static void
-spawn_crew (PELEMENT ElementPtr)
-{
-	if (ElementPtr->state_flags & PLAYER_SHIP)
-	{
-		HELEMENT hCrew;
-
-		hCrew = AllocElement ();
-		if (hCrew != 0)
-		{
-			ELEMENTPTR CrewPtr;
-
-			LockElement (hCrew, &CrewPtr);
-			CrewPtr->next.location = ElementPtr->next.location;
-			CrewPtr->state_flags = APPEARING | NONSOLID | FINITE_LIFE
+			ELEMENTPTR ComPtr;
+			STARSHIPPTR StarShipPtr;
+			
+			LockElement (hCompulsion, &ComPtr);
+			ComPtr->state_flags =
+					FINITE_LIFE | NONSOLID | IGNORE_SIMILAR | APPEARING
 					| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
-			CrewPtr->life_span = 0;
-			CrewPtr->death_func = spawn_crew;
-			CrewPtr->pParent = ElementPtr->pParent;
-			CrewPtr->hTarget = 0;
-			UnlockElement (hCrew);
-
-			PutElement (hCrew);
+			ComPtr->life_span = 2;
+			ComPtr->preprocess_func = compel_enemy;
+			
+			GetElementStarShip (ElementPtr, &StarShipPtr);
+			SetElementStarShip (ComPtr, StarShipPtr);
+			
+			SetPrimType (&(GLOBAL (DisplayArray))[
+					ComPtr->PrimIndex
+					], NO_PRIM);
+					
+			UnlockElement (hCompulsion);
+			InsertElement (hCompulsion, GetHeadElement ());
 		}
 	}
 	else
 	{
-		HELEMENT hElement, hNextElement;
-
-		for (hElement = GetHeadElement ();
-				hElement != 0; hElement = hNextElement)
+		HELEMENT original_target;
+		ELEMENTPTR EnemyElementPtr;
+		STARSHIPPTR EnemyStarShipPtr;
+		COUNT delta_facing, facing;
+	
+		HELEMENT hShip, hNextShip;
+		BOOLEAN found_an_enemy = false;
+	
+		for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
 		{
-			ELEMENTPTR ObjPtr;
-
-			LockElement (hElement, &ObjPtr);
-			hNextElement = GetSuccElement (ObjPtr);
-
-			if ((ObjPtr->state_flags & PLAYER_SHIP)
-					&& (ObjPtr->state_flags & (GOOD_GUY | BAD_GUY)) !=
-					(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
-					&& ObjPtr->crew_level > 1)
+			LockElement (hShip, &EnemyElementPtr);
+			hNextShip = GetSuccElement (EnemyElementPtr);
+			if ((EnemyElementPtr->state_flags & PLAYER_SHIP)
+				&& ((EnemyElementPtr->state_flags & (GOOD_GUY | BAD_GUY)) !=
+				(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))))
 			{
-				SIZE dx, dy;
-				DWORD d_squared;
-
-				dx = ObjPtr->next.location.x - ElementPtr->next.location.x;
-				if (dx < 0)
-					dx = -dx;
-				dy = ObjPtr->next.location.y - ElementPtr->next.location.y;
-				if (dy < 0)
-					dy = -dy;
-
-				dx = WORLD_TO_DISPLAY (dx);
-				dy = WORLD_TO_DISPLAY (dy);
-				d_squared = (DWORD)((UWORD)dx * (UWORD)dx)
-						+ (DWORD)((UWORD)dy * (UWORD)dy);
-#define ABANDONER_RANGE 208 // originally SPACE_HEIGHT
-				if (true || (dx <= ABANDONER_RANGE && dy <= ABANDONER_RANGE
-						&& (d_squared = (DWORD)((UWORD)dx * (UWORD)dx)
-						+ (DWORD)((UWORD)dy * (UWORD)dy)) <=
-						(DWORD)((UWORD)ABANDONER_RANGE * (UWORD)ABANDONER_RANGE)))
-				{
-#define MAX_ABANDONERS 8
-					COUNT crew_loss;
-
-					crew_loss = ((MAX_ABANDONERS
-							* (ABANDONER_RANGE - square_root (d_squared)))
-							/ ABANDONER_RANGE) + 1;
-
-					crew_loss = (1000000 + (COUNT)TFB_Random() % d_squared) / d_squared;
-					if (crew_loss >= ObjPtr->crew_level)
-						crew_loss = ObjPtr->crew_level - 1;
-
-					AbandonShip (ObjPtr, ElementPtr, crew_loss);
-				}
+				found_an_enemy = true;
+				break;
 			}
-
-			UnlockElement (hElement);
+			UnlockElement(hShip);
 		}
+		
+		if(!found_an_enemy)return;
+		
+		GetElementStarShip (EnemyElementPtr, &EnemyStarShipPtr);
+	
+		EnemyStarShipPtr->ship_input_state |= THRUST;
+		EnemyStarShipPtr->ship_input_state &= ~(LEFT | RIGHT);
+	
+		original_target = EnemyElementPtr->hTarget;
+		
+		facing = EnemyStarShipPtr->ShipFacing;
+		delta_facing = TrackShip (EnemyElementPtr, &facing);
+		if(delta_facing > 0 && delta_facing < 8)EnemyStarShipPtr->ship_input_state |= RIGHT;
+		else if(delta_facing > 8)EnemyStarShipPtr->ship_input_state |= LEFT;
+		else if(delta_facing == 8)EnemyStarShipPtr->ship_input_state |= (TFB_Random() & 1) ? LEFT : RIGHT;
+	
+		EnemyElementPtr->hTarget = original_target;
+	
+		UnlockElement(hShip);
 	}
-}*/
+}	
 
 static void
 syreen_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter)
@@ -591,18 +540,21 @@ syreen_postprocess (PELEMENT ElementPtr)
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	/*if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& StarShipPtr->special_counter == 0
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
 			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{
-		ProcessSound (SetAbsSoundIndex (
-						// SYREEN_SONG
-				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
-		spawn_crew (ElementPtr);
+#define SONG_WAIT 22
+		if(StarShipPtr->special_counter == 0)
+		{
+			ProcessSound (SetAbsSoundIndex (
+							// SYREEN_SONG
+					StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
+			StarShipPtr->special_counter = SONG_WAIT;
+		}
 
-		StarShipPtr->special_counter =
-				StarShipPtr->RaceDescPtr->characteristics.special_wait;
-	}*/
+		compel_enemy(ElementPtr);
+	}
 }
 
 static COUNT syreen_present = 0;
@@ -655,25 +607,6 @@ syreen_preprocess (PELEMENT ElementPtr)
 		extern void spawn_satellite (PELEMENT ElementPtr, COUNT hit_points, COUNT angle, BYTE offset, FRAME farray[]);
 
 		spawn_satellite(ElementPtr, 10000, 0, 64, zapSatGraphicsHack);
-	}
-
-	if ((StarShipPtr->cur_status_flags & SPECIAL)
-			//&& StarShipPtr->special_counter == 0
-			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
-	{
-#define SONG_WAIT 22
-		if(StarShipPtr->special_counter == 0)
-		{
-			ProcessSound (SetAbsSoundIndex (
-							// SYREEN_SONG
-					StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
-			StarShipPtr->special_counter = SONG_WAIT;
-		}
-		//spawn_crew (ElementPtr);
-		compel_enemy(ElementPtr);
-
-		//StarShipPtr->special_counter =
-		//		StarShipPtr->RaceDescPtr->characteristics.special_wait;
 	}
 }
 

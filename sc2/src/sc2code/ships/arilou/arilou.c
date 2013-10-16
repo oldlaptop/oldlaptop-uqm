@@ -204,7 +204,7 @@ spawn_magic_missile (PELEMENT ElementPtr)
 			delta_y = (EnemyPtr->next.location.y + (delta_y / 2))
 					- ElementPtr->next.location.y;
 	
-			real_angle = NORMALIZE_ANGLE(ARCTAN (delta_x, delta_y) + (TFB_Random() & 1) - (TFB_Random() & 1));
+			real_angle = NORMALIZE_ANGLE(ARCTAN (delta_x, delta_y) + (((TFB_Random() & 3) + 1) / 2) - 1);
 
 			MissileBlock.face = MissileBlock.index = ANGLE_TO_FACING (real_angle);
 		}
@@ -586,7 +586,7 @@ arilou_postprocess (PELEMENT ElementPtr)
 		{
 			spawn_magic_missile(ElementPtr);
 			StarShipPtr->special_counter = SPELL_WAIT;
-			}
+		}
 	
 		if ((StarShipPtr->cur_status_flags & WEAPON)
 				&& (StarShipPtr->cur_status_flags & LEFT)
