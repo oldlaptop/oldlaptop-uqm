@@ -238,6 +238,9 @@ CalcReduction (SIZE dx, SIZE dy)
 		if (next_reduction == 0
 				&& LOBYTE (GLOBAL (CurrentActivity)) == IN_LAST_BATTLE)
 			next_reduction += REDUCTION_SHIFT;
+
+		if (next_reduction == 0)
+			next_reduction += REDUCTION_SHIFT;
 	}
 	else
 	{

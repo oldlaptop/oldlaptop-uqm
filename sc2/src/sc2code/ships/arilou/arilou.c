@@ -120,11 +120,16 @@ speedlaser_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT
 		GetElementStarShip (ElementPtr1, &StarShipPtr);
 		RDPtr = StarShipPtr->RaceDescPtr;
 
-		num_thrusts = RDPtr->characteristics.max_thrust /
-					RDPtr->characteristics.thrust_increment;
-		RDPtr->characteristics.thrust_increment += (RDPtr->characteristics.thrust_increment / 3) + 1;
-		RDPtr->characteristics.max_thrust =
-				RDPtr->characteristics.thrust_increment * num_thrusts;
+		if(RDPtr->characteristics.thrust_increment > 0)
+		{
+			num_thrusts = RDPtr->characteristics.max_thrust /
+						RDPtr->characteristics.thrust_increment;
+
+			RDPtr->characteristics.thrust_increment += (RDPtr->characteristics.thrust_increment / 3) + 1;
+
+			RDPtr->characteristics.max_thrust =
+					RDPtr->characteristics.thrust_increment * num_thrusts;
+		}
 
 		GetCurrentVelocityComponents (&ElementPtr0->velocity, &dx, &dy);
 		DeltaVelocityComponents (&ElementPtr1->velocity, dx / 20, dy / 20);

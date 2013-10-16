@@ -367,13 +367,13 @@ spawn_tongue (PELEMENT ElementPtr)
 		else
 		{
 			COUNT angle;
-			RECT r;
+			//RECT r;
 			//SIZE x_offs, y_offs;
 
 			TonguePtr->turn_wait = ElementPtr->turn_wait - 1;
 
-			GetFrameRect (TonguePtr->current.image.frame, &r);
-			/*x_offs = DISPLAY_TO_WORLD (r.extent.width);
+			/*GetFrameRect (TonguePtr->current.image.frame, &r);
+			x_offs = DISPLAY_TO_WORLD (r.extent.width);
 			y_offs = DISPLAY_TO_WORLD (r.extent.height);*/
 
 			angle = FACING_TO_ANGLE (StarShipPtr->ShipFacing);
@@ -576,10 +576,18 @@ tail_follow (PELEMENT ElementPtr)
 			GetCurrentVelocityComponents(&LeaderPtr->velocity, &leader_dx, &leader_dy);
 			
 			GetCurrentVelocityComponents(&ElementPtr->velocity, &cur_dx, &cur_dy);
-			diff_dx = (dx * excess_dist * 15) / mag - cur_dx;
-			diff_dy = (dy * excess_dist * 15) / mag - cur_dy;
-			//diff_dx = (dx * excess_dist) / mag - (cur_dx - leader_dx);
-			//diff_dy = (dy * excess_dist) / mag - (cur_dy - leader_dy);
+			if(mag)
+			{
+				diff_dx = (dx * excess_dist * 15) / mag - cur_dx;
+				diff_dy = (dy * excess_dist * 15) / mag - cur_dy;
+				//diff_dx = (dx * excess_dist) / mag - (cur_dx - leader_dx);
+				//diff_dy = (dy * excess_dist) / mag - (cur_dy - leader_dy);
+			}
+			else
+			{
+				diff_dx = -cur_dx;
+				diff_dy = -cur_dy;
+			}
 
 			if((long)diff_dx * dx >= 0) // i.e. we're accelerating towards the leader
 			{
@@ -601,7 +609,7 @@ tail_follow (PELEMENT ElementPtr)
 				dvy2 = dvy + diff_dy;
 				if(dvx2*dvx2 + dvy2*dvy2 > (long)MAX_ACCELERATION*MAX_ACCELERATION*24*24 && dvx2*dvx2 + dvy2*dvy2 > dvx*dvx + dvy*dvy)
 				{
-					diff_dx = 10000;
+					diff_dx = 0;
 					diff_dy = 0;
 				}
 			}
@@ -660,9 +668,9 @@ spawn_tail (PELEMENT ElementPtr)
 
 		if(!hTail[i])
 		{
-			// uh oh, it could not be made
+			/*// uh oh, it could not be made
 			// so make the last one vulnerable
-			/*if(i==0)ShipPtr->life_span = NORMAL_LIFE;
+			if(i==0)ShipPtr->life_span = NORMAL_LIFE;
 			else
 			{
 				ELEMENTPTR TailPtr;
@@ -670,6 +678,8 @@ spawn_tail (PELEMENT ElementPtr)
 				TailPtr->life_span = NORMAL_LIFE;
 				UnlockElement (hTail[i - i]);
 			}*/
+
+			break;
 		}
 		else
 		{
@@ -711,7 +721,13 @@ spawn_tail (PELEMENT ElementPtr)
 	for(i = 0; i < TAIL_SECTIONS; ++i)
 	{
 		if(hTail[i])
+		{
 			PutElement(hTail[i]);
+		}
+		else
+		{
+			break;
+		}
 	}
 	
 	UnlockElement(StarShipPtr->hShip);

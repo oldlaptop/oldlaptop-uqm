@@ -2017,23 +2017,50 @@ FreeMeleeInfo (PMELEE_STATE pMS)
 #endif
 }
 
+#ifdef NETPLAY
+static COUNT
+GetPlayerOrder (COUNT i)
+{
+       // Iff 'myTurn' is set on a connection, the local party will be
+       // processed first.
+       // If neither is network controlled, the top player (1) is handled
+       // first.
+       if (((PlayerControl[0] & NETWORK_CONTROL) &&
+                       !NetConnection_getDiscriminant (netConnections[0])) ||
+                       ((PlayerControl[1] & NETWORK_CONTROL) &&
+                       NetConnection_getDiscriminant (netConnections[1])))
+               return i;
+       else
+               return 1 - i;
+}
+#else
+static COUNT
+GetPlayerOrder (COUNT i)
+{
+       return i;
+}
+#endif
+
+
 static void
 BuildAndDrawShipList (PMELEE_STATE pMS)
 {
-	COUNT i;
+	COUNT n;
 	CONTEXT OldContext;
 
 	OldContext = SetContext (OffScreenContext);
 
-	for (i = 0; i < NUM_SIDES; ++i)
+	for (n = 0; n < NUM_SIDES; ++n)
 	{
 		COUNT side;
+		COUNT i;
 		RECT r;
 		TEXT t;
 		STAMP s;
 		UNICODE buf[30];
 		FleetShipIndex index;
 
+		i = GetPlayerOrder (n);
 		side = !i;
 
 		s.frame = SetAbsFrameIndex (PickMeleeFrame, side);

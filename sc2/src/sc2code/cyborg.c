@@ -348,7 +348,7 @@ ship_weapons (ELEMENTPTR ShipPtr, ELEMENTPTR OtherPtr, COUNT
 	SIZE delta_x, delta_y;
 	COUNT n, num_weapons;
 	ELEMENT Ship;
-	HELEMENT Weapon[6];
+	HELEMENT Weapon[50];
 	STARSHIPPTR StarShipPtr;
 
 	if (OBJECT_CLOAKED (OtherPtr))
