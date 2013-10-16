@@ -29,6 +29,8 @@
 #include "libs/graphics/gfx_common.h"
 #include "libs/log.h"
 
+#include "ires_ind.h"
+
 //#define DEBUG_PROCESS
 
 COUNT DisplayFreeList;
@@ -239,7 +241,10 @@ CalcReduction (SIZE dx, SIZE dy)
 	{
 		if (LOBYTE (GLOBAL (CurrentActivity)) > IN_ENCOUNTER)
 			return (1 << ZOOM_SHIFT);
-			
+		
+		dx = dx * 4 / 3;
+		dy = dy * 4 / 3;
+
 		dx = (dx * MAX_ZOOM_OUT) / (LOG_SPACE_WIDTH >> 2);
 		if (dx < (1 << ZOOM_SHIFT))
 			dx = 1 << ZOOM_SHIFT;
@@ -259,6 +264,9 @@ CalcReduction (SIZE dx, SIZE dy)
 
 		if (next_reduction < (2 << ZOOM_SHIFT)
 				&& LOBYTE (GLOBAL (CurrentActivity)) == IN_LAST_BATTLE)
+			next_reduction = (2 << ZOOM_SHIFT);
+
+		if (next_reduction < (2 << ZOOM_SHIFT))
 			next_reduction = (2 << ZOOM_SHIFT);
 	}
 
@@ -475,7 +483,10 @@ ProcessCollisions (HELEMENT hSuccElement, ELEMENTPTR ElementPtr,
 								STARSHIPPTR StarShipPtr;
 
 								GetElementStarShip (ElementPtr, &StarShipPtr);
-								StarShipPtr->ShipFacing =
+								if(StarShipPtr->RaceResIndex == SLYLANDRO_SHIP_INDEX)
+								{
+								}
+								else StarShipPtr->ShipFacing =
 										GetFrameIndex (
 										ElementPtr->next.image.frame);
 							}
@@ -487,7 +498,10 @@ ProcessCollisions (HELEMENT hSuccElement, ELEMENTPTR ElementPtr,
 							{
 								STARSHIPPTR StarShipPtr;
 
-								GetElementStarShip (TestElementPtr, &StarShipPtr);
+								if(StarShipPtr->RaceResIndex == SLYLANDRO_SHIP_INDEX)
+								{
+								}
+								else GetElementStarShip (TestElementPtr, &StarShipPtr);
 								StarShipPtr->ShipFacing =
 										GetFrameIndex (
 										TestElementPtr->next.image.frame);

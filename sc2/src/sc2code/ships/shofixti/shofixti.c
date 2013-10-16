@@ -23,23 +23,23 @@
 #include "libs/mathlib.h"
 
 
-#define MAX_CREW MAX_CREW_SIZE //6
-#define MAX_ENERGY MAX_ENERGY_SIZE //4
-#define ENERGY_REGENERATION 1
-#define WEAPON_ENERGY_COST 1
-#define SPECIAL_ENERGY_COST 20 //0
-#define ENERGY_WAIT 2 //9
+#define MAX_CREW 144 //MAX_CREW_SIZE //6
+#define MAX_ENERGY 24 //4
+#define ENERGY_REGENERATION 6 //1
+#define WEAPON_ENERGY_COST 6 //1
+#define SPECIAL_ENERGY_COST 0 //20 //0
+#define ENERGY_WAIT 9 //2 //9
 #define MAX_THRUST 28 //35
 #define SCOUT_MAX_THRUST 35
 #define THRUST_INCREMENT 5
 #define SCOUT_THRUST_INCREMENT 5
 #define TURN_WAIT 4 //1
 #define THRUST_WAIT 2 //0
-#define WEAPON_WAIT 0 //3
+#define WEAPON_WAIT 3 //0 //3
 #define SPECIAL_WAIT 18 //0
 
 #define SHIP_MASS 10 //1
-#define MISSILE_SPEED DISPLAY_TO_WORLD (18) //35 //DISPLAY_TO_WORLD (40) //(24)
+#define MISSILE_SPEED DISPLAY_TO_WORLD (24) //DISPLAY_TO_WORLD (18) //35 //DISPLAY_TO_WORLD (40) //(24)
 #define MISSILE_LIFE 64 /* actually, it's as long as you hold the button down. */
 
 static FRAME carrierGraphicsHack[3];
@@ -173,10 +173,72 @@ thrust_hack (PELEMENT ElementPtr, COUNT thrust_increment, COUNT max_thrust, BOOL
 	}
 }
 
+static COUNT
+initialize_standard_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
+{
+	STARSHIPPTR StarShipPtr;
+	MISSILE_BLOCK MissileBlock;
+
+	GetElementStarShip (ShipPtr, &StarShipPtr);
+	MissileBlock.cx = ShipPtr->next.location.x;
+	MissileBlock.cy = ShipPtr->next.location.y;
+	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
+	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| IGNORE_SIMILAR;
+	MissileBlock.pixoffs = 28;
+	MissileBlock.speed = DISPLAY_TO_WORLD(24);
+	MissileBlock.hit_points = 1;
+	MissileBlock.damage = 1;
+	MissileBlock.life = 10;
+	MissileBlock.preprocess_func = NULL_PTR;
+	MissileBlock.blast_offs = 1;
+
+	/*MissileArray[0] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + (((TFB_Random() & 1) << 1) - 1);
+	MissileArray[1] = initialize_missile (&MissileBlock);
+
+	return (2);*/
+
+	MissileArray[0] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + 1;
+	MissileArray[1] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing - 1;
+	MissileArray[2] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + 8;
+	MissileArray[3] = initialize_missile (&MissileBlock);
+	MissileBlock.pixoffs = 20;
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + 4;
+	MissileArray[4] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing - 4;
+	MissileArray[5] = initialize_missile (&MissileBlock);
+	return (6);
+}
+
 static void
 shofixti_fighter_preprocess (PELEMENT ElementPtr)
 {
-	thrust_hack(ElementPtr, SCOUT_THRUST_INCREMENT, SCOUT_MAX_THRUST, true);
+	STARSHIPPTR StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if(ElementPtr->turn_wait)--ElementPtr->turn_wait;
+	else
+	{
+		if(StarShipPtr->cur_status_flags & RIGHT)
+		{
+			ElementPtr->next.image.frame = IncFrameIndex(ElementPtr->next.image.frame);
+			ElementPtr->turn_wait = 1;
+		}
+		else if(StarShipPtr->cur_status_flags & LEFT)
+		{
+			ElementPtr->next.image.frame = DecFrameIndex(ElementPtr->next.image.frame);
+			ElementPtr->turn_wait = 1;
+		}
+	}
+
+	if(StarShipPtr->cur_status_flags & THRUST)
+			thrust_hack(ElementPtr, SCOUT_THRUST_INCREMENT, SCOUT_MAX_THRUST, true);
 }
 
 static void
@@ -186,26 +248,46 @@ shofixti_fighter_postprocess (PELEMENT ElementPtr)
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 
-	if(ElementPtr->turn_wait)--ElementPtr->turn_wait;
-
-	if (StarShipPtr->cur_status_flags & SPECIAL)
-	{
-		++ElementPtr->life_span;
-	}
-	else if(!ElementPtr->turn_wait)
+	if (!(StarShipPtr->cur_status_flags & SPECIAL))
 	{
 		ZeroVelocityComponents (&ElementPtr->velocity);
 		PlaySound (SetAbsSoundIndex (
 				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1),
 				CalcSoundPosition (ElementPtr), ElementPtr,
 				GAME_SOUND_PRIORITY + 1);
+		ElementPtr->state_flags |= FINITE_LIFE;
 		ElementPtr->death_func = shofixti_self_destruct_death;
 
 		self_destruct (ElementPtr);
 	}
+	else
+	{
+		//++ElementPtr->life_span;
+	}
 }
 
+extern void explosion_preprocess (PELEMENT ShipPtr);
+
 static void
+shofixti_fighter_death (PELEMENT ShipPtr)
+{
+	STARSHIPPTR StarShipPtr, VictoriousStarShipPtr;
+	HELEMENT hElement, hNextElement;
+	ELEMENTPTR ElementPtr;
+
+	ShipPtr->life_span = NUM_EXPLOSION_FRAMES * 3;
+	ShipPtr->state_flags &= ~DISAPPEARING;
+	ShipPtr->state_flags |= FINITE_LIFE | NONSOLID;
+	ShipPtr->postprocess_func = NULL_PTR;
+	ShipPtr->death_func = NULL_PTR;
+	ShipPtr->hTarget = 0;
+	ShipPtr->preprocess_func = explosion_preprocess;
+
+	PlaySound (SetAbsSoundIndex (GameSounds, SHIP_EXPLODES),
+			CalcSoundPosition (ShipPtr), ShipPtr, GAME_SOUND_PRIORITY + 1);
+}
+
+/*static void
 shofixti_fighter_collision (PELEMENT ElementPtr0, PPOINT pPt0,
 		PELEMENT ElementPtr1, PPOINT pPt1)
 {
@@ -223,40 +305,12 @@ shofixti_fighter_collision (PELEMENT ElementPtr0, PPOINT pPt0,
 			ElementPtr0->state_flags |= COLLISION | NONSOLID;
 		}
 	}
-}
-
-static COUNT
-initialize_standard_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
-{
-	STARSHIPPTR StarShipPtr;
-	MISSILE_BLOCK MissileBlock;
-
-	GetElementStarShip (ShipPtr, &StarShipPtr);
-	MissileBlock.cx = ShipPtr->next.location.x;
-	MissileBlock.cy = ShipPtr->next.location.y;
-	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
-	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
-	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
-	MissileBlock.pixoffs = 15;
-	MissileBlock.speed = DISPLAY_TO_WORLD(24);
-	MissileBlock.hit_points = 1;
-	MissileBlock.damage = 2;
-	MissileBlock.life = 10;
-	MissileBlock.preprocess_func = NULL_PTR;
-	MissileBlock.blast_offs = 1;
-
-	MissileArray[0] = initialize_missile (&MissileBlock);
-	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + (((TFB_Random() & 1) << 1) - 1);
-	MissileArray[1] = initialize_missile (&MissileBlock);
-
-	return (2);
-}
+}*/
 
 static void
 spawn_shofixti_fighter (PELEMENT ShipPtr)
 {
-#define SHOFIXTI_OFFSET 15
+#define SHOFIXTI_OFFSET 28
 #define FIGHTER_HITS 6
 	SIZE i;
 	HELEMENT Missile;
@@ -272,10 +326,10 @@ spawn_shofixti_fighter (PELEMENT ShipPtr)
 			| IGNORE_SIMILAR;
 	MissileBlock.pixoffs = SHOFIXTI_OFFSET;
 	MissileBlock.speed = 0;
-	i = ShipPtr->crew_level > FIGHTER_HITS ? FIGHTER_HITS : (ShipPtr->crew_level - 2);
+	i = ShipPtr->crew_level > FIGHTER_HITS ? FIGHTER_HITS : (ShipPtr->crew_level - 1);
 	DeltaCrew(ShipPtr, -i);
 	MissileBlock.hit_points = i; //FIGHTER_HITS;
-	MissileBlock.damage = 0;
+	MissileBlock.damage = 1; //mass, really
 	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = shofixti_fighter_preprocess;
 	MissileBlock.blast_offs = 0;
@@ -288,8 +342,11 @@ spawn_shofixti_fighter (PELEMENT ShipPtr)
 		LockElement (Missile, &MissilePtr);
 		SetElementStarShip(MissilePtr, StarShipPtr);
 		MissilePtr->postprocess_func = shofixti_fighter_postprocess;
-		MissilePtr->collision_func = shofixti_fighter_collision;
-		MissilePtr->turn_wait = SPECIAL_WAIT;
+		MissilePtr->collision_func = /*shofixti_fighter_*/collision;
+		MissilePtr->turn_wait = 0;
+		MissilePtr->state_flags &= ~FINITE_LIFE;
+		MissilePtr->life_span = NORMAL_LIFE;
+		MissilePtr->death_func = shofixti_fighter_death;
 		UnlockElement (Missile);
 		PutElement (Missile);
 	}
@@ -508,6 +565,25 @@ shofixti_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT 
 	}
 }
 
+static COUNT
+detect_scouts (PELEMENT ShipPtr)
+{
+	COUNT result;
+	ELEMENTPTR ElementPtr;
+	HELEMENT hElement, hNextElement;
+
+	result = 0;
+	for (hElement = GetHeadElement (); hElement != 0; hElement = hNextElement)
+	{
+		LockElement (hElement, &ElementPtr);
+		hNextElement = GetSuccElement (ElementPtr);
+		if(ElementPtr->preprocess_func == shofixti_fighter_preprocess
+			&& (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY)) == (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY)))++result;
+		UnlockElement (hElement);
+	}
+	return result;
+}
+
 static void
 shofixti_postprocess (PELEMENT ElementPtr)
 {
@@ -525,9 +601,10 @@ shofixti_postprocess (PELEMENT ElementPtr)
 	}*/
 
 	if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& ElementPtr->crew_level > 2
-			&& StarShipPtr->special_counter == 0
-			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+			&& !(StarShipPtr->old_status_flags & SPECIAL)
+			&& ElementPtr->crew_level > 1
+			&& !detect_scouts(ElementPtr)
+			/*&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST)*/)
 	{
 		/*ProcessSound (SetAbsSoundIndex (
 						// LAUNCH_FIGHTERS
@@ -538,8 +615,8 @@ shofixti_postprocess (PELEMENT ElementPtr)
 	}
 	
 	//shofixti reproduce fast ;)
-	if(ElementPtr->crew_level >= 2)
-	{
+	//if(ElementPtr->crew_level >= 2)
+	//{
 		/*COUNT i;
 		for(i = 0; i < (ElementPtr->crew_level / 2); ++i)
 		{
@@ -548,8 +625,8 @@ shofixti_postprocess (PELEMENT ElementPtr)
 				DeltaCrew(ElementPtr, 1);
 			}
 		}*/
-		if(!(TFB_Random() & 31))DeltaCrew(ElementPtr, 1);
-	}
+		//if(!(TFB_Random() & 31))DeltaCrew(ElementPtr, 1);
+	//}
 }
 
 static COUNT shofixties_present = 0;
@@ -599,10 +676,16 @@ shofixti_preprocess (PELEMENT ElementPtr)
 		ElementPtr->state_flags |= CHANGING;
 	}
 
-	if (StarShipPtr->special_counter == 1
+	/*if (StarShipPtr->special_counter == 1
 			&& (StarShipPtr->cur_status_flags
 			& StarShipPtr->old_status_flags & SPECIAL))
-		++StarShipPtr->special_counter;
+		++StarShipPtr->special_counter;*/
+	if(detect_scouts(ElementPtr))
+	{
+		if(ElementPtr->turn_wait == 0)++ElementPtr->turn_wait;
+		if(ElementPtr->thrust_wait == 0)++ElementPtr->thrust_wait;
+		if(StarShipPtr->weapon_counter == 0)++StarShipPtr->weapon_counter;
+	}
 }
 
 RACE_DESCPTR

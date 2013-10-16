@@ -1036,8 +1036,8 @@ tactical_intelligence (COUNT player, STARSHIPPTR StarShipPtr)
 	}
 
 	ShipMoved = TRUE;
-	if (PlayerControl[player] & STANDARD_RATING)
-		++StarShipPtr->special_counter;
+	/*if (PlayerControl[player] & STANDARD_RATING)
+		++StarShipPtr->special_counter;*/
 
 #ifdef DEBUG_CYBORG
 if (!(ShipPtr->state_flags & FINITE_LIFE)

@@ -512,8 +512,11 @@ spawn_gas_cloud (PELEMENT ElementPtr)
 	MISSILE_BLOCK MissileBlock;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	MissileBlock.cx = ElementPtr->next.location.x;
-	MissileBlock.cy = ElementPtr->next.location.y;
+
+	GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
+
+	MissileBlock.cx = ElementPtr->next.location.x - VELOCITY_TO_WORLD(dx);
+	MissileBlock.cy = ElementPtr->next.location.y - VELOCITY_TO_WORLD(dy);
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.special;
 	MissileBlock.index = 0;
 	MissileBlock.sender =
@@ -528,7 +531,7 @@ spawn_gas_cloud (PELEMENT ElementPtr)
 	MissileBlock.preprocess_func = gas_cloud_preprocess;
 	MissileBlock.blast_offs = GAS_OFFSET;
 
-	GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
+	//GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
 
 	/*for (MissileBlock.face = 0;
 			MissileBlock.face < ANGLE_TO_FACING (FULL_CIRCLE);

@@ -118,7 +118,10 @@ static void
 spawn_rubble (PELEMENT AsteroidElementPtr)
 {
 	HELEMENT hRubbleElement;
-	
+	SIZE dx, dy;
+
+	GetCurrentVelocityComponents(&AsteroidElementPtr->velocity, &dx, &dy);
+
 	hRubbleElement = AllocElement ();
 	if (hRubbleElement)
 	{
@@ -136,6 +139,9 @@ spawn_rubble (PELEMENT AsteroidElementPtr)
 		RubbleElementPtr->current.location = AsteroidElementPtr->current.location;
 		RubbleElementPtr->preprocess_func = animation_preprocess;
 		RubbleElementPtr->death_func = spawn_asteroid;
+
+		SetVelocityComponents(&RubbleElementPtr->velocity, dx, dy);
+
 		UnlockElement (hRubbleElement);
 	}
 }
@@ -162,7 +168,7 @@ void spin_asteroid (PELEMENT ElementPtr)
 	}
 }
 
-static void asteroid_preprocess (PELEMENT ElementPtr);
+void asteroid_preprocess (PELEMENT ElementPtr);
 
 static void
 asteroid_chasing_preprocess (PELEMENT ElementPtr)
@@ -198,7 +204,7 @@ asteroid_chasing_preprocess (PELEMENT ElementPtr)
 	}
 }
 
-static void
+void
 asteroid_preprocess (PELEMENT ElementPtr)
 {
 	spin_asteroid(ElementPtr);

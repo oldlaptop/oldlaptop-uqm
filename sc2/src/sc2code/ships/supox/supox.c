@@ -21,7 +21,7 @@
 
 #include "libs/mathlib.h"
 
-#define MAX_CREW 12
+#define MAX_CREW 18
 #define MAX_ENERGY 16
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 1
@@ -32,11 +32,16 @@
 #define TURN_WAIT 1
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 2
-#define SPECIAL_WAIT 0
+#define SPECIAL_WAIT 2
 
 #define SHIP_MASS 4
 #define MISSILE_SPEED DISPLAY_TO_WORLD (30)
 #define MISSILE_LIFE 10
+
+#define SPECIAL_SHIP_MASS 10
+#define SPECIAL_MAX_THRUST 120
+#define SPECIAL_THRUST_INCREMENT 24
+#define SPECIAL_TURN_WAIT 0
 
 static RACE_DESC supox_desc =
 {
@@ -168,6 +173,102 @@ supox_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Con
 	}
 }
 
+//*******HEY YOU - CODE COPIED FROM spawn_ion_trail (tactrans.c)*******
+
+#define START_ION_COLOR BUILD_COLOR (MAKE_RGB15 (0x00, 0x10, 0x00), 0)
+
+static void
+spawn_supox_trail (PELEMENT ElementPtr)
+{
+	if (ElementPtr->state_flags & PLAYER_SHIP)
+	{
+		HELEMENT hIonElement;
+
+		hIonElement = AllocElement ();
+		if (hIonElement)
+		{
+#define ION_LIFE 1
+			ELEMENTPTR IonElementPtr;
+			STARSHIPPTR StarShipPtr;
+
+			GetElementStarShip (ElementPtr, &StarShipPtr);
+
+			InsertElement (hIonElement, GetHeadElement ());
+			LockElement (hIonElement, &IonElementPtr);
+			IonElementPtr->state_flags = APPEARING | FINITE_LIFE | NONSOLID;
+			IonElementPtr->life_span = IonElementPtr->thrust_wait = ION_LIFE;
+			SetPrimType (&DisplayArray[IonElementPtr->PrimIndex], STAMPFILL_PRIM);
+			SetPrimColor (&DisplayArray[IonElementPtr->PrimIndex],
+					START_ION_COLOR);
+			IonElementPtr->current.image.frame = ElementPtr->current.image.frame;
+			IonElementPtr->current.image.farray = ElementPtr->current.image.farray;
+			IonElementPtr->current.location = ElementPtr->current.location;
+			IonElementPtr->death_func = spawn_supox_trail;
+
+			IonElementPtr->turn_wait = 0;
+
+			SetElementStarShip (IonElementPtr, StarShipPtr);
+
+			{
+					/* normally done during preprocess, but because
+					 * object is being inserted at head rather than
+					 * appended after tail it may never get preprocessed.
+					 */
+				IonElementPtr->next = IonElementPtr->current;
+				--IonElementPtr->life_span;
+				IonElementPtr->state_flags |= PRE_PROCESS;
+			}
+
+			UnlockElement (hIonElement);
+		}
+	}
+	else
+	{
+		static const COLOR color_tab[] =
+		{
+			BUILD_COLOR (MAKE_RGB15 (0x00, 0x10, 0x00), 0),
+			BUILD_COLOR (MAKE_RGB15 (0x00, 0x0E, 0x00), 0),
+			BUILD_COLOR (MAKE_RGB15 (0x00, 0x0C, 0x00), 0),
+			BUILD_COLOR (MAKE_RGB15 (0x00, 0x0A, 0x00), 0),
+			BUILD_COLOR (MAKE_RGB15 (0x00, 0x08, 0x00), 0),
+			BUILD_COLOR (MAKE_RGB15 (0x00, 0x06, 0x00), 0),
+			BUILD_COLOR (MAKE_RGB15 (0x00, 0x04, 0x00), 0),
+			BUILD_COLOR (MAKE_RGB15 (0x00, 0x02, 0x00), 0),
+		};
+#define NUM_TAB_COLORS (sizeof (color_tab) / sizeof (color_tab[0]))
+				
+		if (ElementPtr->turn_wait < 7)
+		{
+			++ElementPtr->turn_wait;
+			ElementPtr->life_span = ElementPtr->thrust_wait;
+			
+			SetPrimColor (&DisplayArray[ElementPtr->PrimIndex],
+					color_tab[ElementPtr->turn_wait]);
+
+			ElementPtr->state_flags &= ~DISAPPEARING;
+			ElementPtr->state_flags |= CHANGING;
+		}
+	}
+}
+
+//**************************END COPIED CODE*************************
+
+//this is much like yehat_collision, also
+static void
+supox_special_collision (PELEMENT ElementPtr0, PPOINT pPt0,
+		PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	if (!(ElementPtr1->state_flags & FINITE_LIFE)
+		&& GRAVITY_MASS (ElementPtr1->mass_points))
+	{
+		ElementPtr0->state_flags |= COLLISION; //collision without damage
+	}
+	else
+	{
+		collision(ElementPtr0, pPt0, ElementPtr1, pPt1); //normal collision
+	}
+}
+
 #define MISSILE_HITS 10000
 #define MISSILE_DAMAGE 1
 #define MISSILE_OFFSET 2
@@ -178,16 +279,31 @@ extern FRAME asteroid[];
 static void
 horn_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
+	ElementPtr0->turn_wait = 1;
 	if(ElementPtr1->current.image.farray == asteroid)
 	{
 		//no getting killed by asteroids!
 		//just kill them.
 		do_damage ((ELEMENTPTR)ElementPtr1, 1);
 	}
+	else if(ElementPtr1->collision_func == horn_collision)
+	{
+		//don't even COLLIDE with fellow Supox shots.
+	}
 	else
 	{
 		ElementPtr0->hit_points = MISSILE_HITS; //let's keep our HP up
 		weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	}
+}
+
+static void
+horn_preprocess (PELEMENT ElementPtr)
+{
+	if(ElementPtr->turn_wait)
+	{
+		++ElementPtr->life_span;
+		ElementPtr->turn_wait = 0;
 	}
 }
 
@@ -208,7 +324,7 @@ initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
 	MissileBlock.hit_points = MISSILE_HITS;
 	MissileBlock.damage = MISSILE_DAMAGE;
 	MissileBlock.life = MISSILE_LIFE;
-	MissileBlock.preprocess_func = NULL_PTR;
+	MissileBlock.preprocess_func = horn_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 
 #define SHOTS_ON_EACH_SIDE 1 //2
@@ -230,6 +346,7 @@ initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
 
 			LockElement (HornArray[i], &HornPtr);
 			HornPtr->collision_func = horn_collision;
+			HornPtr->turn_wait = 0;
 			UnlockElement (HornArray[i]);
 		}
 	}
@@ -244,15 +361,48 @@ supox_preprocess (PELEMENT ElementPtr)
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 
-	if ((StarShipPtr->cur_status_flags & SPECIAL)
+	if (ElementPtr->mass_points == SPECIAL_SHIP_MASS
+		&& (StarShipPtr->special_counter != 0
+		|| DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST)))
+	{
+		if(StarShipPtr->special_counter == 0)StarShipPtr->special_counter = SPECIAL_WAIT;
+	}
+	else if (ElementPtr->mass_points == SPECIAL_SHIP_MASS)
+	{
+		ElementPtr->collision_func = collision;
+		ElementPtr->mass_points = SHIP_MASS;
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust = MAX_THRUST;
+		StarShipPtr->RaceDescPtr->characteristics.thrust_increment = THRUST_INCREMENT;
+		StarShipPtr->RaceDescPtr->characteristics.turn_wait = TURN_WAIT;
+	}
+	else if (ElementPtr->mass_points != SPECIAL_SHIP_MASS
+		&& (StarShipPtr->cur_status_flags & SPECIAL)
+		&& !(StarShipPtr->old_status_flags & SPECIAL)
+		&& StarShipPtr->RaceDescPtr->ship_info.energy_level > 2)
+	{
+		ElementPtr->collision_func = supox_special_collision;
+		ElementPtr->mass_points = SPECIAL_SHIP_MASS;
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust = SPECIAL_MAX_THRUST;
+		StarShipPtr->RaceDescPtr->characteristics.thrust_increment = SPECIAL_THRUST_INCREMENT;
+		StarShipPtr->RaceDescPtr->characteristics.turn_wait = SPECIAL_TURN_WAIT;
+
+		StarShipPtr->special_counter = SPECIAL_WAIT;
+	}
+
+	if(ElementPtr->mass_points == SPECIAL_SHIP_MASS)
+	{
+		spawn_supox_trail(ElementPtr);
+	}
+
+	//if ((StarShipPtr->cur_status_flags & SPECIAL)
 /*
 			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST)
 */
-			)
-	{
+	//		)
+	//{
 		//SIZE add_facing;
-		SIZE not_facing;
-		not_facing = 0;
+		/*SIZE not_facing;
+		not_facing = 0;*/
 
 		/*add_facing = 0;
 		if (StarShipPtr->cur_status_flags & THRUST)
@@ -284,7 +434,7 @@ supox_preprocess (PELEMENT ElementPtr)
 		}
 
 		if (add_facing)*/
-		if ((not_facing = TrackShip(ElementPtr, &not_facing)) != -1)
+		/*if ((not_facing = TrackShip(ElementPtr, &not_facing)) != -1)
 		{
 			COUNT facing;
 			UWORD thrust_status;
@@ -301,8 +451,8 @@ supox_preprocess (PELEMENT ElementPtr)
 					| SHIP_IN_GRAVITY_WELL);
 			StarShipPtr->cur_status_flags |= thrust_status;
 			StarShipPtr->ShipFacing = facing;
-		}
-	}
+		}*/
+	//}
 }
 
 RACE_DESCPTR

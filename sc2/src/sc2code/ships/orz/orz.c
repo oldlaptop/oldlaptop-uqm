@@ -1200,7 +1200,7 @@ orz_arrival_preprocess (PELEMENT ElementPtr)
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (!(ElementPtr->state_flags & APPEARING))
 	{
-		StarShipPtr->special_counter = 1;
+		StarShipPtr->special_counter = 2;
 		/*if (((StarShipPtr->cur_status_flags
 				| StarShipPtr->old_status_flags) & SPECIAL)
 				&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT))

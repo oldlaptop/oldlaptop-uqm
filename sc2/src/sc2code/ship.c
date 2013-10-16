@@ -266,7 +266,13 @@ ship_preprocess (PELEMENT ElementPtr)
 
 		ElementPtr->thrust_wait = RDPtr->characteristics.thrust_wait;
 
-		if (!OBJECT_CLOAKED (ElementPtr)
+		if (!
+			(
+				OBJECT_CLOAKED (ElementPtr)
+				||
+				(StarShipPtr->RaceResIndex == SUPOX_SHIP_INDEX
+				&& ElementPtr->mass_points > 4)
+			)
 				&& LOBYTE (GLOBAL (CurrentActivity)) <= IN_ENCOUNTER)
 		{
 			extern void spawn_ion_trail (PELEMENT ElementPtr);
@@ -368,11 +374,14 @@ collision (PELEMENT ElementPtr0, PPOINT pPt0,
 			if(!(ElementPtr0->state_flags & PLAYER_SHIP) || !(StarShipPtr->planet_hit_counter))
 			{
 				SIZE damage;
+				SIZE crew_damage;
 				SIZE dx, dy;
 
 				GetCurrentVelocityComponents(&ElementPtr0->velocity, &dx, &dy);
 #define SPEED_PER_ONE_DAMAGE  WORLD_TO_VELOCITY (42)
-				damage = (ElementPtr0->hit_points >> 3) + (square_root((dx*dx) + (dy*dy)) / SPEED_PER_ONE_DAMAGE);
+				crew_damage = (ElementPtr0->hit_points >> 3);
+				if(crew_damage > 5)crew_damage = 5;
+				damage = crew_damage + (square_root((dx*dx) + (dy*dy)) / SPEED_PER_ONE_DAMAGE);
 				if (damage == 0)
 					damage = 1;
 				do_damage ((ELEMENTPTR)ElementPtr0, damage);

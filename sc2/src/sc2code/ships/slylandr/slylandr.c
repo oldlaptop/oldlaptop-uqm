@@ -27,14 +27,14 @@
 #define MAX_ENERGY 30
 #define ENERGY_REGENERATION 1
 #define WEAPON_ENERGY_COST 7
-#define SPECIAL_ENERGY_COST 0
+#define SPECIAL_ENERGY_COST 2
 #define ENERGY_WAIT 2
 #define MAX_THRUST 75
 #define THRUST_INCREMENT 12
 #define TURN_WAIT 1
 #define THRUST_WAIT 1
 #define WEAPON_WAIT 6
-#define SPECIAL_WAIT 0
+#define SPECIAL_WAIT 2
 
 #define SHIP_MASS 3
 #define SLYLANDRO_OFFSET 9
@@ -133,20 +133,315 @@ slylandro_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT
 	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
 	--ShipPtr->thrust_wait;
 
-	/*if (lpEvalDesc->ObjectPtr && lpEvalDesc->which_turn <= 14)*/
-		StarShipPtr->ship_input_state |= WEAPON;
-	/*else
-		StarShipPtr->ship_input_state &= ~WEAPON;*/
+	StarShipPtr->ship_input_state |= WEAPON;
 
 	StarShipPtr->ship_input_state &= ~SPECIAL;
-	/*if (StarShipPtr->RaceDescPtr->ship_info.energy_level <
-			StarShipPtr->RaceDescPtr->ship_info.max_energy)
-	{
-		lpEvalDesc = &ObjectsOfConcern[FIRST_EMPTY_INDEX];
-		if (lpEvalDesc->ObjectPtr && lpEvalDesc->which_turn <= 14)
-			StarShipPtr->ship_input_state |= SPECIAL;
-	}*/
 }
+
+
+
+
+/*static COUNT initialize_lightning (PELEMENT ElementPtr, HELEMENT
+		LaserArray[]);
+
+static void
+lightning_postprocess (PELEMENT ElementPtr)
+{
+	if (ElementPtr->turn_wait
+			&& !(ElementPtr->state_flags & COLLISION))
+	{
+		HELEMENT Lightning;
+
+		initialize_lightning (ElementPtr, &Lightning);
+		if (Lightning)
+			PutElement (Lightning);
+	}
+}
+
+static void
+lightning_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	STARSHIPPTR StarShipPtr;
+
+	GetElementStarShip (ElementPtr0, &StarShipPtr);
+	if (StarShipPtr->special_counter > SPECIAL_WAIT >> 1)
+		StarShipPtr->special_counter =
+				SPECIAL_WAIT - StarShipPtr->special_counter;
+	StarShipPtr->special_counter -= ElementPtr0->turn_wait;
+	ElementPtr0->turn_wait = 0;
+
+	weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+}
+
+static COUNT
+initialize_lightning (PELEMENT ElementPtr, HELEMENT LaserArray[])
+{
+	LASER_BLOCK LaserBlock;
+
+	ELEMENTPTR AsteroidElementPtr;
+	ELEMENTPTR ClosestAsteroidPtr = 0;
+	long square_distance = 0;
+	HELEMENT hElement, hNextElement;
+	SIZE delta;
+	COUNT angle, facing;
+	SIZE delta_x, delta_y, delta_facing;
+	STARSHIPPTR StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	for (hElement = GetHeadElement (); hElement != 0; hElement = hNextElement)
+	{
+		LockElement (hElement, &AsteroidElementPtr);
+		hNextElement = GetSuccElement (AsteroidElementPtr);
+		if (!(AsteroidElementPtr->state_flags
+				& (APPEARING | GOOD_GUY | BAD_GUY
+				| PLAYER_SHIP | FINITE_LIFE))
+				&& !GRAVITY_MASS (AsteroidElementPtr->mass_points)
+				&& CollisionPossible (AsteroidElementPtr, ElementPtr))
+		{
+			long dist = 
+				(long)WRAP_DELTA_X(AsteroidElementPtr->next.location.x - ElementPtr->next.location.x) * WRAP_DELTA_X(AsteroidElementPtr->next.location.x - ElementPtr->next.location.x) 
+				+ (long)WRAP_DELTA_Y(AsteroidElementPtr->next.location.y - ElementPtr->next.location.y) * WRAP_DELTA_Y(AsteroidElementPtr->next.location.y - ElementPtr->next.location.y);
+			if(square_distance == 0 || dist < square_distance)
+			{
+				square_distance = dist;
+				ClosestAsteroidPtr = AsteroidElementPtr;
+			}
+		}
+		UnlockElement (hElement);
+	}
+	if (!(ElementPtr->state_flags & PLAYER_SHIP))
+	{
+		angle = GetVelocityTravelAngle (&ElementPtr->velocity);
+		facing = NORMALIZE_FACING (ANGLE_TO_FACING (angle));
+	}
+	else
+	{
+		facing = StarShipPtr->ShipFacing;
+	}
+	if(ClosestAsteroidPtr)
+	{
+	delta_x = ClosestAsteroidPtr->next.location.x
+			- ElementPtr->next.location.x;
+	delta_y = ClosestAsteroidPtr->next.location.y
+			- ElementPtr->next.location.y;
+	delta_x = WRAP_DELTA_X (delta_x);
+	delta_y = WRAP_DELTA_Y (delta_y);
+	delta_facing = NORMALIZE_FACING (
+						ANGLE_TO_FACING (ARCTAN (delta_x, delta_y)) - facing
+						);
+	delta = delta_facing;
+	}
+	else delta = -1;
+
+	LaserBlock.cx = ElementPtr->next.location.x;
+	LaserBlock.cy = ElementPtr->next.location.y;
+	LaserBlock.ex = 0;
+	LaserBlock.ey = 0;
+
+	LaserBlock.sender = (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| IGNORE_SIMILAR;
+	LaserBlock.face = 0;
+	LaserBlock.pixoffs = 0;
+	LaserArray[0] = initialize_laser (&LaserBlock);
+
+	if (LaserArray[0])
+	{
+		//SIZE delta;
+		//COUNT angle, facing;
+		DWORD rand_val;
+		ELEMENTPTR LaserPtr;
+
+		LockElement (LaserArray[0], &LaserPtr);
+		LaserPtr->postprocess_func = lightning_postprocess;
+		LaserPtr->collision_func = lightning_collision;
+
+		rand_val = TFB_Random ();
+
+		if (!(ElementPtr->state_flags & PLAYER_SHIP))
+		{
+			//angle = GetVelocityTravelAngle (&ElementPtr->velocity);
+			//facing = NORMALIZE_FACING (ANGLE_TO_FACING (angle));
+			//delta = TrackShip (ElementPtr, &facing);
+
+			LaserPtr->turn_wait = ElementPtr->turn_wait - 1;
+
+			SetPrimColor (&(GLOBAL (DisplayArray))[LaserPtr->PrimIndex],
+					GetPrimColor (&(GLOBAL (DisplayArray))[ElementPtr->PrimIndex]));
+		}
+		else
+		{
+			//facing = StarShipPtr->ShipFacing;
+			//ElementPtr->hTarget = 0;
+			//delta = TrackShip (ElementPtr, &facing);
+			//ElementPtr->hTarget = 0;
+			angle = FACING_TO_ANGLE (facing);
+
+			if ((LaserPtr->turn_wait = StarShipPtr->special_counter) == 0)
+				LaserPtr->turn_wait = SPECIAL_WAIT;
+
+			if (LaserPtr->turn_wait > SPECIAL_WAIT >> 1)
+				LaserPtr->turn_wait = SPECIAL_WAIT - LaserPtr->turn_wait;
+
+			switch (HIBYTE (LOWORD (rand_val)) & 3)
+			{
+				case 0:
+					SetPrimColor (
+							&(GLOBAL (DisplayArray))[LaserPtr->PrimIndex],
+							BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x1F), 0x0F)
+							);
+					break;
+				case 1:
+					SetPrimColor (
+							&(GLOBAL (DisplayArray))[LaserPtr->PrimIndex],
+							BUILD_COLOR (MAKE_RGB15 (0x16, 0x17, 0x1F), 0x42)
+							);
+					break;
+				case 2:
+					SetPrimColor (
+							&(GLOBAL (DisplayArray))[LaserPtr->PrimIndex],
+							BUILD_COLOR (MAKE_RGB15 (0x06, 0x07, 0x1F), 0x4A)
+							);
+					break;
+				case 3:
+					SetPrimColor (
+							&(GLOBAL (DisplayArray))[LaserPtr->PrimIndex],
+							BUILD_COLOR (MAKE_RGB15 (0x00, 0x00, 0x18), 0x50)
+							);
+					break;
+			}
+		}
+
+		if (delta == -1 || delta == ANGLE_TO_FACING (HALF_CIRCLE))
+			angle += LOWORD (rand_val);
+		else if (delta == 0)
+			angle += LOWORD (rand_val) & 1 ? -1 : 1;
+		else if (delta < ANGLE_TO_FACING (HALF_CIRCLE))
+			angle += LOWORD (rand_val) & (QUADRANT - 1);
+		else
+			angle -= LOWORD (rand_val) & (QUADRANT - 1);
+#define LASER_RANGE 32
+		delta = WORLD_TO_VELOCITY (
+				DISPLAY_TO_WORLD ((HIWORD (rand_val) & (LASER_RANGE - 1)) + 4)
+				);
+		SetVelocityComponents (&LaserPtr->velocity,
+				COSINE (angle, delta), SINE (angle, delta));
+
+		SetElementStarShip (LaserPtr, StarShipPtr);
+		UnlockElement (LaserArray[0]);
+	}
+
+	return (1);
+}*/
+
+
+//***********CODE COPIED FROM spawn_asteroid (misc.c)***********
+
+extern FRAME asteroid[];
+
+extern void asteroid_preprocess (PELEMENT ElementPtr);
+
+static void
+spawn_slylandro_rubble (PELEMENT AsteroidElementPtr)
+{
+	HELEMENT hRubbleElement;
+	SIZE dx, dy;
+
+	GetCurrentVelocityComponents(&AsteroidElementPtr->velocity, &dx, &dy);
+
+	hRubbleElement = AllocElement ();
+	if (hRubbleElement)
+	{
+		ELEMENTPTR RubbleElementPtr;
+
+		PutElement (hRubbleElement);
+		LockElement (hRubbleElement, &RubbleElementPtr);
+		RubbleElementPtr->state_flags = APPEARING | FINITE_LIFE | NONSOLID;
+		RubbleElementPtr->life_span = 5;
+		RubbleElementPtr->turn_wait = RubbleElementPtr->next_turn = 0;
+		SetPrimType (&DisplayArray[RubbleElementPtr->PrimIndex], STAMP_PRIM);
+		RubbleElementPtr->current.image.farray = asteroid;
+		RubbleElementPtr->current.image.frame =
+				SetAbsFrameIndex (asteroid[0], ANGLE_TO_FACING (FULL_CIRCLE));
+		RubbleElementPtr->current.location = AsteroidElementPtr->current.location;
+		RubbleElementPtr->preprocess_func = animation_preprocess;
+
+		SetVelocityComponents(&RubbleElementPtr->velocity, dx, dy);
+
+		UnlockElement (hRubbleElement);
+	}
+}
+
+static void
+spawn_slylandro_asteroid (PELEMENT ElementPtr)
+{
+	HELEMENT hAsteroidElement;
+	STARSHIPPTR StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if ((hAsteroidElement = AllocElement ()))
+	{
+		ELEMENTPTR AsteroidElementPtr;
+		COUNT offset;
+
+		LockElement (hAsteroidElement, &AsteroidElementPtr);
+		AsteroidElementPtr->hit_points = 1;
+		AsteroidElementPtr->mass_points = 3;
+		AsteroidElementPtr->state_flags = APPEARING;
+		AsteroidElementPtr->life_span = NORMAL_LIFE;
+		SetPrimType (&DisplayArray[AsteroidElementPtr->PrimIndex], STAMP_PRIM);
+		{
+			// Using these temporary variables because the execution order
+			// of function arguments may vary per system, which may break
+			// synchronisation on network games.
+			SIZE magnitude =
+					DISPLAY_TO_WORLD (((SIZE)TFB_Random () & 7) + 4);
+			COUNT facing = (COUNT)TFB_Random ();
+			SetVelocityVector (&AsteroidElementPtr->velocity, magnitude,
+					facing);
+		}
+		AsteroidElementPtr->current.image.farray = asteroid;
+		AsteroidElementPtr->current.image.frame =
+				SetAbsFrameIndex (asteroid[0],
+				NORMALIZE_FACING (TFB_Random ()));
+		AsteroidElementPtr->turn_wait =
+				AsteroidElementPtr->thrust_wait =
+				(BYTE)TFB_Random () & (BYTE)((1 << 2) - 1);
+		AsteroidElementPtr->thrust_wait |=
+				(BYTE)TFB_Random () & (BYTE)(1 << 7);
+		AsteroidElementPtr->preprocess_func = asteroid_preprocess;
+		AsteroidElementPtr->death_func = spawn_slylandro_rubble;
+		AsteroidElementPtr->collision_func = collision;
+
+
+		offset = 0;
+		do
+		{
+			COUNT angle;
+			angle = TFB_Random() & (FULL_CIRCLE - 1);
+			AsteroidElementPtr->current.location.x =
+					ElementPtr->current.location.x
+					+ COSINE (FACING_TO_ANGLE (StarShipPtr->ShipFacing), 180)
+					+ COSINE (angle, offset);
+			AsteroidElementPtr->current.location.y =
+					ElementPtr->current.location.y
+					+ SINE (FACING_TO_ANGLE (StarShipPtr->ShipFacing), 180)
+					+ SINE (angle, offset);
+			offset += 10;
+		}
+		while(TimeSpaceMatterConflict(AsteroidElementPtr))
+
+
+		UnlockElement (hAsteroidElement);
+
+		PutElement (hAsteroidElement);
+	}
+}
+
+//******************END COPIED CODE**************
+
+
 
 static COUNT
 initialize_nukes (PELEMENT ShipPtr, HELEMENT MissileArray[])
@@ -184,16 +479,6 @@ initialize_nukes (PELEMENT ShipPtr, HELEMENT MissileArray[])
 	}
 
 	return (NUM_MISSILES);
-
-	/*MissileArray[0] = initialize_missile (&MissileBlock);
-	MissileBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE(MissileBlock.face + 4), 30);
-	MissileBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE(MissileBlock.face + 4), 30);
-	MissileArray[1] = initialize_missile (&MissileBlock);
-	MissileBlock.cx = ShipPtr->next.location.x - COSINE(FACING_TO_ANGLE(MissileBlock.face + 4), 30);
-	MissileBlock.cy = ShipPtr->next.location.y - SINE(FACING_TO_ANGLE(MissileBlock.face + 4), 30);
-	MissileArray[2] = initialize_missile (&MissileBlock);
-
-	return (3);*/
 }
 
 static void
@@ -201,7 +486,62 @@ slylandro_postprocess (PELEMENT ElementPtr)
 {
 	STARSHIPPTR StarShipPtr;
 
-	GetElementStarShip (ElementPtr, &StarShipPtr);	
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+
+	if((StarShipPtr->cur_status_flags & SPECIAL)
+		&& StarShipPtr->special_counter == 0
+		&& DeltaEnergy(ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		COUNT angle;
+		SIZE cur_delta_x, cur_delta_y;
+
+
+		StarShipPtr->special_counter = SPECIAL_WAIT;
+		spawn_slylandro_asteroid(ElementPtr);
+
+
+//*********  CODE COPIED FROM druuge_postprocess  ***********
+
+#define ASTEROID_VELOCITY WORLD_TO_VELOCITY (DISPLAY_TO_WORLD (4))
+#define MAX_ASTEROID_VELOCITY WORLD_TO_VELOCITY (DISPLAY_TO_WORLD (28))
+
+		StarShipPtr->cur_status_flags &= ~SHIP_AT_MAX_SPEED;
+
+		angle = FACING_TO_ANGLE (StarShipPtr->ShipFacing) + HALF_CIRCLE;
+		DeltaVelocityComponents (&ElementPtr->velocity,
+				COSINE (angle, ASTEROID_VELOCITY),
+				SINE (angle, ASTEROID_VELOCITY));
+		GetCurrentVelocityComponents (&ElementPtr->velocity,
+				&cur_delta_x, &cur_delta_y);
+		if ((long)cur_delta_x * (long)cur_delta_x
+				+ (long)cur_delta_y * (long)cur_delta_y
+				> (long)MAX_ASTEROID_VELOCITY * (long)MAX_ASTEROID_VELOCITY)
+		{
+			angle = ARCTAN (cur_delta_x, cur_delta_y);
+			SetVelocityComponents (&ElementPtr->velocity,
+					COSINE (angle, MAX_ASTEROID_VELOCITY),
+					SINE (angle, MAX_ASTEROID_VELOCITY));
+		}
+//******************    END COPIED CODE   *******************
+	}
+
+
+	/*if((StarShipPtr->cur_status_flags & SPECIAL)
+		&& StarShipPtr->special_counter == 0
+		&& DeltaEnergy(ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		StarShipPtr->special_counter = SPECIAL_WAIT;
+		ProcessSound (StarShipPtr->RaceDescPtr->ship_data.ship_sounds, ElementPtr);
+	}
+	if(StarShipPtr->special_counter)
+	{
+		HELEMENT Lightning;
+
+		initialize_lightning (ElementPtr, &Lightning);
+		if (Lightning)
+			PutElement (Lightning);
+	}*/
 }
 
 

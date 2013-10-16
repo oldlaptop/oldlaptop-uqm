@@ -414,7 +414,7 @@ mmrnmhrm_postprocess (PELEMENT ElementPtr)
 
 		if(ElementPtr->thrust_wait > StarShipPtr->RaceDescPtr->characteristics.thrust_wait)ElementPtr->thrust_wait = StarShipPtr->RaceDescPtr->characteristics.thrust_wait;
 		if(ElementPtr->turn_wait > StarShipPtr->RaceDescPtr->characteristics.turn_wait)ElementPtr->turn_wait = StarShipPtr->RaceDescPtr->characteristics.turn_wait;
-		if(StarShipPtr->weapon_counter > StarShipPtr->RaceDescPtr->characteristics.weapon_wait)StarShipPtr->weapon_counter = StarShipPtr->RaceDescPtr->characteristics.weapon_wait + 1;
+		if(StarShipPtr->weapon_counter > StarShipPtr->RaceDescPtr->characteristics.weapon_wait)StarShipPtr->weapon_counter = StarShipPtr->RaceDescPtr->characteristics.weapon_wait;
 		if(StarShipPtr->special_counter > StarShipPtr->RaceDescPtr->characteristics.special_wait)StarShipPtr->special_counter = StarShipPtr->RaceDescPtr->characteristics.special_wait;
 	}
 }
@@ -447,6 +447,7 @@ mmrnmhrm_preprocess (PELEMENT ElementPtr)
 		if ((StarShipPtr->cur_status_flags & SPECIAL)
 				&& StarShipPtr->special_counter == 0)
 		{
+			if(StarShipPtr->weapon_counter == 0)StarShipPtr->weapon_counter = 1;
 			/*if (StarShipPtr->RaceDescPtr->ship_info.energy_level <
 					StarShipPtr->RaceDescPtr->characteristics.special_energy_cost)
 				DeltaEnergy (ElementPtr,
