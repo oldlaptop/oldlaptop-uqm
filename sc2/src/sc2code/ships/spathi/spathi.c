@@ -21,6 +21,8 @@
 
 #include "colors.h"
 #include "globdata.h"
+#include "libs/mathlib.h"
+
 
 #define MAX_CREW 30
 #define MAX_ENERGY 10

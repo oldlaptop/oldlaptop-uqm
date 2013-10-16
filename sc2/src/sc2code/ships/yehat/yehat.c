@@ -32,7 +32,7 @@
 #define ENERGY_WAIT 4 //6
 #define MAX_THRUST 30
 #define THRUST_INCREMENT 6
-#define TURN_WAIT 2
+#define TURN_WAIT 1 //2
 #define THRUST_WAIT 2
 #define WEAPON_WAIT 0
 #define SPECIAL_WAIT 17 //15 //2

@@ -480,10 +480,12 @@ ProcessCollisions (HELEMENT hSuccElement, ELEMENTPTR ElementPtr,
 							InitIntersectFrame (ElementPtr);
 							if (state_flags & PLAYER_SHIP)
 							{
+								// WARNING WARNING DUPLICATE CODE (see below)
 								STARSHIPPTR StarShipPtr;
 
 								GetElementStarShip (ElementPtr, &StarShipPtr);
-								if(StarShipPtr->RaceResIndex == SLYLANDRO_SHIP_INDEX)
+								if(StarShipPtr->RaceResIndex == SLYLANDRO_SHIP_INDEX
+									|| StarShipPtr->RaceResIndex == MMRNMHRM_SHIP_INDEX)
 								{
 								}
 								else StarShipPtr->ShipFacing =
@@ -496,9 +498,12 @@ ProcessCollisions (HELEMENT hSuccElement, ELEMENTPTR ElementPtr,
 							InitIntersectFrame (TestElementPtr);
 							if (test_state_flags & PLAYER_SHIP)
 							{
+								// WARNING WARNING DUPLICATE CODE (see above)
 								STARSHIPPTR StarShipPtr;
 
-								if(StarShipPtr->RaceResIndex == SLYLANDRO_SHIP_INDEX)
+								GetElementStarShip (ElementPtr, &StarShipPtr);
+								if(StarShipPtr->RaceResIndex == SLYLANDRO_SHIP_INDEX
+									|| StarShipPtr->RaceResIndex == MMRNMHRM_SHIP_INDEX)
 								{
 								}
 								else GetElementStarShip (TestElementPtr, &StarShipPtr);

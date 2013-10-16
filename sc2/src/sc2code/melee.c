@@ -254,8 +254,6 @@ DrawShipBox (COUNT side, COUNT row, COUNT col, BYTE ship, BOOLEAN HiLite)
 {
 	RECT r;
 
-	log_add (log_All, "lol");
-
 	GetShipBox (&r, side, row, col);
 
 	BatchGraphics ();
@@ -2706,18 +2704,10 @@ InitPreBuilt (PMELEE_STATE pMS)
 		FleetShipIndex i = 0;
 		utf8StringCopy (pMS->PreBuiltList[2].TeamName,
 				sizeof (pMS->PreBuiltList[2].TeamName),
-				GAME_STRING (MELEE_STRING_BASE + 6));
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_ANDROSYNTH;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_CHMMR;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_DRUUGE;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_MELNORME;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_EARTHLING;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_KOHR_AH;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_SUPOX;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_ORZ;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_SPATHI;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_ILWRATH;
-		pMS->PreBuiltList[2].ShipList[i++] = MELEE_VUX;
+				/*GAME_STRING (MELEE_STRING_BASE + 6)*/ "Test team");
+		pMS->PreBuiltList[2].ShipList[i++] = MELEE_MMRNMHRM;
+		pMS->PreBuiltList[2].ShipList[i++] = MELEE_MMRNMHRM;
+		pMS->PreBuiltList[2].ShipList[i++] = MELEE_MMRNMHRM;
 	}
 
 	{

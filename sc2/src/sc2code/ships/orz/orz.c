@@ -418,7 +418,7 @@ intruder_preprocess (PELEMENT ElementPtr)
 			{
 				UnlockElement (hElement);
 				hElement = 0;
-LeftShip:
+//LeftShip:
 				s.origin.x = 16 + (ElementPtr->turn_wait & 3) * 9;
 				s.origin.y = 14 + (ElementPtr->turn_wait >> 2) * 11;
 				s.frame = ElementPtr->next.image.frame;
@@ -431,7 +431,7 @@ LeftShip:
 				ElementPtr->thrust_wait = MARINE_WAIT;
 
 				randval = (BYTE)TFB_Random ();
-				if (randval < (0/*x0100 / 16*/))
+				/*if (randval < (0x0100 / 16))
 				{
 					ElementPtr->life_span = 0;
 					ElementPtr->state_flags |= DISAPPEARING;
@@ -440,7 +440,7 @@ LeftShip:
 							StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 4), ElementPtr);
 					goto LeftShip;
 				}
-				else if (randval < (0x0100 / 2 + 0/*x0100 / 16*/))
+				else */if (randval < (0x0100 / 2 + 0/*x0100 / 16*/))
 				{
 					if (!DeltaCrew (ShipPtr, -1))
 						ShipPtr->life_span = 0;
@@ -575,6 +575,10 @@ PELEMENT ElementPtr;
 			delta_y = WRAP_DELTA_Y (delta_y);
 			if (GRAVITY_MASS (ObjectPtr->mass_points))
 			{
+				//added to satisfy compiler (and it might fix something? not sure)
+				pfacing = ANGLE_TO_FACING (ARCTAN (delta_x, delta_y));
+
+
 				delta_facing = NORMALIZE_FACING (pfacing - facing
 						+ ANGLE_TO_FACING (OCTANT));
 

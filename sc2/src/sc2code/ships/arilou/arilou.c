@@ -499,7 +499,7 @@ arilou_postprocess (PELEMENT ElementPtr)
 	
 		if ((StarShipPtr->cur_status_flags & WEAPON)
 				&& StarShipPtr->special_counter == 0
-				&& CleanDeltaEnergy (ElementPtr, -CONFUSE_ENERGY_COST))
+				&& DeltaEnergy (ElementPtr, -CONFUSE_ENERGY_COST))
 		{
 			extern BOOLEAN spawn_confusion(PELEMENT ShipPtr);
 			if(spawn_confusion(ElementPtr));
@@ -564,6 +564,7 @@ init_arilou (void)
 	arilou_desc.preprocess_func = arilou_preprocess;
 	arilou_desc.postprocess_func = arilou_postprocess;
 	arilou_desc.init_weapon_func = initialize_nothing;
+	arilou_desc.uninit_func = arilou_dispose_graphics;
 	arilou_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT
 					ConcernCounter)) arilou_intelligence;

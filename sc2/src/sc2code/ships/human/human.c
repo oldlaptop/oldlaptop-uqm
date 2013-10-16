@@ -272,7 +272,8 @@ initialize_nuke (PELEMENT ShipPtr, HELEMENT NukeArray[])
 	MissileBlock.cy = ShipPtr->next.location.y;
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
 	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
-	MissileBlock.sender = ShipPtr->state_flags & (GOOD_GUY | BAD_GUY);
+	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| PERSISTENT;
 	MissileBlock.pixoffs = HUMAN_OFFSET;
 	MissileBlock.speed = MISSILE_SPEED;
 	MissileBlock.hit_points = MISSILE_HITS;

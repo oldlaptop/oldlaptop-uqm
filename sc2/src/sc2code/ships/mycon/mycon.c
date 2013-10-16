@@ -318,7 +318,8 @@ initialize_plasma (PELEMENT ShipPtr, HELEMENT PlasmaArray[])
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
 	MissileBlock.face = StarShipPtr->ShipFacing;
 	MissileBlock.index = 0;
-	MissileBlock.sender = ShipPtr->state_flags & (GOOD_GUY | BAD_GUY);
+	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| PERSISTENT;
 	MissileBlock.pixoffs = MYCON_OFFSET;
 	MissileBlock.speed = MISSILE_HELD_SPEED;
 	MissileBlock.hit_points = MISSILE_DAMAGE;
@@ -350,7 +351,6 @@ mycon_postprocess (PELEMENT ElementPtr)
 	HELEMENT hShip, hNextShip;
 	ELEMENTPTR Enemy;
 	STARSHIPPTR StarShipPtr, EnemyStarShip;
-	BOOLEAN found_an_enemy = false;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 

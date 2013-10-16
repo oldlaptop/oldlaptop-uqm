@@ -167,7 +167,7 @@ initialize_spit (PELEMENT ShipPtr, HELEMENT SpitArray[])
 	MissileBlock.face = StarShipPtr->ShipFacing;
 	MissileBlock.index = 0;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
+			| IGNORE_SIMILAR | PERSISTENT;
 	MissileBlock.pixoffs = ZOQFOTPIK_OFFSET;
 	MissileBlock.speed = DISPLAY_TO_WORLD (
 			GetFrameCount (StarShipPtr->RaceDescPtr->ship_data.weapon[0])) << 1;

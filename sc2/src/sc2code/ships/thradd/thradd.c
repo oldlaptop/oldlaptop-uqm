@@ -235,7 +235,7 @@ flame_napalm_preprocess (PELEMENT ElementPtr)
 	}
 }
 
-static void thraddash_preprocess (PELEMENT ElementPtr);
+static void afterburner_preprocess (PELEMENT ElementPtr);
 
 #define TRACK_WAIT 0
 
@@ -260,7 +260,7 @@ homing_preprocess (PELEMENT ElementPtr)
 		ElementPtr->turn_wait = TRACK_WAIT;
 	}
 
-	thraddash_preprocess (ElementPtr);
+	afterburner_preprocess (ElementPtr);
 }
 
 static COUNT
@@ -278,13 +278,13 @@ sub_initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[], BOOLEAN homing)
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
 	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
+			| IGNORE_SIMILAR | PERSISTENT;
 	MissileBlock.pixoffs = THRADDASH_OFFSET;
 	MissileBlock.speed = 0; //MISSILE_SPEED;
 	MissileBlock.hit_points = MISSILE_HITS;
 	MissileBlock.damage = MISSILE_DAMAGE;
 	MissileBlock.life = homing ? MISSILE_LIFE * 5 : MISSILE_LIFE;
-	MissileBlock.preprocess_func = homing ? homing_preprocess : thraddash_preprocess;
+	MissileBlock.preprocess_func = homing ? homing_preprocess : afterburner_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 	HornArray[0] = initialize_missile (&MissileBlock);
 
@@ -306,7 +306,7 @@ initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
 }
 
 static void
-thraddash_preprocess (PELEMENT ElementPtr)
+afterburner_preprocess (PELEMENT ElementPtr)
 {
 	STARSHIPPTR StarShipPtr;
 
@@ -345,7 +345,7 @@ thraddash_preprocess (PELEMENT ElementPtr)
 			MissileBlock.cx = ElementPtr->next.location.x;
 			MissileBlock.cy = ElementPtr->next.location.y;
 			MissileBlock.sender = (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
-					| IGNORE_SIMILAR;
+					| IGNORE_SIMILAR | PERSISTENT;
 			MissileBlock.pixoffs = 0;
 			MissileBlock.speed = 0;
 			MissileBlock.hit_points = NAPALM_HITS;
@@ -425,7 +425,6 @@ init_thraddash (void)
 {
 	RACE_DESCPTR RaceDescPtr;
 
-	//thraddash_desc.preprocess_func = thraddash_preprocess;
 	thraddash_desc.postprocess_func = thraddash_postprocess;
 	thraddash_desc.init_weapon_func = initialize_horn;
 	thraddash_desc.cyborg_control.intelligence_func =

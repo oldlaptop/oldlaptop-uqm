@@ -171,7 +171,7 @@ initialize_cannon (PELEMENT ShipPtr, HELEMENT CannonArray[])
 	MissileBlock.face = StarShipPtr->ShipFacing;
 	MissileBlock.index = MissileBlock.face;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
+			| IGNORE_SIMILAR | PERSISTENT;
 	MissileBlock.pixoffs = DRUUGE_OFFSET;
 	MissileBlock.speed = MISSILE_SPEED;
 	MissileBlock.hit_points = MISSILE_HITS;

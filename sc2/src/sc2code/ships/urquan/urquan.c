@@ -157,7 +157,6 @@ fusion_preprocess (PELEMENT ElementPtr)
 {
 	if(ElementPtr->life_span == 1)
 	{
-		COUNT i;
 		SIZE dx, dy;
 		ElementPtr->next.image.frame = SetAbsFrameIndex(ElementPtr->next.image.frame, NORMALIZE_FACING(GetFrameIndex(ElementPtr->next.image.frame) + 8));
 		GetCurrentVelocityComponents(&ElementPtr->velocity, &dx, &dy);
@@ -492,7 +491,7 @@ spawn_fighters (PELEMENT ElementPtr)
 		FighterElementPtr->mass_points = 0;
 		FighterElementPtr->thrust_wait = TRACK_THRESHOLD + 1;
 		FighterElementPtr->state_flags = APPEARING
-				| FINITE_LIFE | CREW_OBJECT | IGNORE_SIMILAR
+				| FINITE_LIFE | CREW_OBJECT | IGNORE_SIMILAR | PERSISTENT
 				| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
 		FighterElementPtr->life_span = FIGHTER_LIFE;
 		SetPrimType (&(GLOBAL (DisplayArray))[FighterElementPtr->PrimIndex],
@@ -575,10 +574,16 @@ urquan_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Co
 
 	lpEvalDesc = &ObjectsOfConcern[ENEMY_SHIP_INDEX];
 	{
-		STARSHIPPTR EnemyStarShipPtr;
+		//STARSHIPPTR EnemyStarShipPtr;
+		
+		if(StarShipPtr->RaceDescPtr->ship_info.energy_level * 2 > StarShipPtr->RaceDescPtr->ship_info.max_energy )
+			StarShipPtr->ship_input_state |= SPECIAL;
+		else
+			StarShipPtr->ship_input_state &= ~SPECIAL;
 
-		if (lpEvalDesc->ObjectPtr)
+		/*if (lpEvalDesc->ObjectPtr)
 			GetElementStarShip (lpEvalDesc->ObjectPtr, &EnemyStarShipPtr);
+		{
 		if (StarShipPtr->special_counter == 0
 				&& lpEvalDesc->ObjectPtr
 				&& StarShipPtr->RaceDescPtr->ship_info.crew_level >
@@ -597,6 +602,7 @@ urquan_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Co
 			StarShipPtr->ship_input_state |= SPECIAL;
 		else
 			StarShipPtr->ship_input_state &= ~SPECIAL;
+		}*/
 	}
 
 	StarShipPtr->RaceDescPtr->characteristics.special_wait = 0;

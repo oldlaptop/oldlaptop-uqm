@@ -110,7 +110,7 @@ static RACE_DESC vux_desc =
 
 #define LIMPET_SPEED 50 //25
 
-static void
+/*static void
 limpet_preprocess (PELEMENT ElementPtr)
 {
 	COUNT facing, orig_facing;
@@ -170,7 +170,7 @@ limpet_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT
 
 		GetElementStarShip (ElementPtr0, &StarShipPtr);
 		ProcessSound (SetAbsSoundIndex (
-						/* LIMPET_AFFIXES */
+						// LIMPET_AFFIXES
 				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 2), ElementPtr1);
 		s.frame = SetAbsFrameIndex (
 				StarShipPtr->RaceDescPtr->ship_data.weapon[0], (COUNT)TFB_Random ()
@@ -182,8 +182,8 @@ limpet_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT
 	ElementPtr0->life_span = 0;
 	ElementPtr0->state_flags |= COLLISION | DISAPPEARING;
 
-	(void) pPt0;  /* Satisfying compiler (unused parameter) */
-	(void) pPt1;  /* Satisfying compiler (unused parameter) */
+	(void) pPt0;  // Satisfying compiler (unused parameter)
+	(void) pPt1;  // Satisfying compiler (unused parameter)
 }
 
 static void
@@ -225,7 +225,7 @@ spawn_limpets (PELEMENT ElementPtr)
 
 		PutElement (Limpet);
 	}
-}
+}*/
 
 static COUNT initialize_horrific_laser (PELEMENT ElementPtr, HELEMENT
 		LaserArray[]);
@@ -281,7 +281,16 @@ initialize_horrific_laser (PELEMENT ElementPtr, HELEMENT LaserArray[])
 		SetElementStarShip (LaserPtr, StarShipPtr);
 		LaserPtr->postprocess_func = horrific_laser_postprocess;
 		LaserPtr->collision_func = horrific_laser_collision;
-		LaserPtr->turn_wait = isFirstSegment ? 25 : ElementPtr->turn_wait - 1;
+		if(isFirstSegment)
+		{
+			if((StarShipPtr->ShipFacing / 4) * 4 == StarShipPtr->ShipFacing)
+				LaserPtr->turn_wait = 8;
+			else LaserPtr->turn_wait = 200;
+		}
+		else
+		{
+			LaserPtr->turn_wait = ElementPtr->turn_wait - 1;
+		}
 
 		UnlockElement(LaserArray[0]);
 	}

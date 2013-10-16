@@ -109,44 +109,28 @@ static RACE_DESC black_urquan_desc =
 };
 
 #define SAW_RATE 0
-#define MAX_SAWS 24 //8
 
 static void
 spin_preprocess (PELEMENT ElementPtr)
 {
-	ELEMENTPTR ShipPtr;
-	STARSHIPPTR StarShipPtr;
-
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-	LockElement (StarShipPtr->hShip, &ShipPtr);
-	if (ShipPtr->crew_level
-			&& ++StarShipPtr->RaceDescPtr->characteristics.special_wait > MAX_SAWS)
-	{
-		ElementPtr->life_span = 1;
-		ElementPtr->state_flags |= DISAPPEARING;
-	}
+	++ElementPtr->life_span;
+	if (ElementPtr->turn_wait)
+		--ElementPtr->turn_wait;
 	else
 	{
-		++ElementPtr->life_span;
-		if (ElementPtr->turn_wait)
-			--ElementPtr->turn_wait;
-		else
-		{
 #define LAST_SPIN_INDEX 1
-			if (GetFrameIndex (
-					ElementPtr->current.image.frame
-					) < LAST_SPIN_INDEX)
-				ElementPtr->next.image.frame =
-						IncFrameIndex (ElementPtr->current.image.frame);
-			else
-				ElementPtr->next.image.frame =
-						SetAbsFrameIndex (ElementPtr->current.image.frame, 0);
-			ElementPtr->state_flags |= CHANGING;
+		if (GetFrameIndex (
+				ElementPtr->current.image.frame
+				) < LAST_SPIN_INDEX)
+			ElementPtr->next.image.frame =
+					IncFrameIndex (ElementPtr->current.image.frame);
+		else
+			ElementPtr->next.image.frame =
+					SetAbsFrameIndex (ElementPtr->current.image.frame, 0);
+		ElementPtr->state_flags |= CHANGING;
 
-			ElementPtr->turn_wait = SAW_RATE;
-		}
+		ElementPtr->turn_wait = SAW_RATE;
 	}
-	UnlockElement (StarShipPtr->hShip);
 }
 
 #define TRACK_WAIT 4
@@ -167,43 +151,6 @@ buzztrack_preprocess (PELEMENT ElementPtr)
 		}
 		else
 		{
-#define ACTIVATE_RANGE 224 /* Originally SPACE_WIDTH */
-/*			SIZE delta_x, delta_y;
-			ELEMENTPTR eptr;
-
-			LockElement (ElementPtr->hTarget, &eptr);
-			delta_x = eptr->current.location.x
-					- ElementPtr->current.location.x;
-			delta_y = eptr->current.location.y
-					- ElementPtr->current.location.y;
-			UnlockElement (ElementPtr->hTarget);
-			delta_x = WRAP_DELTA_X (delta_x);
-			delta_y = WRAP_DELTA_Y (delta_y);
-			facing = NORMALIZE_FACING (
-					ANGLE_TO_FACING (ARCTAN (delta_x, delta_y))
-					);
-
-			if (delta_x < 0)
-				delta_x = -delta_x;
-			if (delta_y < 0)
-				delta_y = -delta_y;
-			delta_x = WORLD_TO_DISPLAY (delta_x);
-			delta_y = WORLD_TO_DISPLAY (delta_y);
-			if (delta_x >= ACTIVATE_RANGE
-					|| delta_y >= ACTIVATE_RANGE
-					|| (DWORD)((UWORD)delta_x * delta_x)
-					+ (DWORD)((UWORD)delta_y * delta_y) >=
-					(DWORD)ACTIVATE_RANGE * ACTIVATE_RANGE)
-			{
-				ZeroVelocityComponents (&ElementPtr->velocity);
-			}
-			else
-			{
-				ElementPtr->thrust_wait = TRACK_WAIT;
-				SetVelocityVector (&ElementPtr->velocity,
-						DISPLAY_TO_WORLD (2), facing);
-			}*/
-
 			SIZE dx, dy;
 			COUNT angle;
 			ELEMENTPTR EnemyElementPtr;
@@ -298,7 +245,7 @@ buzzsaw_preprocess (PELEMENT ElementPtr)
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if (!(StarShipPtr->cur_status_flags & WEAPON))
+	if (!(StarShipPtr && (StarShipPtr->cur_status_flags & WEAPON)))
 	{
 		ElementPtr->life_span >>= 1;
 		ElementPtr->preprocess_func = decelerate_preprocess;
@@ -308,41 +255,6 @@ buzzsaw_preprocess (PELEMENT ElementPtr)
 	spin_preprocess (ElementPtr);
 }
 
-static void
-buzzsaw_postprocess (PELEMENT ElementPtr)
-{
-	HELEMENT hElement;
-
-	ElementPtr->postprocess_func = 0;
-	hElement = AllocElement ();
-	if (hElement)
-	{
-		COUNT primIndex;
-		ELEMENTPTR ListElementPtr;
-		STARSHIPPTR StarShipPtr;
-
-		LockElement (hElement, &ListElementPtr);
-		primIndex = ListElementPtr->PrimIndex;
-		*ListElementPtr = *ElementPtr;
-		ListElementPtr->PrimIndex = primIndex;
-		(GLOBAL (DisplayArray))[primIndex] =
-				(GLOBAL (DisplayArray))[ElementPtr->PrimIndex];
-		ListElementPtr->current = ListElementPtr->next;
-		InitIntersectStartPoint (ListElementPtr);
-		InitIntersectEndPoint (ListElementPtr);
-		ListElementPtr->state_flags = (ListElementPtr->state_flags
-				& ~(PRE_PROCESS | CHANGING | APPEARING))
-				| POST_PROCESS;
-		UnlockElement (hElement);
-
-		GetElementStarShip (ElementPtr, &StarShipPtr);
-		LockElement (StarShipPtr->hShip, &ListElementPtr);
-		InsertElement (hElement, GetSuccElement (ListElementPtr));
-		UnlockElement (StarShipPtr->hShip);
-
-		ElementPtr->life_span = 0;
-	}
-}
 
 static COUNT
 initialize_buzzsaw (PELEMENT ShipPtr, HELEMENT SawArray[])
@@ -361,7 +273,7 @@ initialize_buzzsaw (PELEMENT ShipPtr, HELEMENT SawArray[])
 	MissileBlock.face = StarShipPtr->ShipFacing;
 	MissileBlock.index = 0;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
+			| IGNORE_SIMILAR | PERSISTENT;
 	MissileBlock.pixoffs = KOHR_AH_OFFSET;
 	MissileBlock.speed = MISSILE_SPEED;
 	MissileBlock.hit_points = MISSILE_HITS;
@@ -378,7 +290,6 @@ initialize_buzzsaw (PELEMENT ShipPtr, HELEMENT SawArray[])
 		LockElement (SawArray[0], &SawPtr);
 		SawPtr->turn_wait = SAW_RATE;
 		SawPtr->thrust_wait = 0;
-		SawPtr->postprocess_func = buzzsaw_postprocess;
 		SawPtr->collision_func = buzzsaw_collision;
 		UnlockElement (SawArray[0]);
 	}
@@ -521,7 +432,7 @@ spawn_gas_cloud (PELEMENT ElementPtr)
 	MissileBlock.index = 0;
 	MissileBlock.sender =
 			(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
+			| IGNORE_SIMILAR | PERSISTENT;
 	MissileBlock.pixoffs = 20;
 	MissileBlock.speed = GAS_SPEED;
 	MissileBlock.hit_points = GAS_HITS;

@@ -221,6 +221,45 @@ readyForBattleEnd (COUNT side)
 #endif  /* defined (NETPLAY) */
 }
 
+static void dead_ship_maybe_free_data(PELEMENT DeadShipPtr)
+{
+	BOOLEAN needs_to_wait = false;
+	HELEMENT hElement, hSuccElement;
+	STARSHIPPTR DeadStarShipPtr;
+
+	GetElementStarShip (DeadShipPtr, &DeadStarShipPtr);
+
+	for (hElement = GetHeadElement (); hElement; hElement = hSuccElement)
+	{
+		ELEMENTPTR ElementPtr;
+		STARSHIPPTR StarShipPtr;
+
+		LockElement (hElement, &ElementPtr);
+		hSuccElement = GetSuccElement (ElementPtr);
+		GetElementStarShip (ElementPtr, &StarShipPtr);
+		
+		if(DeadStarShipPtr == StarShipPtr && (ElementPtr->state_flags & PERSISTENT))
+		{
+			needs_to_wait = true;
+			break;
+		}
+
+		UnlockElement (hElement);
+	}
+
+	if(needs_to_wait)
+	{
+		DeadShipPtr->state_flags &= ~DISAPPEARING;
+		DeadShipPtr->life_span = 0;
+		DeadShipPtr->death_func = dead_ship_maybe_free_data;
+	}
+	else
+	{
+		free_ship (DeadStarShipPtr, TRUE);
+		//UnbatchGraphics ();
+	}
+}
+
 void
 new_ship (PELEMENT DeadShipPtr)
 {
@@ -276,10 +315,12 @@ new_ship (PELEMENT DeadShipPtr)
 			{
 				// This element belongs to the dead ship; it may be the
 				// ship's own element.
-				SetElementStarShip (ElementPtr, 0);
+				if (!(ElementPtr->state_flags & PERSISTENT))SetElementStarShip (ElementPtr, 0);
 
-				if (!(ElementPtr->state_flags & CREW_OBJECT)
-						|| ElementPtr->preprocess_func != crew_preprocess)
+				if (!(ElementPtr->state_flags & PERSISTENT)
+					&&
+					(!(ElementPtr->state_flags & CREW_OBJECT)
+						|| ElementPtr->preprocess_func != crew_preprocess))
 				{
 					// Set the element up for deletion.
 					SetPrimType (&DisplayArray[ElementPtr->PrimIndex],
@@ -328,14 +369,16 @@ new_ship (PELEMENT DeadShipPtr)
 		StopMusic ();
 		StopSound ();
 
-		SetElementStarShip (DeadShipPtr, 0);
+		//SetElementStarShip (DeadShipPtr, 0);
 		RestartMusic = OpponentAlive (DeadStarShipPtr);
 
 		if (DeadStarShipPtr->RaceDescPtr->uninit_func != NULL)
 			(*DeadStarShipPtr->RaceDescPtr->uninit_func) (
 					DeadStarShipPtr->RaceDescPtr);
-		free_ship (DeadStarShipPtr, TRUE);
+		//free_ship (DeadStarShipPtr, TRUE);
 UnbatchGraphics ();
+		//instead,
+		dead_ship_maybe_free_data(DeadShipPtr);
 
 #ifdef NETPLAY
 		initBattleStateDataConnections ();

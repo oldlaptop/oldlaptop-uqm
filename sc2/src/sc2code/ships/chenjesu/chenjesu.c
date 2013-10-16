@@ -247,7 +247,7 @@ crystal_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOI
 }
 
 
-//DUPLICATE CODE FROM CHMMR
+//DUPLICATE CODE FROM CHMMR - NOW MODIFIED
 static void
 spawn_point_defense (PELEMENT ElementPtr)
 {
@@ -257,22 +257,22 @@ spawn_point_defense (PELEMENT ElementPtr)
 	UWORD best_dist;
 	STARSHIPPTR StarShipPtr;
 	HELEMENT hObject, hNextObject, hBestObject;
-	ELEMENTPTR ShipPtr, SattPtr, ObjectPtr;
+	ELEMENTPTR SattPtr, ObjectPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	hBestObject = 0;
 	best_dist = DEFENSE_RANGE + 1;
 	weakest = 255;
-	LockElement (StarShipPtr->hShip, &ShipPtr);
+
 	LockElement (ElementPtr->hTarget, &SattPtr);
 	for (hObject = GetPredElement (ElementPtr);
 			hObject; hObject = hNextObject)
 	{
 		LockElement (hObject, &ObjectPtr);
 		hNextObject = GetPredElement (ObjectPtr);
-		if (((ObjectPtr->state_flags | ShipPtr->state_flags)
+		if (((ObjectPtr->state_flags | ElementPtr->state_flags)
 				& (GOOD_GUY | BAD_GUY)) == (GOOD_GUY | BAD_GUY)
-				&& CollisionPossible (ObjectPtr, ShipPtr)
+				&& CollisionPossible (ObjectPtr, ElementPtr)
 				&& !OBJECT_CLOAKED (ObjectPtr))
 		{
 			SIZE delta_x, delta_y;
@@ -409,7 +409,7 @@ doggy_preprocess (PELEMENT ElementPtr)
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	++StarShipPtr->special_counter;
+	if(StarShipPtr->RaceDescPtr->ship_info.crew_level)++StarShipPtr->special_counter;
 	if (ElementPtr->thrust_wait > 0) /* could be non-zero after a collision */
 		--ElementPtr->thrust_wait;
 	else
@@ -528,7 +528,7 @@ spawn_doggy (PELEMENT ElementPtr)
 		DoggyElementPtr->thrust_wait = 0;
 		DoggyElementPtr->state_flags = APPEARING
 				| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			/*	| IGNORE_SIMILAR*/;
+			/*	| IGNORE_SIMILAR*/ | PERSISTENT;
 		DoggyElementPtr->life_span = NORMAL_LIFE;
 		SetPrimType (&(GLOBAL (DisplayArray))[DoggyElementPtr->PrimIndex],
 				STAMP_PRIM);

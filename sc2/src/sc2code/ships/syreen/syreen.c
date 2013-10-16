@@ -22,6 +22,8 @@
 #include "globdata.h"
 #include "libs/mathlib.h"
 
+#include "ires_ind.h"
+
 
 #define SYREEN_MAX_CREW_SIZE MAX_CREW_SIZE
 #define MAX_CREW MAX_CREW_SIZE //12
@@ -109,7 +111,7 @@ static RACE_DESC syreen_desc =
 	0,
 };
 
-static COUNT
+/*static COUNT
 initialize_dagger (PELEMENT ShipPtr, HELEMENT DaggerArray[])
 {
 #define SYREEN_OFFSET 30
@@ -136,7 +138,7 @@ initialize_dagger (PELEMENT ShipPtr, HELEMENT DaggerArray[])
 	DaggerArray[0] = initialize_missile (&MissileBlock);
 
 	return (1);
-}
+}*/
 
 static COUNT initialize_homing_laser (PELEMENT ElementPtr, HELEMENT
 		LaserArray[]);
@@ -275,6 +277,7 @@ compel_enemy (PELEMENT ElementPtr)
 		original_target = EnemyElementPtr->hTarget;
 		
 		facing = EnemyStarShipPtr->ShipFacing;
+		if(EnemyStarShipPtr->RaceResIndex == MMRNMHRM_SHIP_INDEX && EnemyElementPtr->next.image.farray == EnemyStarShipPtr->RaceDescPtr->ship_data.ship)facing = NORMALIZE_FACING((facing + 2) / 4);
 		delta_facing = TrackShip (EnemyElementPtr, &facing);
 		if(delta_facing > 0 && delta_facing < 8)EnemyStarShipPtr->ship_input_state |= RIGHT;
 		else if(delta_facing > 8)EnemyStarShipPtr->ship_input_state |= LEFT;
@@ -323,7 +326,7 @@ mace_preprocess (PELEMENT ElementPtr)
 	++ElementPtr->life_span;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if (StarShipPtr->hShip)
+	if (StarShipPtr->hShip && StarShipPtr->RaceDescPtr->ship_info.crew_level)
 	{
 		SIZE dx, dy;
 		COUNT angle, distance, velocity;
@@ -421,7 +424,7 @@ mace_postprocess (PELEMENT ElementPtr)
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if (StarShipPtr->hShip)
+	if (StarShipPtr->hShip && StarShipPtr->RaceDescPtr->ship_info.crew_level)
 	{
 		SIZE dx, dy;
 		ELEMENTPTR ShipPtr;

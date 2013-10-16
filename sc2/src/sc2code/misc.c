@@ -72,6 +72,8 @@ planet_blows_up (PELEMENT ElementPtr)
 			CalcSoundPosition (ElementPtr), ElementPtr, GAME_SOUND_PRIORITY + 1);
 }
 
+extern BOOLEAN AtLeastOneShipIsPainfullyClose (PELEMENT ElementPtr);
+
 void
 spawn_planet (void)
 {

@@ -131,7 +131,7 @@ blazer_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOIN
 
 #define MISSILE_SPEED DISPLAY_TO_WORLD (8)
 
-static void
+/*static void
 bubble_preprocess (PELEMENT ElementPtr)
 {
 	BYTE thrust_wait, turn_wait;
@@ -173,15 +173,15 @@ bubble_preprocess (PELEMENT ElementPtr)
 	}
 
 	ElementPtr->turn_wait = MAKE_BYTE (turn_wait, thrust_wait);
-}
+}*/
 
 #define MISSILE_DAMAGE 2
 #define MISSILE_LIFE 200
+#define ANDROSYNTH_OFFSET 14
 
-static void
+/*static void
 make_bubble (PELEMENT ShipPtr)
 {
-#define ANDROSYNTH_OFFSET 14
 #define MISSILE_OFFSET 3
 #define MISSILE_HITS 3
 	HELEMENT Bubble;
@@ -216,7 +216,7 @@ make_bubble (PELEMENT ShipPtr)
 		UnlockElement (Bubble);
 		PutElement(Bubble);
 	}
-}
+}*/
 
 static COUNT
 initialize_androsynth_laser (PELEMENT ShipPtr, HELEMENT LaserArray[])
@@ -288,7 +288,7 @@ androsynth_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUN
 
 		ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
 
-		if (StarShipPtr->special_counter == 0)
+		/*if (StarShipPtr->special_counter == 0)
 		{
 			StarShipPtr->ship_input_state &= ~SPECIAL;
 			if ((ObjectsOfConcern[ENEMY_WEAPON_INDEX].ObjectPtr
@@ -304,7 +304,7 @@ androsynth_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUN
 					|| MANEUVERABILITY (&pEnemyStarShip->RaceDescPtr->cyborg_control) <=
 					SLOW_SHIP)))))
 				StarShipPtr->ship_input_state |= SPECIAL;
-		}
+		}*/
 
 		if (!(StarShipPtr->ship_input_state & SPECIAL)
 				&& StarShipPtr->weapon_counter == 0
@@ -441,7 +441,8 @@ androsynth_preprocess (PELEMENT ElementPtr)
 
 		if(cur_status_flags & THRUST)
 		{
-			SIZE facing, delta_facing;
+			COUNT facing;
+			SIZE delta_facing;
 			facing = StarShipPtr->ShipFacing;
 			delta_facing = TrackShip(ElementPtr, &facing);
 			if(delta_facing == -1 || delta_facing == 0)

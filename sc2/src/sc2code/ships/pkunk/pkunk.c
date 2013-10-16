@@ -180,7 +180,8 @@ static HELEMENT hPhoenix = 0;
 void
 charge_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter)
 {
-	SIZE delta_facing, facing;
+	SIZE delta_facing;
+	COUNT facing;
 
 	STARSHIPPTR StarShipPtr;
 

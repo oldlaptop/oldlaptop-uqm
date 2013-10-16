@@ -242,7 +242,7 @@ pump_up_postprocess (PELEMENT ElementPtr)
 	}
 }*/
 
-static void
+/*static void
 animate (PELEMENT ElementPtr)
 {
 	if (ElementPtr->turn_wait > 0)
@@ -255,7 +255,7 @@ animate (PELEMENT ElementPtr)
 
 		ElementPtr->turn_wait = ElementPtr->next_turn;
 	}
-}
+}*/
 
 /*static void
 pump_up_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
@@ -547,7 +547,7 @@ starspray_preprocess (PELEMENT ElementPtr)
 	else
 	{
 		COUNT facing;
-		COUNT goal_facing;
+		//COUNT goal_facing;
 		SIZE delta_facing;
 
 		facing = NORMALIZE_FACING (ANGLE_TO_FACING (
@@ -559,7 +559,7 @@ starspray_preprocess (PELEMENT ElementPtr)
 		else if(max_turn_wait == 2)speed = DISPLAY_TO_WORLD (40);
 		else speed = DISPLAY_TO_WORLD (30);
 
-		if (delta_facing = TrackShip (ElementPtr, &facing) > 0)
+		if ((delta_facing = TrackShip (ElementPtr, &facing)) > 0)
 		{
 			/*if (delta_facing <= ANGLE_TO_FACING (HALF_CIRCLE))
 				++facing;
@@ -581,7 +581,7 @@ static COUNT
 initialize_starspray (PELEMENT ShipPtr, HELEMENT StarSprayArray[])
 {
 #define STARSPRAY_OFFSET 8
-	COUNT which_type, i;
+	COUNT which_type;
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
 

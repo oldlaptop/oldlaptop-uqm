@@ -271,10 +271,6 @@ extern void explosion_preprocess (PELEMENT ShipPtr);
 static void
 shofixti_fighter_death (PELEMENT ShipPtr)
 {
-	STARSHIPPTR StarShipPtr, VictoriousStarShipPtr;
-	HELEMENT hElement, hNextElement;
-	ELEMENTPTR ElementPtr;
-
 	ShipPtr->life_span = NUM_EXPLOSION_FRAMES * 3;
 	ShipPtr->state_flags &= ~DISAPPEARING;
 	ShipPtr->state_flags |= FINITE_LIFE | NONSOLID;

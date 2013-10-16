@@ -64,7 +64,7 @@ typedef QUEUE_HANDLE HELEMENT;
 
 #define IGNORE_VELOCITY (1 << 13)
 #define CREW_OBJECT (1 << 14)
-#define BACKGROUND_OBJECT (1 << 15)
+#define PERSISTENT (1 << 15)
 
 
 #define HYPERJUMP_LIFE 15
@@ -167,6 +167,8 @@ extern void RemoveElement (HLINK hLink);
 
 extern void RedrawQueue (BOOLEAN clear);
 extern BOOLEAN DeltaEnergy (ELEMENTPTR ElementPtr, SIZE
+		energy_delta);
+extern BOOLEAN CleanDeltaEnergy (ELEMENTPTR ElementPtr, SIZE
 		energy_delta);
 extern BOOLEAN DeltaCrew (ELEMENTPTR ElementPtr, SIZE
 		crew_delta);

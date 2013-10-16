@@ -274,13 +274,15 @@ supox_special_collision (PELEMENT ElementPtr0, PPOINT pPt0,
 #define MISSILE_OFFSET 2
 #define SUPOX_OFFSET 23
 
-extern FRAME asteroid[];
-
 static void
 horn_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
 	ElementPtr0->turn_wait = 1;
-	if(ElementPtr1->current.image.farray == asteroid)
+	//if it's an asteroid
+	if((!(ElementPtr1->state_flags
+			& (APPEARING | GOOD_GUY | BAD_GUY
+			| PLAYER_SHIP | FINITE_LIFE))
+			&& !GRAVITY_MASS (ElementPtr1->mass_points)))
 	{
 		//no getting killed by asteroids!
 		//just kill them.
@@ -318,7 +320,7 @@ initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
 	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
+			| IGNORE_SIMILAR | PERSISTENT;
 	MissileBlock.pixoffs = SUPOX_OFFSET;
 	MissileBlock.speed = MISSILE_SPEED;
 	MissileBlock.hit_points = MISSILE_HITS;
@@ -334,8 +336,6 @@ initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
 	MissileBlock.cy += SINE (FACING_TO_ANGLE (MissileBlock.face - 4), SHOTS_ON_EACH_SIDE * SHOT_OFFSET);*/
 	for (i = 0; i <= SHOTS_ON_EACH_SIDE * 2; ++i)
 	{
-		HELEMENT hFlame;
-
 		MissileBlock.cx = ShipPtr->next.location.x + COSINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * (i - SHOTS_ON_EACH_SIDE));
 		MissileBlock.cy = ShipPtr->next.location.y +  SINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * (i - SHOTS_ON_EACH_SIDE));
 		HornArray[i] = initialize_missile (&MissileBlock);

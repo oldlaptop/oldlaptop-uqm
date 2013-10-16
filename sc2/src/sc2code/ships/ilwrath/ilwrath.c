@@ -129,7 +129,7 @@ flame_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT
 	ElementPtr0->state_flags |= NONSOLID;
 }
 
-static void
+/*static void
 ilwrath_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter)
 {
 	PEVALUATE_DESC lpEvalDesc;
@@ -138,7 +138,7 @@ ilwrath_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT C
 	lpEvalDesc = &ObjectsOfConcern[ENEMY_SHIP_INDEX];
 	 lpEvalDesc->MoveState = PURSUE;
 	if (lpEvalDesc->ObjectPtr && lpEvalDesc->which_turn <= 10)
-				/* don't want to dodge when you could be flaming */
+				// don't want to dodge when you could be flaming
 		ObjectsOfConcern[ENEMY_WEAPON_INDEX].ObjectPtr = 0;
 
 	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
@@ -168,7 +168,7 @@ ilwrath_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT C
 	}
 	
 	StarShipPtr->ship_input_state &= ~WEAPON;
-}
+}*/
 
 
 #define ILWRATH_OFFSET 29
@@ -204,8 +204,6 @@ initialize_flame (PELEMENT ShipPtr, HELEMENT FlameArray[])
 		MissileBlock.face =
 			NORMALIZE_FACING (StarShipPtr->ShipFacing
 			+ ((ANGLE_TO_FACING (FULL_CIRCLE) / 16) * (i - 2)));
-
-		HELEMENT hFlame;
 
 		FlameArray[i] = initialize_missile (&MissileBlock);
 		if (FlameArray[i])
