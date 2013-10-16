@@ -91,8 +91,7 @@ spawn_rubble (PELEMENT AsteroidElementPtr)
 	}
 }
 
-static void
-asteroid_preprocess (PELEMENT ElementPtr)
+void spin_asteroid (PELEMENT ElementPtr)
 {
 	if (ElementPtr->turn_wait > 0)
 		--ElementPtr->turn_wait;
@@ -111,6 +110,65 @@ asteroid_preprocess (PELEMENT ElementPtr)
 		ElementPtr->state_flags |= CHANGING;
 
 		ElementPtr->turn_wait = (unsigned char)(ElementPtr->thrust_wait & ((1 << 7) - 1));
+	}
+}
+
+static void
+asteroid_chasing_preprocess (PELEMENT ElementPtr)
+{
+	spin_asteroid(ElementPtr);
+
+	if (ElementPtr->hTarget)
+	{
+		SIZE dx, dy;
+		COUNT angle;
+		ELEMENTPTR EnemyElementPtr;
+		LockElement (ElementPtr->hTarget, &EnemyElementPtr);
+
+		dx = EnemyElementPtr->next.location.x - ElementPtr->next.location.x;
+		dy = EnemyElementPtr->next.location.y - ElementPtr->next.location.y;
+
+		angle = ARCTAN (dx, dy);
+
+		GetCurrentVelocityComponents(&ElementPtr->velocity, &dx, &dy);
+		dx += COSINE(angle, DISPLAY_TO_WORLD(40));
+		dy += SINE(angle, DISPLAY_TO_WORLD(40));
+		//linear velocity increase, exponential decrease:
+		dx = (dx * 19) / 20;
+		dy = (dy * 19) / 20;
+		SetVelocityComponents(&ElementPtr->velocity, dx, dy);
+
+	}
+}
+
+static void
+asteroid_preprocess (PELEMENT ElementPtr)
+{
+	spin_asteroid(ElementPtr);
+
+	//Sometimes start chasing a player:
+	if(((COUNT)TFB_Random() % 3000) == 1)
+	{
+		HELEMENT hShip, hNextShip;
+		ELEMENTPTR Victim;
+		BOOLEAN passed_a_ship = false;
+		for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+		{
+			LockElement (hShip, &Victim);
+			hNextShip = GetSuccElement (Victim);
+			if (Victim->state_flags & PLAYER_SHIP)
+			{
+				if(
+					(passed_a_ship
+					|| (COUNT)TFB_Random() & 1)
+				)
+				{
+					ElementPtr->hTarget = hShip;
+					ElementPtr->preprocess_func = asteroid_chasing_preprocess;
+				}
+				else passed_a_ship=true;
+			}
+		}
 	}
 }
 

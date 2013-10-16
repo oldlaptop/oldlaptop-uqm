@@ -125,6 +125,9 @@ initialize_turret_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 #define MISSILE_HITS 2
 #define MISSILE_DAMAGE 3
 #define MISSILE_OFFSET 1
+#define NUM_MISSILES 2
+#define MISSILE_SPACING 70
+	COUNT i;
 	ELEMENTPTR TurretPtr;
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
@@ -160,18 +163,28 @@ initialize_turret_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = NULL_PTR;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
-	MissileArray[0] = initialize_missile (&MissileBlock);
 
-	if (MissileArray[0])
+	MissileBlock.cx = MissileBlock.cx - COSINE (FACING_TO_ANGLE(MissileBlock.face + 4), (MISSILE_SPACING * (NUM_MISSILES - 1)) / 2);
+	MissileBlock.cy = MissileBlock.cy - SINE (FACING_TO_ANGLE(MissileBlock.face + 4), (MISSILE_SPACING * (NUM_MISSILES - 1)) / 2);
+	
+	for(i = 0; i < NUM_MISSILES; ++i)
 	{
-		ELEMENTPTR HowitzerPtr;
+		MissileArray[i] = initialize_missile (&MissileBlock);
 
-		LockElement (MissileArray[0], &HowitzerPtr);
-		HowitzerPtr->collision_func = howitzer_collision;
-		UnlockElement (MissileArray[0]);
+		MissileBlock.cx = MissileBlock.cx + COSINE (FACING_TO_ANGLE(MissileBlock.face + 4), MISSILE_SPACING);
+		MissileBlock.cy = MissileBlock.cy + SINE (FACING_TO_ANGLE(MissileBlock.face + 4), MISSILE_SPACING);
+	
+		if (MissileArray[i])
+		{
+			ELEMENTPTR HowitzerPtr;
+	
+			LockElement (MissileArray[0], &HowitzerPtr);
+			HowitzerPtr->collision_func = howitzer_collision;
+			UnlockElement (MissileArray[0]);
+		}
 	}
 
-	return (1);
+	return (NUM_MISSILES);
 }
 
 #define MAX_MARINES 12 //8
@@ -956,7 +969,7 @@ turret_postprocess (PELEMENT ElementPtr)
 						IGNORE_SIMILAR | APPEARING | CREW_OBJECT
 						| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
 				SpaceMarinePtr->life_span = NORMAL_LIFE;
-				SpaceMarinePtr->hit_points = 7; //3;
+				SpaceMarinePtr->hit_points = 3;
 				SpaceMarinePtr->mass_points = 1;
 
 				facing = FACING_TO_ANGLE (StarShipPtr->ShipFacing);

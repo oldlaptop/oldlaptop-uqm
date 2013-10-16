@@ -45,7 +45,7 @@ static RACE_DESC black_urquan_desc =
 {
 	{
 		FIRES_FORE,
-		30, /* Super Melee cost */
+		41, /* Super Melee cost */
 		2666 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -108,7 +108,7 @@ static RACE_DESC black_urquan_desc =
 };
 
 #define SAW_RATE 0
-#define MAX_SAWS 8
+#define MAX_SAWS 24 //8
 
 static void
 spin_preprocess (PELEMENT ElementPtr)
@@ -162,12 +162,12 @@ buzztrack_preprocess (PELEMENT ElementPtr)
 		if (ElementPtr->hTarget == 0
 				&& TrackShip (ElementPtr, &facing) < 0)
 		{
-			ZeroVelocityComponents (&ElementPtr->velocity);
+			//ZeroVelocityComponents (&ElementPtr->velocity);
 		}
 		else
 		{
 #define ACTIVATE_RANGE 224 /* Originally SPACE_WIDTH */
-			SIZE delta_x, delta_y;
+/*			SIZE delta_x, delta_y;
 			ELEMENTPTR eptr;
 
 			LockElement (ElementPtr->hTarget, &eptr);
@@ -201,7 +201,34 @@ buzztrack_preprocess (PELEMENT ElementPtr)
 				ElementPtr->thrust_wait = TRACK_WAIT;
 				SetVelocityVector (&ElementPtr->velocity,
 						DISPLAY_TO_WORLD (2), facing);
+			}*/
+
+			SIZE dx, dy;
+			COUNT angle;
+			ELEMENTPTR EnemyElementPtr;
+			if(ElementPtr->hTarget)
+			{
+				LockElement (ElementPtr->hTarget, &EnemyElementPtr);
+				dx = EnemyElementPtr->next.location.x - ElementPtr->next.location.x;
+				dy = EnemyElementPtr->next.location.y - ElementPtr->next.location.y;
+
+				angle = ARCTAN (dx, dy);
 			}
+			else
+			{
+				COUNT fake_facing = 0;
+				COUNT real_facing;
+				real_facing = TrackShip(ElementPtr, &fake_facing);
+				angle = FACING_TO_ANGLE (real_facing);
+			}
+
+			GetCurrentVelocityComponents(&ElementPtr->velocity, &dx, &dy);
+			dx += COSINE(angle, DISPLAY_TO_WORLD(30));
+			dy += SINE(angle, DISPLAY_TO_WORLD(30));
+			//linear velocity increase, exponential decrease:
+			dx = (dx * 49) / 50;
+			dy = (dy * 49) / 50;
+			SetVelocityComponents(&ElementPtr->velocity, dx, dy);
 		}
 	}
 
@@ -213,11 +240,12 @@ decelerate_preprocess (PELEMENT ElementPtr)
 {
 	SIZE dx, dy;
 
+	--ElementPtr->thrust_wait;
 	GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
 	dx /= 2;
 	dy /= 2;
 	SetVelocityComponents (&ElementPtr->velocity, dx, dy);
-	if (dx == 0 && dy == 0)
+	if ((dx == 0 && dy == 0) || ElementPtr->thrust_wait <= 0) //thrust_wait is an absolute countdown to force it if it's being constantly sucked by a planet
 	{
 		ElementPtr->preprocess_func = buzztrack_preprocess;
 	}
@@ -236,18 +264,25 @@ splinter_preprocess (PELEMENT ElementPtr)
 static void
 buzzsaw_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
-	weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
-
-	if (ElementPtr0->state_flags & DISAPPEARING)
+/*	if (!(ElementPtr1->state_flags & FINITE_LIFE) && GRAVITY_MASS (ElementPtr1->mass_points))
 	{
-		ElementPtr0->state_flags &= ~DISAPPEARING;
-		ElementPtr0->state_flags |= NONSOLID | CHANGING;
-		ElementPtr0->life_span = 5;
-		ElementPtr0->next.image.frame =
-				SetAbsFrameIndex (ElementPtr0->current.image.frame, 2);
-
-		ElementPtr0->preprocess_func = splinter_preprocess;
+		//Pass through planets!
 	}
+	else 
+	{*/
+		weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	
+		if (ElementPtr0->state_flags & DISAPPEARING)
+		{
+			ElementPtr0->state_flags &= ~DISAPPEARING;
+			ElementPtr0->state_flags |= NONSOLID | CHANGING;
+			ElementPtr0->life_span = 5;
+			ElementPtr0->next.image.frame =
+					SetAbsFrameIndex (ElementPtr0->current.image.frame, 2);
+	
+			ElementPtr0->preprocess_func = splinter_preprocess;
+		}
+	/*}*/
 }
 
 static void
@@ -260,6 +295,7 @@ buzzsaw_preprocess (PELEMENT ElementPtr)
 	{
 		ElementPtr->life_span >>= 1;
 		ElementPtr->preprocess_func = decelerate_preprocess;
+		ElementPtr->thrust_wait = 7;
 	}
 
 	spin_preprocess (ElementPtr);

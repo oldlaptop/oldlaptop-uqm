@@ -249,15 +249,35 @@ utwig_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Con
 	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
 }
 
-static void
+/*static void
 utwig_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
 {
-	/*if (ElementPtr0->life_span > NORMAL_LIFE
+	if (ElementPtr0->life_span > NORMAL_LIFE
 			&& (ElementPtr1->state_flags & FINITE_LIFE)
 			&& ElementPtr1->mass_points)
-		ElementPtr0->life_span += ElementPtr1->mass_points;*/
+		ElementPtr0->life_span += ElementPtr1->mass_points;
 
 	collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+}*/
+
+//COPIED CODE from Yehat (exactly the same as yehat_collision)
+static void
+utwig_collision (PELEMENT ElementPtr0, PPOINT pPt0,
+		PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	//shield also blocks planet damage
+	if (
+		!(ElementPtr1->state_flags & FINITE_LIFE)
+		&& GRAVITY_MASS (ElementPtr1->mass_points) //it is a planet
+		&& ElementPtr0->life_span > NORMAL_LIFE //and I have a shield
+		)
+	{
+		ElementPtr0->state_flags |= COLLISION; //collision without damage
+	}
+	else
+	{
+		collision(ElementPtr0, pPt0, ElementPtr1, pPt1); //normal collision
+	}
 }
 
 static void

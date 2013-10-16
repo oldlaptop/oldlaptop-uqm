@@ -201,11 +201,23 @@ arilou_preprocess (PELEMENT ElementPtr)
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (!(ElementPtr->state_flags & NONSOLID))
 	{
-		ELEMENTPTR EnemyElementPtr;
-		STARSHIPPTR EnemyStarShipPtr;
-
-		LockElement (ElementPtr->hTarget, &EnemyElementPtr);
-		if(EnemyElementPtr)GetElementStarShip (EnemyElementPtr, &EnemyStarShipPtr);
+		HELEMENT hShip, hNextShip;
+		ELEMENTPTR Enemy;
+		STARSHIPPTR EnemyStarShip;
+		BOOLEAN found_an_enemy = false;
+		for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+		{
+			LockElement (hShip, &Enemy);
+			hNextShip = GetSuccElement (Enemy);
+			if (Enemy->state_flags & PLAYER_SHIP
+				&& (Enemy->state_flags & (GOOD_GUY | BAD_GUY)) !=
+				(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY)))
+			{
+				found_an_enemy = true;
+				GetElementStarShip (Enemy, &EnemyStarShip);
+				break;
+			}
+		}
 
 		if (ElementPtr->thrust_wait == 0)
 		{
@@ -216,7 +228,7 @@ arilou_preprocess (PELEMENT ElementPtr)
 		if ((StarShipPtr->cur_status_flags & SPECIAL)
 				&& StarShipPtr->special_counter == 0
 				&& !(StarShipPtr->cur_status_flags & PLAY_VICTORY_DITTY)
-				&& (!EnemyElementPtr || !(EnemyStarShipPtr->RaceDescPtr->init_weapon_func == initialize_autoaim_laser))
+				&& (!found_an_enemy || !(EnemyStarShip->RaceResIndex == StarShipPtr->RaceResIndex))
 				&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 		{
 			//can't be used during victory ditty

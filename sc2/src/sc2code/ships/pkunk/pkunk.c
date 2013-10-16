@@ -454,7 +454,10 @@ static void
 pkunk_preprocess (ElementPtr)
 PELEMENT ElementPtr;
 {
-	ElementPtr->collision_func = pkunk_collision;
+	if (ElementPtr->state_flags & APPEARING)
+	{
+		ElementPtr->collision_func = pkunk_collision;
+	}
 
 	STARSHIPPTR StarShipPtr;
 

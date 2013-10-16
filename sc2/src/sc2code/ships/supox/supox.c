@@ -21,7 +21,6 @@
 
 #include "libs/mathlib.h"
 
-
 #define MAX_CREW 12
 #define MAX_ENERGY 16
 #define ENERGY_REGENERATION 1
@@ -169,11 +168,28 @@ supox_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT Con
 	}
 }
 
-
-#define MISSILE_HITS 500
+#define MISSILE_HITS 10000
 #define MISSILE_DAMAGE 1
 #define MISSILE_OFFSET 2
 #define SUPOX_OFFSET 23
+
+extern FRAME asteroid[];
+
+static void
+horn_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	if(ElementPtr1->current.image.farray == asteroid)
+	{
+		//no getting killed by asteroids!
+		//just kill them.
+		do_damage ((ELEMENTPTR)ElementPtr1, 1);
+	}
+	else
+	{
+		ElementPtr0->hit_points = MISSILE_HITS; //let's keep our HP up
+		weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	}
+}
 
 static COUNT
 initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
@@ -200,20 +216,22 @@ initialize_horn (PELEMENT ShipPtr, HELEMENT HornArray[])
 
 	/*MissileBlock.cx += COSINE (FACING_TO_ANGLE (MissileBlock.face - 4), SHOTS_ON_EACH_SIDE * SHOT_OFFSET);
 	MissileBlock.cy += SINE (FACING_TO_ANGLE (MissileBlock.face - 4), SHOTS_ON_EACH_SIDE * SHOT_OFFSET);*/
-	for (i = 0; i <= SHOTS_ON_EACH_SIDE; ++i)
+	for (i = 0; i <= SHOTS_ON_EACH_SIDE * 2; ++i)
 	{
 		HELEMENT hFlame;
 
-		if(i > 0)
-		{
-			MissileBlock.cx = ShipPtr->next.location.x - COSINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * i);
-			MissileBlock.cy = ShipPtr->next.location.y -  SINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * i);
-			HornArray[(i * 2) - 1] = initialize_missile (&MissileBlock);
-		}
+		MissileBlock.cx = ShipPtr->next.location.x + COSINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * (i - SHOTS_ON_EACH_SIDE));
+		MissileBlock.cy = ShipPtr->next.location.y +  SINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * (i - SHOTS_ON_EACH_SIDE));
+		HornArray[i] = initialize_missile (&MissileBlock);
 
-		MissileBlock.cx = ShipPtr->next.location.x + COSINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * i);
-		MissileBlock.cy = ShipPtr->next.location.y +  SINE (FACING_TO_ANGLE (MissileBlock.face + 4), SHOT_OFFSET * i);
-		HornArray[(i * 2)] = initialize_missile (&MissileBlock);
+		if(HornArray[i])
+		{
+			ELEMENTPTR HornPtr;
+
+			LockElement (HornArray[i], &HornPtr);
+			HornPtr->collision_func = horn_collision;
+			UnlockElement (HornArray[i]);
+		}
 	}
 	
 	return ((SHOTS_ON_EACH_SIDE * 2) + 1);

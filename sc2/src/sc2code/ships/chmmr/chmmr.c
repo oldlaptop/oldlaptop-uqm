@@ -45,7 +45,7 @@ static RACE_DESC chmmr_desc =
 {
 	{
 		FIRES_FORE | IMMEDIATE_WEAPON | SEEKING_SPECIAL | POINT_DEFENSE,
-		34, /* Super Melee cost */
+		30, /* Super Melee cost */
 		0, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

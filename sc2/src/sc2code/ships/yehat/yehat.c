@@ -391,7 +391,10 @@ yehat_collision (PELEMENT ElementPtr0, PPOINT pPt0,
 static void
 yehat_preprocess (PELEMENT ElementPtr)
 {
-	ElementPtr->collision_func = yehat_collision;
+	if (ElementPtr->state_flags & APPEARING)
+	{
+		ElementPtr->collision_func = yehat_collision;
+	}
 
 	if (!(ElementPtr->state_flags & APPEARING))
 	{

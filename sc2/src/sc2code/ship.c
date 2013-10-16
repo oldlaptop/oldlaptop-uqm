@@ -358,8 +358,11 @@ collision (PELEMENT ElementPtr0, PPOINT pPt0,
 		{
 			// Collision with a planet.
 			SIZE damage;
+			SIZE dx, dy;
 
-			damage = ElementPtr0->hit_points >> 3;
+			GetCurrentVelocityComponents(&ElementPtr0->velocity, &dx, &dy);
+#define SPEED_PER_ONE_DAMAGE  WORLD_TO_VELOCITY (42)
+			damage = (ElementPtr0->hit_points >> 3) + (square_root((dx*dx) + (dy*dy)) / SPEED_PER_ONE_DAMAGE);
 			if (damage == 0)
 				damage = 1;
 			do_damage ((ELEMENTPTR)ElementPtr0, damage);

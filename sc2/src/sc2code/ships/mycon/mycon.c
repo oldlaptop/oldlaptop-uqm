@@ -33,7 +33,7 @@
 #define WEAPON_WAIT 5
 #define SPECIAL_WAIT 0
 
-#define SHIP_MASS (MAX_SHIP_MASS * 10) //7
+#define SHIP_MASS 10 //(MAX_SHIP_MASS * 10) //7
 
 #define NUM_PLASMAS 11
 #define NUM_GLOBALLS 8
@@ -347,9 +347,34 @@ initialize_plasma (PELEMENT ShipPtr, HELEMENT PlasmaArray[])
 static void
 mycon_postprocess (PELEMENT ElementPtr)
 {
-	STARSHIPPTR StarShipPtr;
+	HELEMENT hShip, hNextShip;
+	ELEMENTPTR Enemy;
+	STARSHIPPTR StarShipPtr, EnemyStarShip;
+	BOOLEAN found_an_enemy = false;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+	{
+		LockElement (hShip, &Enemy);
+		hNextShip = GetSuccElement (Enemy);
+		if (Enemy->state_flags & PLAYER_SHIP
+			&& (Enemy->state_flags & (GOOD_GUY | BAD_GUY)) !=
+			(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY)))
+		{
+			GetElementStarShip (Enemy, &EnemyStarShip);
+			if(EnemyStarShip->RaceResIndex == StarShipPtr->RaceResIndex)
+			{
+				/*ElementPtr->state_flags |= NONSOLID;
+				ElementPtr->life_span = 0;*/
+				do_damage(ElementPtr, 50);
+				ElementPtr->life_span = 0;
+				ElementPtr->crew_level = 0;
+				ElementPtr->state_flags |= COLLISION | NONSOLID;
+				//if you're in a mirror match, DIE!
+			}
+		}
+	}
 
 	if ((StarShipPtr->cur_status_flags & SPECIAL) && ElementPtr->turn_wait < TURN_WAIT)
 	{
@@ -395,6 +420,8 @@ mycon_preprocess (PELEMENT ElementPtr)
 			&& (StarShipPtr->cur_status_flags
 			& StarShipPtr->old_status_flags & WEAPON))
 		++StarShipPtr->weapon_counter;
+
+	ZeroVelocityComponents(&ElementPtr->velocity);
 }
 
 RACE_DESCPTR
