@@ -22,7 +22,7 @@
 #include "memlib.h"
 
 //dynamically allocate elements by NOT defining this:
-#define QUEUE_TABLE
+//#define QUEUE_TABLE
 
 #ifdef QUEUE_TABLE
 typedef PVOID QUEUE_HANDLE;
@@ -52,7 +52,7 @@ typedef PLINK LINKPTR;
 #define SetFreeList(pq, h) (pq)->free_list = (h)
 #define AllocQueueTab(pq,n) \
 		((pq)->hq_tab = mem_allocate ((MEM_SIZE)((COUNT)(pq)->object_size * \
-		(COUNT)((pq)->num_objects = (BYTE)(n))), \
+		(COUNT)((pq)->num_objects = (UWORD)(n))), \
 		MEM_PRIMARY, DEFAULT_MEM_PRIORITY, MEM_SIMPLE))
 #define LockQueueTab(pq) ((pq)->pq_tab = (BYTEPTR)mem_lock ((pq)->hq_tab))
 #define UnlockQueueTab(pq) mem_unlock ((pq)->hq_tab)
@@ -78,7 +78,7 @@ typedef struct queue
 //    BYTE object_size;
 	COUNT object_size;
 #ifdef QUEUE_TABLE
-	BYTE num_objects;
+	UWORD num_objects;
 #endif /* QUEUE_TABLE */
 } QUEUE;
 typedef QUEUE *PQUEUE;

@@ -477,6 +477,7 @@ androsynth_preprocess (PELEMENT ElementPtr)
 			|| ((StarShipPtr->cur_status_flags & SPECIAL) && !(StarShipPtr->old_status_flags & SPECIAL)))
 		{
 			ZeroVelocityComponents (&ElementPtr->velocity);
+			/// HMm.... do I really want to give them such easy brakes?
 			cur_status_flags &= ~(LEFT | RIGHT
 					| SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);
 

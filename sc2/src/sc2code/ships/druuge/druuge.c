@@ -111,16 +111,16 @@ cannon_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOIN
 {
 	weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
 
-	if ((ElementPtr1->state_flags & PLAYER_SHIP)
+	if (//(ElementPtr1->state_flags & PLAYER_SHIP)
 			//&& ElementPtr1->crew_level
-			&& !GRAVITY_MASS (ElementPtr1->mass_points + 1))
+			/*&&*/ !GRAVITY_MASS (ElementPtr1->mass_points + 1))
 	{
 		COUNT angle;
 		SIZE cur_delta_x, cur_delta_y;
 		STARSHIPPTR StarShipPtr;
 
 		GetElementStarShip (ElementPtr1, &StarShipPtr);
-		StarShipPtr->cur_status_flags &=
+		if(StarShipPtr)StarShipPtr->cur_status_flags &=
 				~(SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);
 
 		angle = FACING_TO_ANGLE (

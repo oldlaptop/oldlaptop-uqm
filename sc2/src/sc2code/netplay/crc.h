@@ -26,7 +26,6 @@
 // If set, every CRC operation is logged. Very spammy.
 #undef DUMP_CRC_OPS
 
-
 typedef struct crc_State crc_State;
 struct crc_State {
 	uint32 crc;

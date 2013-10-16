@@ -29,6 +29,8 @@
 #include "libs/graphics/gfx_common.h"
 #include "libs/log.h"
 
+#include "colors.h"
+#include "intel.h"
 #include "ires_ind.h"
 
 //#define DEBUG_PROCESS
@@ -501,13 +503,12 @@ ProcessCollisions (HELEMENT hSuccElement, ELEMENTPTR ElementPtr,
 								// WARNING WARNING DUPLICATE CODE (see above)
 								STARSHIPPTR StarShipPtr;
 
-								GetElementStarShip (ElementPtr, &StarShipPtr);
+								GetElementStarShip (TestElementPtr, &StarShipPtr);
 								if(StarShipPtr->RaceResIndex == SLYLANDRO_SHIP_INDEX
 									|| StarShipPtr->RaceResIndex == MMRNMHRM_SHIP_INDEX)
 								{
 								}
-								else GetElementStarShip (TestElementPtr, &StarShipPtr);
-								StarShipPtr->ShipFacing =
+								else StarShipPtr->ShipFacing =
 										GetFrameIndex (
 										TestElementPtr->next.image.frame);
 							}
@@ -675,7 +676,26 @@ PreProcessQueue (PSIZE pscroll_x, PSIZE pscroll_y)
 			ProcessCollisions (hNextElement, ElementPtr,
 					MAX_TIME_VALUE, PRE_PROCESS);
 
-		if (ElementPtr->state_flags & PLAYER_SHIP)
+extern void ship_transition (PELEMENT ElementPtr);
+
+		if ((ElementPtr->state_flags & PLAYER_SHIP)
+			/*&& !(
+			(OBJECT_CLOAKED(ElementPtr) && !(ElementPtr->preprocess_func == ship_transition))
+			&&
+			(
+				(
+				(ElementPtr->state_flags & GOOD_GUY)
+				&&
+				((PlayerControl[0] & CYBORG_CONTROL) || (PlayerControl[0] & NETWORK_CONTROL))
+				)
+			||
+				(
+				(ElementPtr->state_flags & BAD_GUY)
+				&&
+				((PlayerControl[1] & CYBORG_CONTROL) || (PlayerControl[1] & NETWORK_CONTROL))
+				)
+			)
+			)*/)
 		{
 			SIZE dx, dy;
 

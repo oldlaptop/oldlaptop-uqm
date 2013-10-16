@@ -442,7 +442,7 @@ confusion_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PP
 						ConfusionPtr->current.image.frame, 8
 						);
 				ConfusionPtr->next = ConfusionPtr->current;
-				ConfusionPtr->state_flags = FINITE_LIFE | NONSOLID | CHANGING
+				ConfusionPtr->state_flags = FINITE_LIFE | NONSOLID | CHANGING | PERSISTENT
 						| (ElementPtr0->state_flags & (GOOD_GUY | BAD_GUY));
 				ConfusionPtr->preprocess_func = confuse_preprocess;
 				SetPrimType (

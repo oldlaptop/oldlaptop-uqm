@@ -122,7 +122,7 @@ typedef struct element
 } ELEMENT;
 typedef ELEMENT *PELEMENT;
 
-#define MAX_DISPLAY_PRIMS 1280 //280
+#define MAX_DISPLAY_PRIMS 10000 //280
 extern COUNT DisplayFreeList;
 extern PRIMITIVE DisplayArray[MAX_DISPLAY_PRIMS];
 
@@ -150,7 +150,7 @@ extern PRIMITIVE DisplayArray[MAX_DISPLAY_PRIMS];
 #define OBJECT_CLOAKED(eptr) \
 		(GetPrimType (&GLOBAL (DisplayArray[(eptr)->PrimIndex])) >= NUM_PRIMS \
 		|| (GetPrimType (&GLOBAL (DisplayArray[(eptr)->PrimIndex])) == STAMPFILL_PRIM \
-		&& GetPrimColor (&GLOBAL (DisplayArray[(eptr)->PrimIndex])) == BLACK_COLOR))
+		&& (GetPrimColor (&GLOBAL (DisplayArray[(eptr)->PrimIndex])) == BLACK_COLOR || GetPrimColor (&GLOBAL (DisplayArray[(eptr)->PrimIndex])) == NOT_INVISIBLE_COLOR)))
 #define UNDEFINED_LEVEL 0
 
 extern HELEMENT AllocElement (void);

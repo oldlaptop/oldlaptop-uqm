@@ -356,7 +356,11 @@ make_extra_missiles (PELEMENT ShipPtr)
 		MissileBlock = setup_for_one_primary_shot(ShipPtr);
 
 		hMissile = initialize_missile (&MissileBlock);
-		if (hMissile)
+		if (!hMissile)
+		{
+			break;
+		}
+		else
 		{
 			ELEMENTPTR MissilePtr;
 
@@ -404,7 +408,11 @@ initialize_standard_missile (PELEMENT ShipPtr, HELEMENT MissileArray[])
 
 		MissileArray[i] = initialize_missile (&MissileBlock);
 		
-		if (MissileArray[i])
+		if (!MissileArray[i])
+		{
+			return i;
+		}
+		else
 		{
 			ELEMENTPTR MissilePtr;
 

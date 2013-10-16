@@ -46,7 +46,7 @@ static RACE_DESC vux_desc =
 {
 	{
 		FIRES_FORE | SEEKING_SPECIAL | IMMEDIATE_WEAPON,
-		33, /* Super Melee cost */
+		22, /* Super Melee cost */
 		900 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,

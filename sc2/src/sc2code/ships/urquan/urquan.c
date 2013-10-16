@@ -19,6 +19,7 @@
 #include "ships/ship.h"
 #include "ships/urquan/resinst.h"
 
+#include "colors.h"
 #include "globdata.h"
 
 #include <stdlib.h>
@@ -31,7 +32,7 @@
 #define SPECIAL_ENERGY_COST 4 //8
 #define ENERGY_WAIT 4
 #define MAX_THRUST 30
-#define THRUST_INCREMENT 6
+#define THRUST_INCREMENT 12 //6
 #define TURN_WAIT 4
 #define THRUST_WAIT 6
 #define WEAPON_WAIT 6
@@ -219,9 +220,134 @@ initialize_fusion (PELEMENT ShipPtr, HELEMENT FusionArray[])
 
 #define FIGHTER_WEAPON_WAIT 8
 #define FIGHTER_OFFSET 4
-#define LASER_RANGE DISPLAY_TO_WORLD (40 + FIGHTER_OFFSET)
+#define LASER_RANGE /*DISPLAY_TO_WORLD (*/(UWORD)(40 + FIGHTER_OFFSET)
 
+// DUPLICATE CODE FROM CHENJESU, IN TURN FROM CHMMR
+// modified a little for each juncture...
 static void
+spawn_point_defense (PELEMENT ElementPtr)
+{
+	BYTE weakest;
+	UWORD best_dist;
+	STARSHIPPTR StarShipPtr;
+	HELEMENT hObject, hNextObject, hBestObject;
+	ELEMENTPTR ObjectPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	hBestObject = 0;
+	best_dist = LASER_RANGE + 1;
+	weakest = 255;
+
+	for (hObject = GetPredElement (ElementPtr);
+			hObject; hObject = hNextObject)
+	{
+		LockElement (hObject, &ObjectPtr);
+		hNextObject = GetPredElement (ObjectPtr);
+		if ((((ObjectPtr->state_flags | ElementPtr->state_flags)
+				& (GOOD_GUY | BAD_GUY)) == (GOOD_GUY | BAD_GUY)
+				&& (ObjectPtr->state_flags & PLAYER_SHIP) //CollisionPossible (ObjectPtr, ElementPtr)
+				&& !OBJECT_CLOAKED (ObjectPtr))
+			|| //it's an asteroid:
+			(!(ObjectPtr->state_flags
+				& (APPEARING | GOOD_GUY | BAD_GUY
+				| PLAYER_SHIP | FINITE_LIFE))
+				&& !GRAVITY_MASS (ObjectPtr->mass_points)
+				&& CollisionPossible (ObjectPtr, ElementPtr)))
+		{
+			SIZE delta_x, delta_y;
+			UWORD dist;
+
+			delta_x = ObjectPtr->next.location.x
+					- ElementPtr->next.location.x;
+			delta_y = ObjectPtr->next.location.y
+					- ElementPtr->next.location.y;
+			if (delta_x < 0)
+				delta_x = -delta_x;
+			if (delta_y < 0)
+				delta_y = -delta_y;
+			delta_x = WORLD_TO_DISPLAY (delta_x);
+			delta_y = WORLD_TO_DISPLAY (delta_y);
+			if ((UWORD)delta_x <= LASER_RANGE &&
+					(UWORD)delta_y <= LASER_RANGE &&
+					(dist =
+					(UWORD)delta_x * (UWORD)delta_x
+					+ (UWORD)delta_y * (UWORD)delta_y) <=
+					LASER_RANGE * LASER_RANGE
+					&& (ObjectPtr->hit_points < weakest
+					|| (ObjectPtr->hit_points == weakest
+					&& dist < best_dist)))
+			{
+				hBestObject = hObject;
+				best_dist = dist;
+				weakest = ObjectPtr->hit_points;
+			}
+		}
+		UnlockElement (hObject);
+	}
+
+	if (hBestObject)
+	{
+		LASER_BLOCK LaserBlock;
+		HELEMENT hPointDefense;
+
+		LockElement (hBestObject, &ObjectPtr);
+
+		LaserBlock.face /*= 0;*/
+			= NORMALIZE_FACING (
+			ANGLE_TO_FACING (
+			ARCTAN ( 
+					ObjectPtr->current.location.x -
+					ElementPtr->current.location.x,
+					ObjectPtr->current.location.y -
+					ElementPtr->current.location.y
+			) ) );
+
+		LaserBlock.cx = ElementPtr->next.location.x;
+		LaserBlock.cy = ElementPtr->next.location.y;
+		
+		//16-directions laser:
+		LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), DISPLAY_TO_WORLD (LASER_RANGE));
+		LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), DISPLAY_TO_WORLD (LASER_RANGE));
+
+		/*//the real thing:
+		LaserBlock.ex = ObjectPtr->next.location.x
+				- ElementPtr->next.location.x;
+		LaserBlock.ey = ObjectPtr->next.location.y
+				- ElementPtr->next.location.y;*/
+		LaserBlock.sender =
+				(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
+				| IGNORE_SIMILAR;
+		LaserBlock.pixoffs = FIGHTER_OFFSET;
+		LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x0A), 0x0E);
+		hPointDefense = initialize_laser (&LaserBlock);
+		if (hPointDefense)
+		{
+			ELEMENTPTR PDPtr;
+
+			LockElement (hPointDefense, &PDPtr);
+			SetElementStarShip (PDPtr, StarShipPtr);
+			PDPtr->hTarget = 0;			
+		ProcessSound (SetAbsSoundIndex (
+						// FIGHTER_ZAP
+				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 2), PDPtr);
+
+			UnlockElement (hPointDefense);
+
+			PutElement (hPointDefense);
+
+			ElementPtr->thrust_wait = FIGHTER_WEAPON_WAIT;
+		}
+
+		UnlockElement (hBestObject);
+	}
+
+	UnlockElement (ElementPtr->hTarget);
+	UnlockElement (StarShipPtr->hShip);
+
+	ElementPtr->postprocess_func = NULL_PTR;
+}
+
+/*static void
 fighter_postprocess (PELEMENT ElementPtr)
 {
 	HELEMENT Laser;
@@ -247,7 +373,7 @@ fighter_postprocess (PELEMENT ElementPtr)
 		SetElementStarShip (LaserPtr, StarShipPtr);
 
 		ProcessSound (SetAbsSoundIndex (
-						/* FIGHTER_ZAP */
+						// FIGHTER_ZAP
 				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 2), LaserPtr);
 
 		UnlockElement (Laser);
@@ -256,7 +382,8 @@ fighter_postprocess (PELEMENT ElementPtr)
 
 	ElementPtr->postprocess_func = 0;
 	ElementPtr->thrust_wait = FIGHTER_WEAPON_WAIT;
-}
+}*/
+
 
 static void
 fighter_preprocess (PELEMENT ElementPtr)
@@ -264,6 +391,14 @@ fighter_preprocess (PELEMENT ElementPtr)
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if (ElementPtr->thrust_wait > 0)
+		--ElementPtr->thrust_wait;
+
+	if (ElementPtr->thrust_wait == 0 && ElementPtr->life_span >= ONE_WAY_FLIGHT)
+	{
+		ElementPtr->postprocess_func = spawn_point_defense;
+	}
 
 	++StarShipPtr->RaceDescPtr->characteristics.special_wait;
 	if (FIGHTER_LIFE - ElementPtr->life_span > TRACK_THRESHOLD
@@ -311,9 +446,6 @@ fighter_preprocess (PELEMENT ElementPtr)
 			Enroute = FALSE;
 		}
 
-		if (ElementPtr->thrust_wait > 0)
-			--ElementPtr->thrust_wait;
-
 		if (ElementPtr->hTarget)
 		{
 			LockElement (ElementPtr->hTarget, &eptr);
@@ -325,7 +457,7 @@ fighter_preprocess (PELEMENT ElementPtr)
 			delta_x = WRAP_DELTA_X (delta_x);
 			delta_y = WRAP_DELTA_Y (delta_y);
 
-			if (ElementPtr->thrust_wait == 0
+			/*if (ElementPtr->thrust_wait == 0
 					&& abs (delta_x) < LASER_RANGE * 3 / 4
 					&& abs (delta_y) < LASER_RANGE * 3 / 4
 					&& delta_x * delta_x + delta_y * delta_y <
@@ -336,7 +468,7 @@ fighter_preprocess (PELEMENT ElementPtr)
 						ANGLE_TO_FACING (ARCTAN (delta_x, delta_y))
 						);
 				ElementPtr->postprocess_func = fighter_postprocess;
-			}
+			}*/
 
 			if (Enroute)
 			{
@@ -441,12 +573,13 @@ fighter_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOI
 		weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
 		ElementPtr0->state_flags |= DISAPPEARING | COLLISION;
 	}
-	else if (ElementPtr1->state_flags & PLAYER_SHIP)
+	else if ((ElementPtr1->state_flags & PLAYER_SHIP) && ElementPtr0->life_span < ONE_WAY_FLIGHT)
+		// if you have fuel left, hang around. Return only if you're useless anyway.
 	{
 		ProcessSound (SetAbsSoundIndex (
 						/* FIGHTERS_RETURN */
 				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 3), ElementPtr1);
-		DeltaCrew (ElementPtr1, 1);
+		//DeltaCrew (ElementPtr1, 1);
 		ElementPtr0->state_flags |= DISAPPEARING | COLLISION;
 	}
 
@@ -476,7 +609,7 @@ spawn_fighters (PELEMENT ElementPtr)
 	delta_x = COSINE (FACING_TO_ANGLE (facing), DISPLAY_TO_WORLD (14));
 	delta_y = SINE (FACING_TO_ANGLE (facing), DISPLAY_TO_WORLD (14));
 
-	DeltaCrew (ElementPtr, -1);
+	//DeltaCrew (ElementPtr, -1);
 
 	i = 4;
 	while (i-- && (hFighterElement = AllocElement ()))
@@ -489,7 +622,7 @@ spawn_fighters (PELEMENT ElementPtr)
 		LockElement (hFighterElement, &FighterElementPtr);
 		FighterElementPtr->hit_points = 1;
 		FighterElementPtr->mass_points = 0;
-		FighterElementPtr->thrust_wait = TRACK_THRESHOLD + 1;
+		FighterElementPtr->thrust_wait = 2; //TRACK_THRESHOLD + 1;
 		FighterElementPtr->state_flags = APPEARING
 				| FINITE_LIFE | CREW_OBJECT | IGNORE_SIMILAR | PERSISTENT
 				| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
@@ -615,7 +748,6 @@ urquan_postprocess (PELEMENT ElementPtr)
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& ElementPtr->crew_level > 1
 			&& StarShipPtr->special_counter == 0
 			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{

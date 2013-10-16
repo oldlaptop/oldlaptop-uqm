@@ -38,7 +38,7 @@ InitQueue (PQUEUE pq, COUNT num_elements, OBJ_SIZE size)
 	SetFreeList (pq, NULL_HANDLE);
 #if 0	
 	log_add (log_Debug, "InitQueue(): num_elements = %d (%d)",
-			num_elements, (BYTE)num_elements);
+			num_elements, (UWORD)num_elements);
 #endif
 	if (AllocQueueTab (pq, num_elements) && LockQueueTab (pq))
 	{

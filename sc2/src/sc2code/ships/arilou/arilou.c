@@ -27,14 +27,14 @@
 #define MAX_CREW 16 //6
 #define MAX_ENERGY 20
 #define ENERGY_REGENERATION 1
-#define WEAPON_ENERGY_COST (MAX_ENERGY + 1) //make sure firing never does anything
+#define WEAPON_ENERGY_COST 1 //2
 #define SPECIAL_ENERGY_COST 3
-#define ENERGY_WAIT 7 //6
+#define ENERGY_WAIT 6
 #define MAX_THRUST /* DISPLAY_TO_WORLD (10) */ 50 //40
 #define THRUST_INCREMENT 10 //MAX_THRUST
 #define TURN_WAIT 1 //0
 #define THRUST_WAIT 0
-#define WEAPON_WAIT 255
+#define WEAPON_WAIT 1
 #define SPECIAL_WAIT 2
 
 #define SHIP_MASS 1
@@ -106,31 +106,99 @@ static RACE_DESC arilou_desc =
 	0,
 };
 
-static COUNT
-initialize_nothing (PELEMENT ShipPtr, HELEMENT NothingArray[])
-{	
-	return (0);
+static void
+speedlaser_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT
+		ElementPtr1, PPOINT pPt1)
+{
+	if (ElementPtr1->state_flags & PLAYER_SHIP)
+	{
+		STARSHIPPTR StarShipPtr;
+		RACE_DESCPTR RDPtr;
+		COUNT num_thrusts;
+		SIZE dx, dy;
+
+		GetElementStarShip (ElementPtr1, &StarShipPtr);
+		RDPtr = StarShipPtr->RaceDescPtr;
+
+		num_thrusts = RDPtr->characteristics.max_thrust /
+					RDPtr->characteristics.thrust_increment;
+		RDPtr->characteristics.thrust_increment += (RDPtr->characteristics.thrust_increment / 3) + 1;
+		RDPtr->characteristics.max_thrust =
+				RDPtr->characteristics.thrust_increment * num_thrusts;
+
+		GetCurrentVelocityComponents (&ElementPtr0->velocity, &dx, &dy);
+		DeltaVelocityComponents (&ElementPtr1->velocity, dx / 20, dy / 20);
+
+		ElementPtr0->mass_points = 0;
+	}
+
+	ElementPtr0->hit_points = 0;
+	//ElementPtr0->mass_points = 0;
+	weapon_collision(ElementPtr0, pPt0, ElementPtr1, pPt1);
+	//ElementPtr0->life_span = 0;
+	//ElementPtr0->state_flags |= COLLISION | DISAPPEARING;
+
+	(void) pPt0;  /* Satisfying compiler (unused parameter) */
+	(void) pPt1;  /* Satisfying compiler (unused parameter) */
 }
 
-//#define INVISIBILITY_ENERGY_WAIT (ENERGY_WAIT * 2)
-#define CONFUSE_ENERGY_COST 7
-
-#define SPELL_WAIT 5
-
-FRAME demonGraphicsHack[3];
-
-static COUNT arilou_present = 0;
+static COUNT initialize_speedlaser (PELEMENT ShipPtr, HELEMENT
+		LaserArray[]);
 
 static void
-arilou_dispose_graphics (RACE_DESCPTR RaceDescPtr)
+speedlaser_death (PELEMENT ElementPtr)
 {
-	--arilou_present;
-
-	if(!arilou_present)
+	if(ElementPtr->hit_points && ElementPtr->turn_wait && !(ElementPtr->state_flags & COLLISION))
 	{
-		extern void clearGraphicsHack(FRAME farray[]);
-		clearGraphicsHack(demonGraphicsHack);
+		HELEMENT Laser;
+
+		initialize_speedlaser (ElementPtr, &Laser);
+		if (Laser)
+			PutElement (Laser);
 	}
+}
+
+static COUNT
+initialize_speedlaser (PELEMENT ShipPtr, HELEMENT LaserArray[])
+{
+#define MISSILE_SPEED DISPLAY_TO_WORLD (70)
+#define MISSILE_HITS 1
+#define MISSILE_LIFE 7
+#define MISSILE_DAMAGE 0
+#define MISSILE_OFFSET 0
+	BOOLEAN isFirstSegment;
+	STARSHIPPTR StarShipPtr;
+	LASER_BLOCK MissileBlock;
+	SIZE sideways_offs;
+
+	isFirstSegment = (ShipPtr->state_flags & PLAYER_SHIP);
+	GetElementStarShip (ShipPtr, &StarShipPtr);
+	MissileBlock.face = isFirstSegment ? StarShipPtr->ShipFacing : ANGLE_TO_FACING (GetVelocityTravelAngle(&ShipPtr->velocity));
+	sideways_offs = isFirstSegment ? (StarShipPtr->special_counter ? -50 : 50) : 0;
+	MissileBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE (MissileBlock.face + 4), sideways_offs);
+	MissileBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE (MissileBlock.face + 4), sideways_offs);
+	MissileBlock.ex = COSINE(FACING_TO_ANGLE (MissileBlock.face), MISSILE_SPEED);
+	MissileBlock.ey = SINE(FACING_TO_ANGLE (MissileBlock.face), MISSILE_SPEED);
+	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| IGNORE_SIMILAR;
+	MissileBlock.pixoffs = isFirstSegment ? ARILOU_OFFSET : 0;
+	MissileBlock.color = BUILD_COLOR (MAKE_RGB15 (0x08, 0x1F, 0x06), 0x0A);
+	LaserArray[0] = initialize_laser (&MissileBlock);
+
+	if (LaserArray[0])
+	{
+		ELEMENTPTR LaserPtr;
+
+		LockElement (LaserArray[0], &LaserPtr);
+		//LaserPtr->life_span=8;
+		LaserPtr->collision_func = speedlaser_collision;
+		LaserPtr->death_func = speedlaser_death;
+		LaserPtr->turn_wait = (ShipPtr->state_flags & PLAYER_SHIP) ? 8 : ShipPtr->turn_wait - 1;
+
+		UnlockElement (LaserArray[0]);
+	}
+
+	return (1);
 }
 
 static void
@@ -145,414 +213,101 @@ arilou_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern,
 }
 
 static void
-demon_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
-{
-	ElementPtr0->hit_points = 10000;
-	
-	if(!(ElementPtr1->state_flags & FINITE_LIFE) && GRAVITY_MASS(ElementPtr1->mass_points))
-	{
-
-	}
-	else
-	{
-		ZeroVelocityComponents (&ElementPtr1->velocity);
-		if((ElementPtr1->state_flags & PLAYER_SHIP) && !ElementPtr1->thrust_wait)++ElementPtr1->thrust_wait;
-		if((ElementPtr1->state_flags & PLAYER_SHIP) && !ElementPtr1->turn_wait)++ElementPtr1->turn_wait;
-	}
-
-}
-
-static COUNT
-detect_demons ()
-{
-	COUNT result;
-	ELEMENTPTR ElementPtr;
-	HELEMENT hElement, hNextElement;
-
-	result = 0;
-	for (hElement = GetHeadElement (); hElement != 0; hElement = hNextElement)
-	{
-		LockElement (hElement, &ElementPtr);
-		hNextElement = GetSuccElement (ElementPtr);
-		if(ElementPtr->current.image.farray == demonGraphicsHack)++result;
-		UnlockElement (hElement);
-	}
-	return result;
-}
-
-static void spawn_demon (PELEMENT ElementPtr);
-
-static void
-demon_preprocess (PELEMENT ElementPtr)
-{
-	COUNT crawl_index, old_crawl_index, old_turn_wait;
-	ElementPtr->next.image.frame = IncFrameIndex (ElementPtr->next.image.frame);
-	ElementPtr->state_flags |= CHANGING;
-
-	old_crawl_index = 2;
-	if(ElementPtr->turn_wait > 100)
-	{
-		old_crawl_index += (ElementPtr->turn_wait - 100) / 10;
-	}
-
-	old_turn_wait = ElementPtr->turn_wait;
-	if(!(TFB_Random() & 3))++ElementPtr->turn_wait;
-
-	crawl_index = 2;
-	if(ElementPtr->turn_wait > 100)
-	{
-		crawl_index += (ElementPtr->turn_wait - 100) / 10;
-	}
-
-	if((GetFrameIndex (ElementPtr->next.image.frame) == crawl_index) && !(old_turn_wait != ElementPtr->turn_wait && old_crawl_index != crawl_index))
-	{
-		spawn_demon(ElementPtr);
-		if(!(TFB_Random() & 63) && detect_demons() < 64)spawn_demon(ElementPtr);
-	}
-}
-
-static void
-spawn_demon (PELEMENT ElementPtr)
-{
-	STARSHIPPTR StarShipPtr;
-	MISSILE_BLOCK MissileBlock;
-	HELEMENT hMissile;
-	BOOLEAN isFirstSegment;
-
-	isFirstSegment = ElementPtr->state_flags & PLAYER_SHIP;
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-	MissileBlock.farray = demonGraphicsHack;
-	MissileBlock.index = 0;
-	if(isFirstSegment)
-	{
-		MissileBlock.face = StarShipPtr->ShipFacing;
-	}
-	else
-	{	
-		COUNT original_facing;
-		original_facing = MissileBlock.face = ElementPtr->thrust_wait;
-		TrackShip(ElementPtr, &MissileBlock.face);
-		if(MissileBlock.face == original_facing)
-		{
-			MissileBlock.face = NORMALIZE_FACING(MissileBlock.face + (TFB_Random() % 3) - 1);
-		}
-		else if(TFB_Random() & 1)
-		{
-			if(TFB_Random() & 1)
-			{
-				MissileBlock.face = original_facing;
-			}
-			else MissileBlock.face = NORMALIZE_FACING(original_facing + original_facing - MissileBlock.face);
-		}
-	}
-	
-	MissileBlock.cx = ElementPtr->next.location.x
-			+ COSINE(FACING_TO_ANGLE(MissileBlock.face), DISPLAY_TO_WORLD(18));
-	MissileBlock.cy = ElementPtr->next.location.y
-			+ SINE(FACING_TO_ANGLE(MissileBlock.face), DISPLAY_TO_WORLD(18));
-	MissileBlock.sender = (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
-	MissileBlock.pixoffs = 0;
-	MissileBlock.preprocess_func = demon_preprocess;
-	MissileBlock.blast_offs = 0;
-	MissileBlock.speed = 0;
-	MissileBlock.hit_points = 10000;
-	MissileBlock.damage = 1;
-	MissileBlock.life = GetFrameCount(demonGraphicsHack[0]);
-
-	hMissile = initialize_missile (&MissileBlock);
-
-	if (hMissile)
-	{
-		ELEMENTPTR MissilePtr;
-		LockElement(hMissile, &MissilePtr);
-		SetElementStarShip (MissilePtr, StarShipPtr);
-		MissilePtr->thrust_wait = MissileBlock.face;
-		MissilePtr->turn_wait = isFirstSegment ? 0 : ElementPtr->turn_wait;
-		MissilePtr->collision_func = demon_collision;
-		UnlockElement(hMissile);
-		PutElement(hMissile);
-	}
-	ElementPtr->hTarget = 0;
-}
-
-static void
-asteroid_danger_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
-{
-	if(ElementPtr1->state_flags & (GOOD_GUY | BAD_GUY))weapon_collision(ElementPtr0, pPt0, ElementPtr1, pPt1);
-}
-
-static void
-spawn_asteroid_dangers (PELEMENT ElementPtr)
-{
-	COUNT i;
-	SIZE angle;
-	STARSHIPPTR StarShipPtr;
-	LASER_BLOCK LaserBlock;
-
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-	LaserBlock.face = 0;
-	LaserBlock.sender = IGNORE_SIMILAR;
-	LaserBlock.pixoffs = 0;
-	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x0A, 0x0A), 0);
-	LaserBlock.cx = ElementPtr->next.location.x;
-	LaserBlock.cy = ElementPtr->next.location.y;
-
-	angle = TFB_Random() & 63;
-
-	for(i = 0; i < 3; ++i)
-	{
-		HELEMENT hLaser;
-		LaserBlock.ex = COSINE(angle, 60);
-		LaserBlock.ey = SINE(angle, 60);
-
-		hLaser = initialize_laser (&LaserBlock);
-		if(hLaser)
-		{
-			ELEMENTPTR LaserPtr;
-
-			LockElement(hLaser, &LaserPtr);
-			SetElementStarShip(LaserPtr, StarShipPtr);
-			LaserPtr->collision_func = asteroid_danger_collision;
-			UnlockElement(hLaser);
-			PutElement(hLaser);
-		}
-
-		LaserBlock.cx += LaserBlock.ex;
-		LaserBlock.cy += LaserBlock.ey;
-		angle = NORMALIZE_ANGLE(angle + (TFB_Random() & 15) - (TFB_Random() & 15));
-	}
-}
-
-/*static void
-spawn_indicator_laser (PELEMENT ElementPtr)
-{
-	COUNT i;
-	STARSHIPPTR StarShipPtr;
-	LASER_BLOCK LaserBlock;
-
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-	LaserBlock.face = StarShipPtr->ShipFacing;
-	LaserBlock.sender = (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))
-			| IGNORE_SIMILAR;
-	LaserBlock.pixoffs = 0;
-	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x0F, 0x0F, 0x1F), 0);
-
-	for(i = 0; i < 2; ++i)
-	{
-		HELEMENT hLaser;
-
-		LaserBlock.cx = ElementPtr->next.location.x + COSINE(FACING_TO_ANGLE (LaserBlock.face + 4), 34 * (i * 2 - 1));
-		LaserBlock.cy = ElementPtr->next.location.y + SINE(FACING_TO_ANGLE (LaserBlock.face + 4), 34 * (i * 2 - 1));
-		LaserBlock.ex = COSINE(FACING_TO_ANGLE(NORMALIZE_FACING(LaserBlock.face - (i * 4 - 2))), square_root(34 * 34 * 2));
-		LaserBlock.ey = SINE(FACING_TO_ANGLE(NORMALIZE_FACING(LaserBlock.face - (i * 4 - 2))), square_root(34 * 34 * 2));
-
-		hLaser = initialize_laser (&LaserBlock);
-		if(hLaser)
-		{
-			ELEMENTPTR LaserPtr;
-
-			LockElement(hLaser, &LaserPtr);
-			SetElementStarShip(LaserPtr, StarShipPtr);
-			LaserPtr->mass_points = 0;
-			UnlockElement(hLaser);
-			PutElement(hLaser);
-		}
-	}
-}*/
-
-static void
-fireball_particle_preprocess (PELEMENT ElementPtr)
-{
-	SetPrimColor (&DisplayArray[ElementPtr->PrimIndex],
-			BUILD_COLOR (MAKE_RGB15 ((0x1F * ElementPtr->life_span / 15), (0x1F * ElementPtr->life_span / 31), (0x1F * ElementPtr->life_span / 31)), 0));
-}
-
-static void
-planet_explosion (PELEMENT ElementPtr)
-{
-#define NUM_PARTICLES 45
-	COUNT i;
-	STARSHIPPTR StarShipPtr;
-
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-
-	ElementPtr->collision_func =
-			(void (*) (struct element *ElementPtr0, PPOINT pPt0,
-			struct element *ElementPtr1, PPOINT pPt1)) weapon_collision;
-	ElementPtr->preprocess_func = ElementPtr->postprocess_func = NULL_PTR;
-
-	for(i = 0; i < NUM_PARTICLES; ++i)
-	{
-		HELEMENT hParticleElement;
-		hParticleElement = AllocElement ();
-		if(!hParticleElement)
-		{
-			break; //no sense failing more times
-		}
-		else
-		{
-			COUNT angle, magnitude;
-			ELEMENTPTR ParticleElementPtr;
-			LockElement (hParticleElement, &ParticleElementPtr);
-
-			ParticleElementPtr->hit_points = 1;
-			ParticleElementPtr->mass_points = 3;
-			ParticleElementPtr->state_flags =
-					APPEARING | FINITE_LIFE | (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY))/* | IGNORE_SIMILAR*/;
-			ParticleElementPtr->life_span = TFB_Random() & 31;
-			SetPrimType (&DisplayArray[ParticleElementPtr->PrimIndex], LINE_PRIM);
-			SetPrimColor (&DisplayArray[ParticleElementPtr->PrimIndex],
-					BUILD_COLOR (MAKE_RGB15 (0x1F, 0x0F, 0x0F), 0));
-			extern FRAME stars_in_space;
-			ParticleElementPtr->current.image.frame = DecFrameIndex (stars_in_space);
-			ParticleElementPtr->current.image.farray = &stars_in_space;
-			ParticleElementPtr->preprocess_func = fireball_particle_preprocess;
-			ParticleElementPtr->collision_func =
-					(void (*) (struct element *ElementPtr0, PPOINT pPt0,
-					struct element *ElementPtr1, PPOINT pPt1)) weapon_collision;
-			ParticleElementPtr->blast_offset = 0;
-
-			angle = TFB_Random() & (FULL_CIRCLE - 1);
-			magnitude = WORLD_TO_VELOCITY ((TFB_Random() & 127) + 32);
-			ParticleElementPtr->current.location.x = ElementPtr->current.location.x;
-			ParticleElementPtr->current.location.y = ElementPtr->current.location.y;
-			SetVelocityComponents (&ParticleElementPtr->velocity,
-					COSINE (angle, magnitude),
-					SINE (angle, magnitude));
-
-			SetElementStarShip (ParticleElementPtr, StarShipPtr);
-
-			UnlockElement(hParticleElement);
-			PutElement(hParticleElement);
-		}
-	}
-}
-
-static void
-arilou_death (PELEMENT ElementPtr)
-{
-	ELEMENTPTR PlanetElementPtr;
-	HELEMENT hElement, hNextElement;
-	for (hElement = GetHeadElement (); hElement != 0; hElement = hNextElement)
-	{
-		LockElement (hElement, &PlanetElementPtr);
-		hNextElement = GetSuccElement (PlanetElementPtr);
-		if(GRAVITY_MASS(PlanetElementPtr->mass_points))
-		{
-			do_damage(PlanetElementPtr, 1000);
-		}
-		UnlockElement (hElement);
-	}
-
-	ship_death(ElementPtr);
-}
-
-static void
-arilou_postprocess (PELEMENT ElementPtr)
-{
-	STARSHIPPTR StarShipPtr;
-
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-
-	if (!(ElementPtr->state_flags & NONSOLID))
-	{
-		//PPRIMITIVE lpPrim;
-		ELEMENTPTR PlanetElementPtr;
-		HELEMENT hElement, hNextElement;
-
-		/*lpPrim = &(GLOBAL (DisplayArray))[ElementPtr->PrimIndex];
-		if (GetPrimType (lpPrim) == STAMPFILL_PRIM)
-		{
-			spawn_indicator_laser(ElementPtr);
-		}*/
-	
-		if (!detect_demons())
-		{
-			spawn_demon(ElementPtr);
-		}
-	
-		for (hElement = GetHeadElement (); hElement != 0; hElement = hNextElement)
-		{
-			SIZE angle;
-			angle = TFB_Random() & 63;
-			LockElement (hElement, &PlanetElementPtr);
-			hNextElement = GetSuccElement (PlanetElementPtr);
-			DeltaVelocityComponents(&PlanetElementPtr->velocity, COSINE(angle, 5), SINE(angle, 5));
-			if(GRAVITY_MASS(PlanetElementPtr->mass_points))
-			{
-				if(!(TFB_Random() & 1023))
-				{
-					planet_explosion(PlanetElementPtr);
-					do_damage(PlanetElementPtr, 1000);
-				}
-			}
-			else if(!(PlanetElementPtr->state_flags
-					& (APPEARING | GOOD_GUY | BAD_GUY
-					| PLAYER_SHIP | FINITE_LIFE))
-					&& CollisionPossible (PlanetElementPtr, ElementPtr))
-			{
-				spawn_asteroid_dangers(PlanetElementPtr);
-			}
-			UnlockElement (hElement);
-		}
-	
-		if ((StarShipPtr->cur_status_flags & WEAPON)
-				&& StarShipPtr->special_counter == 0
-				&& DeltaEnergy (ElementPtr, -CONFUSE_ENERGY_COST))
-		{
-			extern BOOLEAN spawn_confusion(PELEMENT ShipPtr);
-			if(spawn_confusion(ElementPtr));
-			{
-				StarShipPtr->special_counter = SPELL_WAIT;
-			}
-		}
-	}
-}
-
-static void
 arilou_preprocess (PELEMENT ElementPtr)
 {
 	STARSHIPPTR StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-
-	if (ElementPtr->state_flags & APPEARING)
+	
+	if(StarShipPtr->weapon_counter)
 	{
-		if(!arilou_present)
-		{
-			demonGraphicsHack[0] = CaptureDrawable(LoadCelFile("ipanims/lavaspot.ani"));
-			demonGraphicsHack[1] = CaptureDrawable(LoadCelFile("ipanims/lavaspot.ani"));
-			demonGraphicsHack[2] = CaptureDrawable(LoadCelFile("ipanims/lavaspot.ani"));
-		}
-		++arilou_present;
-
-		ElementPtr->death_func = arilou_death;
+		if(StarShipPtr->special_counter)
+			StarShipPtr->special_counter = 0;
+		else StarShipPtr->special_counter = WEAPON_WAIT + ENERGY_WAIT + 1;
 	}
-
-	++StarShipPtr->weapon_counter;
 
 	if (!(ElementPtr->state_flags & NONSOLID))
 	{
 		if ((StarShipPtr->cur_status_flags & SPECIAL)
-				&& !(StarShipPtr->old_status_flags & SPECIAL))
+				&& CleanDeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 		{
-			PPRIMITIVE lpPrim;
-			lpPrim = &(GLOBAL (DisplayArray))[ElementPtr->PrimIndex];
-			if (GetPrimType (lpPrim) == STAMPFILL_PRIM)
+#define HYPER_LIFE 5
+			ZeroVelocityComponents (&ElementPtr->velocity);
+			StarShipPtr->cur_status_flags &=
+					~(SHIP_AT_MAX_SPEED | LEFT | RIGHT | THRUST | WEAPON);
+
+			ElementPtr->state_flags |= NONSOLID | FINITE_LIFE | CHANGING;
+			ElementPtr->life_span = HYPER_LIFE;
+
+			ElementPtr->next.image.farray =
+					StarShipPtr->RaceDescPtr->ship_data.special;
+			ElementPtr->next.image.frame =
+					StarShipPtr->RaceDescPtr->ship_data.special[0];
+
+			ProcessSound (SetAbsSoundIndex (
+							/* HYPERJUMP */
+					StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
+		}
+	}
+	else if (ElementPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.special)
+	{
+		COUNT life_span;
+
+		ZeroVelocityComponents(&ElementPtr->velocity); //just in case
+
+		StarShipPtr->cur_status_flags =
+				(StarShipPtr->cur_status_flags
+				& ~(LEFT | RIGHT | THRUST | WEAPON | SPECIAL))
+				| (StarShipPtr->old_status_flags
+				& (LEFT | RIGHT | THRUST | WEAPON | SPECIAL));
+		++StarShipPtr->weapon_counter;
+		++StarShipPtr->special_counter;
+		++StarShipPtr->energy_counter;
+		++ElementPtr->turn_wait;
+		++ElementPtr->thrust_wait;
+
+		if ((life_span = ElementPtr->life_span) == NORMAL_LIFE)
+		{
+			ElementPtr->state_flags &= ~(NONSOLID | FINITE_LIFE);
+			//ElementPtr->state_flags |= APPEARING;
+			ElementPtr->current.image.farray =
+					ElementPtr->next.image.farray =
+					StarShipPtr->RaceDescPtr->ship_data.ship;
+			ElementPtr->current.image.frame =
+					ElementPtr->next.image.frame =
+					SetAbsFrameIndex (StarShipPtr->RaceDescPtr->ship_data.ship[0],
+					StarShipPtr->ShipFacing);
+			InitIntersectStartPoint (ElementPtr);
+		}
+		else
+		{
+			--life_span;
+			if (life_span != 2)
 			{
-				SetPrimType (lpPrim, STAMP_PRIM);
-				//StarShipPtr->RaceDescPtr->characteristics.energy_wait = ENERGY_WAIT;
-				ElementPtr->state_flags |= CHANGING;
+				if (life_span < 2)
+					ElementPtr->next.image.frame =
+							DecFrameIndex (ElementPtr->next.image.frame);
+				else
+					ElementPtr->next.image.frame =
+							IncFrameIndex (ElementPtr->next.image.frame);
 			}
 			else
 			{
-				SetPrimType (lpPrim, STAMPFILL_PRIM);
-				SetPrimColor (lpPrim, BLACK_COLOR);
-				//StarShipPtr->RaceDescPtr->characteristics.energy_wait = INVISIBILITY_ENERGY_WAIT;
-				ElementPtr->state_flags |= CHANGING;
+				POINT real_current_location;
+				real_current_location = ElementPtr->current.location;
+				do
+				{
+					ElementPtr->next.location.x = ElementPtr->current.location.x =
+							WRAP_X (DISPLAY_ALIGN_X (TFB_Random ()));
+					ElementPtr->next.location.y = ElementPtr->current.location.y =
+							WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
+				}
+				while(TimeSpaceMatterConflict(ElementPtr));
+				ElementPtr->current.location = real_current_location;
 			}
 		}
+
+		ElementPtr->state_flags |= CHANGING;
 	}
 }
 
@@ -562,9 +317,7 @@ init_arilou (void)
 	RACE_DESCPTR RaceDescPtr;
 
 	arilou_desc.preprocess_func = arilou_preprocess;
-	arilou_desc.postprocess_func = arilou_postprocess;
-	arilou_desc.init_weapon_func = initialize_nothing;
-	arilou_desc.uninit_func = arilou_dispose_graphics;
+	arilou_desc.init_weapon_func = initialize_speedlaser;
 	arilou_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT
 					ConcernCounter)) arilou_intelligence;

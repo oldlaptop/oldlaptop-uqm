@@ -430,8 +430,7 @@ spawn_slylandro_asteroid (PELEMENT ElementPtr)
 					+ SINE (angle, offset);
 			offset += 10;
 		}
-		while(TimeSpaceMatterConflict(AsteroidElementPtr))
-
+		while(TimeSpaceMatterConflict(AsteroidElementPtr));
 
 		UnlockElement (hAsteroidElement);
 

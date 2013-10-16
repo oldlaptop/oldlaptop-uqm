@@ -346,7 +346,7 @@ spawn_point_defense (PELEMENT ElementPtr)
 
 			PutElement (hPointDefense);
 
-			SattPtr->thrust_wait = DEFENSE_WAIT;
+			//SattPtr->thrust_wait = DEFENSE_WAIT;
 		}
 
 		UnlockElement (hBestObject);

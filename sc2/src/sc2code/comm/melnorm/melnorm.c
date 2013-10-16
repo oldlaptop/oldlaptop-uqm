@@ -1164,6 +1164,8 @@ DoSell (RESPONSE_REF R)
 		{
 			DWORD TimeIn;
 
+			GLOBAL_SIS (TotalBioMass) += 1000;
+
 			added_credit = GLOBAL_SIS (TotalBioMass) * BIO_CREDIT_VALUE;
 
 			NPCPhrase (SOLD_LIFE_DATA1);

@@ -24,18 +24,17 @@
 
 
 #define MAX_CREW 22
-#define MAX_ENERGY 16
+#define MAX_ENERGY 36 //16
 #define ENERGY_REGENERATION 4
 #define WEAPON_ENERGY_COST 1
-#define SPECIAL_ENERGY_COST 3
+#define SPECIAL_ENERGY_COST 8 //3
 #define ENERGY_WAIT 4
-//thrust has to be higher with gravity whips everywhere
-#define MAX_THRUST 100 //75 //25
-#define THRUST_INCREMENT 20 //15 //5
+#define MAX_THRUST 25
+#define THRUST_INCREMENT 5
 #define TURN_WAIT 2
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 0
-#define SPECIAL_WAIT 13
+#define SPECIAL_WAIT 0 //13
 
 #define SHIP_MASS 7
 #define MISSILE_LIFE 8
@@ -44,7 +43,7 @@ static RACE_DESC ilwrath_desc =
 {
 	{
 		FIRES_FORE,
-		41, /* Super Melee cost */
+		25, /* Super Melee cost */
 		1410 / SPHERE_RADIUS_INCREMENT, /* Initial sphere of influence radius */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
@@ -107,29 +106,6 @@ static RACE_DESC ilwrath_desc =
 };
 
 static void
-flame_preprocess (PELEMENT ElementPtr)
-{
-	if (ElementPtr->turn_wait > 0)
-		--ElementPtr->turn_wait;
-	else
-	{
-		ElementPtr->next.image.frame =
-				IncFrameIndex (ElementPtr->current.image.frame);
-		ElementPtr->state_flags |= CHANGING;
-
-		ElementPtr->turn_wait = ElementPtr->next_turn;
-	}
-}
-
-static void
-flame_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
-{
-	weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
-	ElementPtr0->state_flags &= ~DISAPPEARING;
-	ElementPtr0->state_flags |= NONSOLID;
-}
-
-/*static void
 ilwrath_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter)
 {
 	PEVALUATE_DESC lpEvalDesc;
@@ -138,7 +114,7 @@ ilwrath_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT C
 	lpEvalDesc = &ObjectsOfConcern[ENEMY_SHIP_INDEX];
 	 lpEvalDesc->MoveState = PURSUE;
 	if (lpEvalDesc->ObjectPtr && lpEvalDesc->which_turn <= 10)
-				// don't want to dodge when you could be flaming
+				/* don't want to dodge when you could be flaming */
 		ObjectsOfConcern[ENEMY_WEAPON_INDEX].ObjectPtr = 0;
 
 	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
@@ -166,28 +142,192 @@ ilwrath_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT C
 				&& !(StarShipPtr->ship_input_state & WEAPON))
 			StarShipPtr->ship_input_state |= SPECIAL;
 	}
+}
+
+static void
+ship_burning_preprocess (PELEMENT ElementPtr)
+{
+	if (ElementPtr->hTarget == 0)
+	{
+		ElementPtr->life_span = 0;
+		ElementPtr->state_flags |= DISAPPEARING;
+	}
+	else
+	{
+		SIZE dx, dy;
+		ELEMENTPTR ShipPtr;
+
+		LockElement (ElementPtr->hTarget, &ShipPtr);
+
+		GetCurrentVelocityComponents (&ShipPtr->velocity, &dx, &dy);
+		SetVelocityComponents (&ElementPtr->velocity, dx, dy);
+
+		if (ElementPtr->turn_wait)
+			--ElementPtr->turn_wait;
+		else
+		{
+			STARSHIPPTR StarShipPtr;
+
+			if (ShipPtr->life_span == NORMAL_LIFE)
+				if (!DeltaCrew (ShipPtr, -1))
+					ShipPtr->life_span = 0;
+
+			GetElementStarShip(ElementPtr, &StarShipPtr);
+			ProcessSound (SetAbsSoundIndex (
+				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 0), ElementPtr);
+
+			if (GetFrameIndex(ElementPtr->current.image.frame) == 0)
+			{
+				ElementPtr->life_span = 0;
+				ElementPtr->state_flags |= DISAPPEARING;
+			}
+			else
+			{
+				ElementPtr->next.image.frame =
+					DecFrameIndex (ElementPtr->current.image.frame);
+				ElementPtr->state_flags |= CHANGING;
+
+				ElementPtr->turn_wait = (ONE_SECOND / BATTLE_FRAME_RATE) / 2;
+			}
+		}
 	
-	StarShipPtr->ship_input_state &= ~WEAPON;
-}*/
+		UnlockElement (ElementPtr->hTarget);
+	}
+}
 
+static void
+nothing_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+}
 
-#define ILWRATH_OFFSET 29
-#define MISSILE_SPEED 25 //MAX_THRUST
-#define MISSILE_HITS 1
-#define MISSILE_DAMAGE 1
-#define MISSILE_OFFSET 0
+static void
+sticky_fire_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	if (ElementPtr1->state_flags & PLAYER_SHIP)
+	{
+		STARSHIPPTR EnemyStarShipPtr;
+		GetElementStarShip (ElementPtr1, &EnemyStarShipPtr);
+
+		ElementPtr0->preprocess_func = ship_burning_preprocess;
+		ElementPtr0->collision_func = nothing_collision;
+		ElementPtr0->hTarget = EnemyStarShipPtr->hShip;
+		ElementPtr0->state_flags |= NONSOLID;
+		ElementPtr0->turn_wait = 0;
+	}
+	else if (GRAVITY_MASS(ElementPtr1->mass_points))
+		weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+}
+
+static void
+space_burning_preprocess (PELEMENT ElementPtr)
+{
+	if (ElementPtr->turn_wait)
+		--ElementPtr->turn_wait;
+	else
+	{
+	//duplicate code, by the way (see ship_burning_preprocess)
+		if (GetFrameIndex(ElementPtr->current.image.frame) == 0)
+		{
+			ElementPtr->life_span = 0;
+			ElementPtr->state_flags |= DISAPPEARING;
+		}
+		else
+		{
+			ElementPtr->next.image.frame =
+				DecFrameIndex (ElementPtr->current.image.frame);
+			ElementPtr->state_flags |= CHANGING;
+			ElementPtr->turn_wait = (ONE_SECOND / BATTLE_FRAME_RATE) / 2;
+		}
+	}
+}
+
+static void
+spawn_sticky_fire (PELEMENT ShipPtr)
+{
+	HELEMENT StickyFire;
+	STARSHIPPTR StarShipPtr;
+	MISSILE_BLOCK StickyFireBlock;
+
+	GetElementStarShip(ShipPtr, &StarShipPtr);
+	StickyFireBlock.cx = ShipPtr->next.location.x;
+	StickyFireBlock.cy = ShipPtr->next.location.y;
+	StickyFireBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
+	StickyFireBlock.face = StarShipPtr->ShipFacing;
+	StickyFireBlock.index = 7; // start at largest; I considered having it expand like normal fire, but that's just an extra nuisance. Would the player see it anyway?
+	StickyFireBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
+			| IGNORE_SIMILAR | PERSISTENT;
+	StickyFireBlock.pixoffs = 0;
+	StickyFireBlock.speed = 0;
+	StickyFireBlock.hit_points = 10000;
+	StickyFireBlock.damage = 0;
+	StickyFireBlock.life = 10000; // it has its own way of dying, which always happens sooner
+	StickyFireBlock.preprocess_func = space_burning_preprocess;
+	StickyFireBlock.blast_offs = 0;
+	StickyFire = initialize_missile(&StickyFireBlock);
+	if (StickyFire)
+	{
+		SIZE dx, dy;
+		COUNT angle, magnitude;
+		ELEMENTPTR StickyFirePtr;
+
+		LockElement (StickyFire, &StickyFirePtr);
+
+		StickyFirePtr->collision_func = sticky_fire_collision;
+		StickyFirePtr->hTarget = 0;
+		StickyFirePtr->turn_wait = (ONE_SECOND / BATTLE_FRAME_RATE) * 2;
+
+		GetCurrentVelocityComponents (&ShipPtr->velocity, &dx, &dy);
+		angle = TFB_Random() & 63;
+		magnitude = TFB_Random() & 255;
+		dx += COSINE(angle, magnitude);
+		dy += SINE(angle, magnitude);
+		DeltaVelocityComponents (&StickyFirePtr->velocity, dx, dy);
+
+		SetElementStarShip (StickyFirePtr, StarShipPtr);
+
+		UnlockElement (StickyFire);
+		PutElement (StickyFire);
+	}
+}
+
+static void
+flame_preprocess (PELEMENT ElementPtr)
+{
+	if (ElementPtr->turn_wait > 0)
+		--ElementPtr->turn_wait;
+	else
+	{
+		ElementPtr->next.image.frame =
+				IncFrameIndex (ElementPtr->current.image.frame);
+		ElementPtr->state_flags |= CHANGING;
+
+		ElementPtr->turn_wait = ElementPtr->next_turn;
+	}
+}
+
+static void
+flame_collision (PELEMENT ElementPtr0, PPOINT pPt0, PELEMENT ElementPtr1, PPOINT pPt1)
+{
+	weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	ElementPtr0->state_flags &= ~DISAPPEARING;
+	ElementPtr0->state_flags |= NONSOLID;
+}
 
 static COUNT
 initialize_flame (PELEMENT ShipPtr, HELEMENT FlameArray[])
 {
+#define ILWRATH_OFFSET 29
+#define MISSILE_SPEED MAX_THRUST
+#define MISSILE_HITS 1
+#define MISSILE_DAMAGE 1
+#define MISSILE_OFFSET 0
 	COUNT i;
 	STARSHIPPTR StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
-	MissileBlock.cx = ShipPtr->next.location.x;
-	MissileBlock.cy = ShipPtr->next.location.y;
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
+	MissileBlock.face = StarShipPtr->ShipFacing;
 	MissileBlock.index = 0;
 	MissileBlock.sender = (ShipPtr->state_flags & (GOOD_GUY | BAD_GUY))
 			| IGNORE_SIMILAR;
@@ -199,22 +339,19 @@ initialize_flame (PELEMENT ShipPtr, HELEMENT FlameArray[])
 	MissileBlock.preprocess_func = flame_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 	
-	for (i = 0; i <= 4; ++i)
+	for(i = 0; i < 3; ++i)
 	{
-		MissileBlock.face =
-			NORMALIZE_FACING (StarShipPtr->ShipFacing
-			+ ((ANGLE_TO_FACING (FULL_CIRCLE) / 16) * (i - 2)));
+		MissileBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE(StarShipPtr->ShipFacing + 4), 40 * (i - 1)) + ((i == 1) ? 0 : COSINE(FACING_TO_ANGLE(StarShipPtr->ShipFacing), -20));
+		MissileBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE(StarShipPtr->ShipFacing + 4), 40 * (i - 1)) + ((i == 1) ? 0 : SINE(FACING_TO_ANGLE(StarShipPtr->ShipFacing), -20));
 
 		FlameArray[i] = initialize_missile (&MissileBlock);
+
 		if (FlameArray[i])
 		{
 			SIZE dx, dy;
 			ELEMENTPTR FlamePtr;
-
-			LockElement (FlameArray[i] , &FlamePtr);
-			SetElementStarShip (FlamePtr, StarShipPtr);
-			FlamePtr->hTarget = 0;
-
+	
+			LockElement (FlameArray[i], &FlamePtr);
 			GetCurrentVelocityComponents (&ShipPtr->velocity, &dx, &dy);
 			DeltaVelocityComponents (&FlamePtr->velocity, dx, dy);
 			FlamePtr->current.location.x -= VELOCITY_TO_WORLD (dx);
@@ -222,11 +359,43 @@ initialize_flame (PELEMENT ShipPtr, HELEMENT FlameArray[])
 	
 			FlamePtr->collision_func = flame_collision;
 			FlamePtr->turn_wait = 0;
-			UnlockElement (FlameArray[i] );
+			UnlockElement (FlameArray[i]);
 		}
 	}
 
-	return (5);
+	return (3);
+}
+
+static bool
+ilwrath_trying_to_decloak (PELEMENT ElementPtr)
+{
+	return false;
+}
+static bool
+ilwrath_trying_to_cloak (PELEMENT ElementPtr)
+{
+	return false && !ilwrath_trying_to_decloak(ElementPtr);
+}
+
+static void
+ilwrath_postprocess (PELEMENT ElementPtr)
+{
+	STARSHIPPTR StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& StarShipPtr->special_counter == 0
+			&& CleanDeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		spawn_sticky_fire (ElementPtr);
+		spawn_sticky_fire (ElementPtr);
+
+		StarShipPtr->special_counter =
+				StarShipPtr->RaceDescPtr->characteristics.special_wait;
+
+		ProcessSound (SetAbsSoundIndex (
+				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 2), ElementPtr);
+	}
 }
 
 static void
@@ -249,7 +418,7 @@ ilwrath_preprocess (PELEMENT ElementPtr)
 				&& StarShipPtr->RaceDescPtr->ship_info.energy_level >= WEAPON_ENERGY_COST);
 		if (weapon_discharge
 				|| (StarShipPtr->special_counter == 0
-				&& ((status_flags & SPECIAL) || Color != BLACK_COLOR)))
+				&& (ilwrath_trying_to_decloak(ElementPtr) || Color != BLACK_COLOR)))
 		{
 			if (Color == BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x1F), 0x0F))
 				SetPrimType (lpPrim, STAMP_PRIM);
@@ -334,7 +503,7 @@ ilwrath_preprocess (PELEMENT ElementPtr)
 			}
 
 			ElementPtr->state_flags |= CHANGING;
-			status_flags &= ~SPECIAL;
+			//status_flags &= ~SPECIAL;
 			StarShipPtr->special_counter = 0;
 		}
 		else if (Color != BLACK_COLOR)
@@ -357,9 +526,9 @@ ilwrath_preprocess (PELEMENT ElementPtr)
 		}
 	}
 
-	if ((status_flags & SPECIAL)
+	if (ilwrath_trying_to_cloak(ElementPtr)
 			&& StarShipPtr->special_counter == 0
-			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+			/*&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST)*/)
 	{
 		SetPrimColor (lpPrim, BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x1F), 0x0F));
 		SetPrimType (lpPrim, STAMPFILL_PRIM);
@@ -380,11 +549,11 @@ init_ilwrath (void)
 	RACE_DESCPTR RaceDescPtr;
 
 	ilwrath_desc.preprocess_func = ilwrath_preprocess;
+	ilwrath_desc.postprocess_func = ilwrath_postprocess;
 	ilwrath_desc.init_weapon_func = initialize_flame;
-	extern void charge_intelligence (PELEMENT ShipPtr, PEVALUATE_DESC ObjectsOfConcern, COUNT ConcernCounter);
 	ilwrath_desc.cyborg_control.intelligence_func =
 			(void (*) (PVOID ShipPtr, PVOID ObjectsOfConcern, COUNT
-					ConcernCounter)) charge_intelligence;
+					ConcernCounter)) ilwrath_intelligence;
 
 	RaceDescPtr = &ilwrath_desc;
 

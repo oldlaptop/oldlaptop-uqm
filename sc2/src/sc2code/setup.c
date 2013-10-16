@@ -131,8 +131,8 @@ LoadKernel (int argc, char *argv[])
 }
 
 //do not increase this value
-//this is the maximum it can be without screwing up
-#define NUM_QUEUE_ELEMENTS 255
+//   255 is the maximum it can be without screwing up
+#define NUM_QUEUE_ELEMENTS 10000
 
 BOOLEAN
 InitContexts (void)

@@ -18,6 +18,7 @@
 
 #include "uqmdebug.h"
 
+#include "build.h"
 #include "colors.h"
 #include "clock.h"
 #include "encount.h"
@@ -35,7 +36,7 @@
 #include <errno.h>
 
 
-static void dumpEventCallback (const EVENTPTR eventPtr, void *arg);
+static void dumpEventCallback (const EVENT *eventPtr, void *arg);
 
 static void starRecurse (STAR_DESC *star, void *arg);
 static void planetRecurse (STAR_DESC *star, SOLARSYS_STATE *system,
@@ -63,17 +64,39 @@ debugKeyPressed (void)
 {
 	// State modifying:
 	equipShip ();
+
+	// Give the player the ships you can't ally with under normal
+	// conditions.
+	clearEscorts ();
+	ActivateStarShip (ARILOU_SHIP, 1);
+	ActivateStarShip (PKUNK_SHIP, 1);
+	ActivateStarShip (VUX_SHIP, 1);
+	ActivateStarShip (YEHAT_SHIP, 1);
+	ActivateStarShip (MELNORME_SHIP, 1);
+	ActivateStarShip (DRUUGE_SHIP, 1);
+	ActivateStarShip (ILWRATH_SHIP, 1);
+	ActivateStarShip (MYCON_SHIP, 1);
+	ActivateStarShip (SLYLANDRO_SHIP, 1);
+	ActivateStarShip (UMGAH_SHIP, 1);
+	ActivateStarShip (URQUAN_SHIP, 1);
+	ActivateStarShip (BLACK_URQUAN_SHIP, 1);
+
 	resetCrewBattle ();
 	resetEnergyBattle ();
 	instantMove = !instantMove;
 	showSpheres ();
 	activateAllShips ();
-//	forwardToNextEvent (TRUE);		
+
+	GLOBAL (CurrentActivity) = IN_LAST_BATTLE | START_ENCOUNTER;
+//	forwardToNextEvent (TRUE);
+//	SET_GAME_STATE (MELNORME_CREDIT1, 100);
+//	GLOBAL_SIS (ResUnits) = 100000;
 
 	// Tests
 //	Scale_PerfTest ();
 
 	// Informational:
+//	dumpStrings (stdout);
 //	dumpEvents (stderr);
 //	dumpPlanetTypes(stderr);
 //	debugHook = dumpUniverseToFile;
@@ -93,7 +116,7 @@ void
 forwardToNextEvent (BOOLEAN skipHEE)
 {
 	HEVENT hEvent;
-	EVENTPTR EventPtr;
+	EVENT *EventPtr;
 	COUNT year, month, day;
 			// time of next event
 	BOOLEAN done;
@@ -183,14 +206,14 @@ eventName (BYTE func_index)
 }
 
 static void
-dumpEventCallback (const EVENTPTR eventPtr, void *arg)
+dumpEventCallback (const EVENT *eventPtr, void *arg)
 {
 	FILE *out = (FILE *) arg;
 	dumpEvent (out, eventPtr);
 }
 
 void
-dumpEvent (FILE *out, EVENTPTR eventPtr)
+dumpEvent (FILE *out, const EVENT *eventPtr)
 {
 	fprintf (out, "%4u/%02u/%02u: %s\n",
 			eventPtr->year_index,
@@ -327,6 +350,31 @@ equipShip (void)
 
 ////////////////////////////////////////////////////////////////////////////
 
+void
+clearEscorts (void)
+{
+	/*HSHIPFRAG hStarShip, hNextShip;
+
+	for (hStarShip = GetHeadLink (&GLOBAL (built_ship_q));
+			hStarShip; hStarShip = hNextShip)
+	{
+		SHIP_FRAGMENT *StarShipPtr;
+
+		StarShipPtr = LockShipFrag (&GLOBAL (built_ship_q), hStarShip);
+		hNextShip = _GetSuccLink (StarShipPtr);
+		UnlockShipFrag (&GLOBAL (built_ship_q), hStarShip);
+
+		RemoveQueue (&GLOBAL (built_ship_q), hStarShip);
+		FreeShipFrag (&GLOBAL (built_ship_q), hStarShip);
+	}
+
+	LockMutex (GraphicsLock);
+	DeltaSISGauges (UNDEFINED_DELTA, UNDEFINED_DELTA, UNDEFINED_DELTA);
+	UnlockMutex (GraphicsLock);*/
+}
+
+////////////////////////////////////////////////////////////////////////////
+
 #if 0
 // Not needed anymore, but could be useful in the future.
 
@@ -335,7 +383,7 @@ static HELEMENT
 findFlagshipElement (void)
 {
 	HELEMENT hElement, hNextElement;
-	ELEMENTPTR ElementPtr;
+	ELEMENT *ElementPtr;
 
 	// Find the ship element.
 	for (hElement = GetTailElement (); hElement != 0;
@@ -363,8 +411,19 @@ void
 doInstantMove (void)
 {
 	// Move to the new location:
-	GLOBAL_SIS (log_x) = UNIVERSE_TO_LOGX((GLOBAL (autopilot)).x);
-	GLOBAL_SIS (log_y) = UNIVERSE_TO_LOGY((GLOBAL (autopilot)).y);
+	if ((GLOBAL (autopilot)).x == ~0 || (GLOBAL (autopilot)).y == ~0)
+	{
+		// If no destination has been selected, use the current location
+		// as the destination.
+		(GLOBAL (autopilot)).x = LOGX_TO_UNIVERSE(GLOBAL_SIS (log_x));
+		(GLOBAL (autopilot)).y = LOGY_TO_UNIVERSE(GLOBAL_SIS (log_y));
+	}
+	else
+	{
+		// A new destination has been selected.
+		GLOBAL_SIS (log_x) = UNIVERSE_TO_LOGX((GLOBAL (autopilot)).x);
+		GLOBAL_SIS (log_y) = UNIVERSE_TO_LOGY((GLOBAL (autopilot)).y);
+	}
 
 	// Check for a solar systems at the destination.
 	if (GET_GAME_STATE (ARILOU_SPACE_SIDE) <= 1)
@@ -463,7 +522,7 @@ forAllPlanets (STAR_DESC *star, SOLARSYS_STATE *system, void (*callback) (
 {
 	COUNT i;
 
-	assert(CurStarDescPtr = star);
+	assert(CurStarDescPtr == star);
 	assert(pSolarSysState == system);
 
 	for (i = 0; i < system->SunDesc[0].NumPlanets; i++)
@@ -518,11 +577,11 @@ starRecurse (STAR_DESC *star, void *arg)
 	UniverseRecurseArg *universeRecurseArg = (UniverseRecurseArg *) arg;
 
 	SOLARSYS_STATE SolarSysState;
-	PSOLARSYS_STATE oldPSolarSysState = pSolarSysState;
+	SOLARSYS_STATE *oldPSolarSysState = pSolarSysState;
 	DWORD oldSeed =
 			TFB_SeedRandom (MAKE_DWORD (star->star_pt.x, star->star_pt.y));
 
-	STAR_DESCPTR oldStarDescPtr = CurStarDescPtr;
+	STAR_DESC *oldStarDescPtr = CurStarDescPtr;
 	CurStarDescPtr = star;
 
 	memset (&SolarSysState, 0, sizeof (SolarSysState));
@@ -561,7 +620,7 @@ planetRecurse (STAR_DESC *star, SOLARSYS_STATE *system,
 {
 	UniverseRecurseArg *universeRecurseArg = (UniverseRecurseArg *) arg;
 	
-	assert(CurStarDescPtr = star);
+	assert(CurStarDescPtr == star);
 	assert(pSolarSysState == system);
 
 	system->pBaseDesc = planet;
@@ -598,7 +657,7 @@ moonRecurse (STAR_DESC *star, SOLARSYS_STATE *system, PLANET_DESC *planet,
 {
 	UniverseRecurseArg *universeRecurseArg = (UniverseRecurseArg *) arg;
 	
-	assert(CurStarDescPtr = star);
+	assert(CurStarDescPtr == star);
 	assert(pSolarSysState == system);
 	assert(system->pBaseDesc == planet);
 	
@@ -678,7 +737,7 @@ dumpSystem (FILE *out, const STAR_DESC *star, const SOLARSYS_STATE *system)
 	UNICODE name[256];
 	UNICODE buf[40];
 
-	GetClusterName ((STAR_DESCPTR) star, name);
+	GetClusterName (star, name);
 	snprintf (buf, sizeof buf, "%s %s",
 			bodyColorString (STAR_COLOR(star->Type)),
 			starTypeString (STAR_TYPE(star->Type)));
@@ -1080,7 +1139,7 @@ dumpPlanetType (FILE *out, int index, const PlanetFrame *planetType)
 			);
 	for (i = 0; i < NUM_USEFUL_ELEMENTS; i++)
 	{
-		const ElementEntry *entry;
+		/*const ELEMENT_ENTRY *entry;
 		entry = &planetType->UsefulElements[i];
 		if (entry->Density == 0)
 			continue;
@@ -1091,7 +1150,7 @@ dumpPlanetType (FILE *out, int index, const PlanetFrame *planetType)
 				GAME_STRING (ELEMENTS_STRING_BASE + entry->ElementType),
 				GAME_STRING (CARGO_STRING_BASE + 2 + ElementCategory (
 				entry->ElementType))
-			);
+			);*/
 	}
 	fprintf (out, "\n");
 }
@@ -1239,13 +1298,13 @@ depositQualityString (BYTE quality)
 ////////////////////////////////////////////////////////////////////////////
 
 // Which should be GOOD_GUY or BAD_GUY
-STARSHIPPTR
+STARSHIP*
 findPlayerShip(ELEMENT_FLAGS which) {
 	HELEMENT hElement, hNextElement;
 
 	for (hElement = GetHeadElement (); hElement; hElement = hNextElement)
 	{
-		ELEMENTPTR ElementPtr;
+		ELEMENT *ElementPtr;
 
 		LockElement (hElement, &ElementPtr);
 		hNextElement = GetSuccElement (ElementPtr);
@@ -1253,7 +1312,7 @@ findPlayerShip(ELEMENT_FLAGS which) {
 		if ((ElementPtr->state_flags & PLAYER_SHIP)	&&
 				(ElementPtr->state_flags & (GOOD_GUY | BAD_GUY)) == which)
 		{
-			STARSHIPPTR StarShipPtr;
+			STARSHIP *StarShipPtr;
 			GetElementStarShip (ElementPtr, &StarShipPtr);
 			UnlockElement (hElement);
 			return StarShipPtr;
@@ -1268,7 +1327,7 @@ findPlayerShip(ELEMENT_FLAGS which) {
 
 void
 resetCrewBattle(void) {
-	STARSHIPPTR StarShipPtr;
+	STARSHIP *StarShipPtr;
 	COUNT delta;
 	CONTEXT OldContext;
 	
@@ -1290,7 +1349,7 @@ resetCrewBattle(void) {
 
 void
 resetEnergyBattle(void) {
-	STARSHIPPTR StarShipPtr;
+	STARSHIP *StarShipPtr;
 	COUNT delta;
 	CONTEXT OldContext;
 	
@@ -1310,6 +1369,79 @@ resetEnergyBattle(void) {
 	SetContext (OldContext);
 }
 
+////////////////////////////////////////////////////////////////////////////
+
+// This function should help in making sure that gamestr.h matches
+// gamestrings.txt.
+void
+dumpStrings(FILE *out) {
+#define STRINGIZE(a) #a
+#define MAKE_STRING_CATEGORY(prefix) \
+		{ \
+			/* .name  = */ STRINGIZE(prefix ## _BASE), \
+			/* .base  = */ prefix ## _BASE, \
+			/* .count = */ prefix ## _COUNT \
+		}
+	struct {
+		const char *name;
+		size_t base;
+		size_t count;
+	} categories[] = {
+		{ "0", 0, 0 },
+		MAKE_STRING_CATEGORY(STAR_STRING),
+		MAKE_STRING_CATEGORY(DEVICE_STRING),
+		MAKE_STRING_CATEGORY(CARGO_STRING),
+		MAKE_STRING_CATEGORY(ELEMENTS_STRING),
+		MAKE_STRING_CATEGORY(SCAN_STRING),
+		MAKE_STRING_CATEGORY(STAR_NUMBER),
+		MAKE_STRING_CATEGORY(PLANET_NUMBER),
+		MAKE_STRING_CATEGORY(MONTHS_STRING),
+		MAKE_STRING_CATEGORY(FEEDBACK_STRING),
+		MAKE_STRING_CATEGORY(STARBASE_STRING),
+		MAKE_STRING_CATEGORY(ENCOUNTER_STRING),
+		MAKE_STRING_CATEGORY(NAVIGATION_STRING),
+		MAKE_STRING_CATEGORY(NAMING_STRING),
+		MAKE_STRING_CATEGORY(MELEE_STRING),
+		MAKE_STRING_CATEGORY(SAVEGAME_STRING),
+		MAKE_STRING_CATEGORY(OPTION_STRING),
+		MAKE_STRING_CATEGORY(QUITMENU_STRING),
+		MAKE_STRING_CATEGORY(STATUS_STRING),
+		MAKE_STRING_CATEGORY(FLAGSHIP_STRING),
+		MAKE_STRING_CATEGORY(ORBITSCAN_STRING),
+		MAKE_STRING_CATEGORY(MAINMENU_STRING),
+		MAKE_STRING_CATEGORY(NETMELEE_STRING),
+		{ "GAMESTR_COUNT", GAMESTR_COUNT, (size_t) -1 }
+	};
+	size_t numCategories = sizeof categories / sizeof categories[0];
+	size_t numStrings = GetStringTableCount (GameStrings);
+	size_t stringI;
+	size_t categoryI = 0;
+
+	// Start with a sanity check to see if gamestr.h has been changed but
+	// not this file.
+	for (categoryI = 0; categoryI < numCategories - 1; categoryI++) {
+		if (categories[categoryI].base + categories[categoryI].count !=
+				categories[categoryI + 1].base) {
+			fprintf(stderr, "Error: String category list in dumpStrings() is "
+					"not up to date.\n");
+			return;
+		}
+	}
+	
+	if (GAMESTR_COUNT != numStrings) {
+		fprintf(stderr, "Warning: GAMESTR_COUNT is %d, but GameStrings "
+				"contains %d strings.\n", GAMESTR_COUNT, numStrings);
+	}
+
+	categoryI = 0;
+	for (stringI = 0; stringI < numStrings; stringI++) {
+		while (categoryI < numCategories &&
+				stringI >= categories[categoryI + 1].base)
+			categoryI++;
+		fprintf(out, "[ %s + %d ]  %s\n", categories[categoryI].name,
+				stringI - categories[categoryI].base, GAME_STRING(stringI));
+	}
+}
 
 #endif  /* DEBUG */
 

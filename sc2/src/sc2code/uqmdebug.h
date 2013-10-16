@@ -43,12 +43,15 @@ void forwardToNextEvent (BOOLEAN skipHEE);
 // Generate a list of all events in the event queue.
 void dumpEvents (FILE *out);
 // Describe one event.
-void dumpEvent (FILE *out, EVENTPTR eventPtr);
+void dumpEvent (FILE *out, const EVENT *eventPtr);
 // Get the name of one event.
 const char *eventName (BYTE func_index);
 
 // Give the flagship a decent equipment for debugging.
 void equipShip (void);
+
+// Remove all escort ships.
+void clearEscorts (void);
 
 // Show all active spheres of influence.
 void showSpheres (void);
@@ -143,7 +146,7 @@ const char *depositQualityString (BYTE quality);
 
 
 // Find a player ship. Setting which to BAD_GUY is only meaningful in battle.
-STARSHIPPTR findPlayerShip(ELEMENT_FLAGS which);
+STARSHIP* findPlayerShip(ELEMENT_FLAGS which);
 
 // Resets the crew of the first player (the bottom one) to its maximum.
 void resetCrewBattle(void);
@@ -154,6 +157,11 @@ void resetEnergyBattle(void);
 
 // Move instantly across hyperspace/quasispace.
 extern BOOLEAN instantMove;
+
+
+// Dump all game strings.
+void dumpStrings(FILE *out);
+
 
 // To add some day:
 // - a function to fast forward the game clock to a specifiable time.

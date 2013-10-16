@@ -34,28 +34,42 @@ collide (ELEMENTPTR ElementPtr0, ELEMENTPTR ElementPtr1)
 	SIZE TravelAngle0, TravelAngle1, ImpactAngle0, ImpactAngle1;
 	SIZE RelTravelAngle, Directness;
 
+	//d_rel = vector from EP1 to EP0
 	dx_rel = ElementPtr0->next.location.x
 			- ElementPtr1->next.location.x;
 	dy_rel = ElementPtr0->next.location.y
 			- ElementPtr1->next.location.y;
+	//ImpactAngle0 = direction from EP1 to EP0 (wtf?)
 	ImpactAngle0 = ARCTAN (dx_rel, dy_rel);
+	//ImpactAngle1 = direction from EP0 to EP1
 	ImpactAngle1 = NORMALIZE_ANGLE (ImpactAngle0 + HALF_CIRCLE);
 
+	//TravelAngleX = direction EPX is moving
 	GetCurrentVelocityComponents (&ElementPtr0->velocity, &dx0, &dy0);
 	TravelAngle0 = GetVelocityTravelAngle (&ElementPtr0->velocity);
 	GetCurrentVelocityComponents (&ElementPtr1->velocity, &dx1, &dy1);
 	TravelAngle1 = GetVelocityTravelAngle (&ElementPtr1->velocity);
+	//RelTravelAngle = direction EP0 is moving relative to EP1
 	dx_rel = dx0 - dx1;
 	dy_rel = dy0 - dy1;
 	RelTravelAngle = ARCTAN (dx_rel, dy_rel);
+	//speed = relative speed
 	speed = square_root ((long)dx_rel * dx_rel + (long)dy_rel * dy_rel);
 
+	//directness = angle difference between EP0's location vector and EP0's velocity,
+	//relative to EP1. i.e. if EP0 is moving towards EP1, they'll be opposite... thus
+	//Directness will == HALF_CIRCLE
 	Directness = NORMALIZE_ANGLE (RelTravelAngle - ImpactAngle0);
-	if (Directness <= QUADRANT || Directness >= HALF_CIRCLE + QUADRANT)
+	if (/*Directness <= QUADRANT || Directness >= HALF_CIRCLE + QUADRANT*/
+		Directness <= QUADRANT * 7 / 8 || Directness >= HALF_CIRCLE + QUADRANT * 9 / 8)
 			/* shapes just scraped each other but still collided,
 			 * they will collide again unless we fudge it.
 			 */
 	{
+		//Elvish Pillager's note: Actually, the above description is pretty bogus.
+		//What it really means is that the shapes are weird, so that they can
+		//collide while moving away from each other.
+		
 		Directness = HALF_CIRCLE;
 		ImpactAngle0 = TravelAngle0 + HALF_CIRCLE;
 		ImpactAngle1 = TravelAngle1 + HALF_CIRCLE;
@@ -97,6 +111,8 @@ collide (ELEMENTPTR ElementPtr0, ELEMENTPTR ElementPtr1)
 
 		mass0 = ElementPtr0->mass_points /* << 2 */;
 		mass1 = ElementPtr1->mass_points /* << 2 */;
+		//collisions giving acceleration totalling twice the speed of the collision...
+		//...makes repeated collisions FUUUUUUN.... :(
 		scalar = (long)SINE (Directness, speed << 1) * (mass0 * mass1);
 
 		if (!GRAVITY_MASS (ElementPtr0->mass_points + 1))

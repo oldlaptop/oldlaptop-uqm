@@ -69,7 +69,7 @@ planet_blows_up (PELEMENT ElementPtr)
 	ElementPtr->death_func = respawn_planet;
 	ElementPtr->preprocess_func = explosion_preprocess;
 	PlaySound (SetAbsSoundIndex (GameSounds, SHIP_EXPLODES),
-			CalcSoundPosition (ElementPtr), ElementPtr, GAME_SOUND_PRIORITY + 1);
+			CalcSoundPosition (ElementPtr), ElementPtr, GAME_SOUND_PRIORITY);
 }
 
 extern BOOLEAN AtLeastOneShipIsPainfullyClose (PELEMENT ElementPtr);
