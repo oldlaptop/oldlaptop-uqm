@@ -228,7 +228,7 @@ InitShips (void)
 #define NUM_ASTEROIDS 5
 			for (i = 0; i < NUM_ASTEROIDS; ++i)
 				spawn_asteroid (NULL);
-#define NUM_PLANETS 1
+#define NUM_PLANETS 14
 			for (i = 0; i < NUM_PLANETS; ++i)
 				spawn_planet ();
 		}

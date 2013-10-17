@@ -25,7 +25,52 @@
 #include "sounds.h"
 #include "weapon.h"
 #include "libs/mathlib.h"
+#include "tactrans.h"
+#include "planets/planets.h"
 
+#define PLANET_RESPAWN_WAIT 48
+static COUNT planet_respawn_wait = 0;
+static BOOLEAN planet_respawn_wait_decremented = false;
+
+static void respawn_planet_reset (ELEMENT* ElementPtr)
+{
+	planet_respawn_wait_decremented = false;
+}
+
+static void respawn_planet (ELEMENT* ElementPtr)
+{
+	if(!planet_respawn_wait)
+	{
+		planet_respawn_wait = PLANET_RESPAWN_WAIT;
+		ElementPtr->preprocess_func = ElementPtr->death_func = NULL;
+		spawn_planet();
+	}
+	else
+	{
+		ElementPtr->life_span = 4;
+		ElementPtr->state_flags &= ~DISAPPEARING;
+		ElementPtr->preprocess_func = respawn_planet;
+		ElementPtr->postprocess_func = respawn_planet_reset;
+
+		if(!planet_respawn_wait_decremented)
+		{
+			--planet_respawn_wait;
+			planet_respawn_wait_decremented = true;
+		}
+	}
+}
+
+static void
+planet_blows_up (ELEMENT* ElementPtr)
+{
+	ElementPtr->life_span = NUM_EXPLOSION_FRAMES * 3;
+	ElementPtr->state_flags &= ~DISAPPEARING;
+	ElementPtr->state_flags |= FINITE_LIFE | NONSOLID;
+	ElementPtr->death_func = respawn_planet;
+	ElementPtr->preprocess_func = explosion_preprocess;
+	PlaySound (SetAbsSoundIndex (GameSounds, SHIP_EXPLODES),
+			CalcSoundPosition (ElementPtr), ElementPtr, GAME_SOUND_PRIORITY);
+}
 
 void
 spawn_planet (void)
@@ -40,9 +85,9 @@ spawn_planet (void)
 
 		LockElement (hPlanetElement, &PlanetElementPtr);
 		PlanetElementPtr->playerNr = NEUTRAL_PLAYER_NUM;
-		PlanetElementPtr->hit_points = 200;
+		PlanetElementPtr->hit_points = 42;
 		PlanetElementPtr->state_flags = APPEARING;
-		PlanetElementPtr->life_span = NORMAL_LIFE + 1;
+		PlanetElementPtr->life_span = NORMAL_LIFE;
 		SetPrimType (&DisplayArray[PlanetElementPtr->PrimIndex], STAMP_PRIM);
 		PlanetElementPtr->current.image.farray = planet;
 		PlanetElementPtr->current.image.frame =
@@ -50,6 +95,7 @@ spawn_planet (void)
 		PlanetElementPtr->collision_func = collision;
 		PlanetElementPtr->postprocess_func =
 				(void (*) (struct element *ElementPtr))CalculateGravity;
+		PlanetElementPtr->death_func = planet_blows_up;
 		ZeroVelocityComponents (&PlanetElementPtr->velocity);
 		do
 		{
@@ -59,7 +105,7 @@ spawn_planet (void)
 					WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
 		} while (CalculateGravity (PlanetElementPtr)
 				|| TimeSpaceMatterConflict (PlanetElementPtr));
-		PlanetElementPtr->mass_points = PlanetElementPtr->hit_points;
+		PlanetElementPtr->mass_points = 200;
 		UnlockElement (hPlanetElement);
 
 		PutElement (hPlanetElement);
@@ -202,7 +248,7 @@ do_damage (ELEMENT *ElementPtr, SIZE damage)
 			ElementPtr->state_flags |= NONSOLID;
 		}
 	}
-	else if (!GRAVITY_MASS (ElementPtr->mass_points))
+	else/* if (!GRAVITY_MASS (ElementPtr->mass_points))*/
 	{
 		if ((BYTE)damage < ElementPtr->hit_points)
 			ElementPtr->hit_points -= (BYTE)damage;

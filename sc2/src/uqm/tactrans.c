@@ -539,7 +539,7 @@ new_ship (ELEMENT *DeadShipPtr)
 	}
 }
 
-static void
+void
 explosion_preprocess (ELEMENT *ShipPtr)
 {
 	BYTE i;

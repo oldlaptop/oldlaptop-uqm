@@ -40,6 +40,7 @@ extern void new_ship (ELEMENT *ElementPtr);
 extern void ship_death (ELEMENT *ShipPtr);
 extern void spawn_ion_trail (ELEMENT *ElementPtr);
 extern void flee_preprocess (ELEMENT *ElementPtr);
+extern void explosion_preprocess (ELEMENT *ElementPtr);
 
 extern void StopDitty (void);
 extern void ResetWinnerStarShip (void);
