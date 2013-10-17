@@ -16,6 +16,7 @@
  *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include "colors.h"
 #include "element.h"
 #include "init.h"
 #include "races.h"
@@ -27,6 +28,7 @@
 #include "libs/mathlib.h"
 #include "tactrans.h"
 #include "planets/planets.h"
+#include "intel.h" /* For CYBORG_CONTROL */
 
 #define PLANET_RESPAWN_WAIT 48
 static COUNT planet_respawn_wait = 0;
@@ -141,8 +143,11 @@ spawn_rubble (ELEMENT *AsteroidElementPtr)
 	}
 }
 
-static void
-asteroid_preprocess (ELEMENT *ElementPtr)
+/* The original contents of asteroid_preprocess, which both the normal
+ * preprocess_func and the 'chasing' preprocess_func need to execute.
+ */
+inline void
+spin_asteroid (ELEMENT *ElementPtr)
 {
 	if (ElementPtr->turn_wait > 0)
 		--ElementPtr->turn_wait;
@@ -161,6 +166,90 @@ asteroid_preprocess (ELEMENT *ElementPtr)
 		ElementPtr->state_flags |= CHANGING;
 
 		ElementPtr->turn_wait = (unsigned char)(ElementPtr->thrust_wait & ((1 << 7) - 1));
+	}
+}
+
+static void asteroid_preprocess (ELEMENT *ElementPtr);
+
+static void
+asteroid_chasing_preprocess (ELEMENT *ElementPtr)
+{
+	spin_asteroid(ElementPtr);
+
+	if (ElementPtr->hTarget)
+	{
+		SIZE dx, dy;
+		COUNT angle;
+		ELEMENT *EnemyElementPtr;
+		LockElement (ElementPtr->hTarget, &EnemyElementPtr);
+
+		if(OBJECT_CLOAKED(EnemyElementPtr))
+		{
+			ElementPtr->preprocess_func = asteroid_preprocess;
+			return;
+		}
+
+		dx = EnemyElementPtr->next.location.x - ElementPtr->next.location.x;
+		dy = EnemyElementPtr->next.location.y - ElementPtr->next.location.y;
+
+		angle = ARCTAN (dx, dy);
+
+		GetCurrentVelocityComponents(&ElementPtr->velocity, &dx, &dy);
+		dx += COSINE(angle, DISPLAY_TO_WORLD(40));
+		dy += SINE(angle, DISPLAY_TO_WORLD(40));
+		//linear velocity increase, exponential decrease:
+		dx = (dx * 19) / 20;
+		dy = (dy * 19) / 20;
+		SetVelocityComponents(&ElementPtr->velocity, dx, dy);
+
+	}
+}
+
+static void
+asteroid_preprocess (ELEMENT *ElementPtr)
+{
+	spin_asteroid (ElementPtr);
+
+	//Sometimes start chasing a player:
+	if(((COUNT)TFB_Random() % 3000) == 1)
+	{
+		HELEMENT hShip, hNextShip;
+		ELEMENT *Victim;
+		BOOLEAN passed_a_ship = false;
+		for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+		{
+			LockElement (hShip, &Victim);
+			hNextShip = GetSuccElement (Victim);
+			if
+			(
+				Victim->state_flags & PLAYER_SHIP
+				&& !
+				(
+					(
+						Victim->playerNr == 1
+						&&
+						PlayerControl[0] & CYBORG_CONTROL
+					)
+					||
+					(
+						Victim->playerNr == 0
+						&&
+						PlayerControl[1] & CYBORG_CONTROL
+					)
+				)
+			)
+			{
+				if(
+					(passed_a_ship
+					|| (COUNT)TFB_Random() & 1)
+				)
+				{
+					ElementPtr->hTarget = hShip;
+					ElementPtr->preprocess_func = asteroid_chasing_preprocess;
+				}
+				else passed_a_ship=true;
+			}
+		}
 	}
 }
 
