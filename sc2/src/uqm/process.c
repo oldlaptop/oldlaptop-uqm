@@ -242,15 +242,19 @@ CalcReduction (SIZE dx, SIZE dy)
 		   next_reduction += REDUCTION_SHIFT;
 		}
 
+		/* This if statement originally made sure the camera was zoomed
+		 * out more than usual for the Sa-Matra. We now ignore the
+		 * Sa-Matra so the camera is always zoomed out a little more.
+		 */
 		if (next_reduction == 0
-				&& LOBYTE (GLOBAL (CurrentActivity)) == IN_LAST_BATTLE)
+				/*&& LOBYTE (GLOBAL (CurrentActivity)) == IN_LAST_BATTLE*/)
 			next_reduction += REDUCTION_SHIFT;
 	}
 	else
 	{
 		if (LOBYTE (GLOBAL (CurrentActivity)) > IN_ENCOUNTER)
 			return (1 << ZOOM_SHIFT);
-			
+
 		dx = (dx * MAX_ZOOM_OUT) / (LOG_SPACE_WIDTH >> 2);
 		if (dx < (1 << ZOOM_SHIFT))
 			dx = 1 << ZOOM_SHIFT;
@@ -268,8 +272,12 @@ CalcReduction (SIZE dx, SIZE dy)
 		else
 			next_reduction = dx;
 
+		/* This if statement originally made sure the camera was zoomed
+		 * out more than usual for the Sa-Matra. We now ignore the
+		 * Sa-Matra so the camera is always zoomed out a little more.
+		 */
 		if (next_reduction < (2 << ZOOM_SHIFT)
-				&& LOBYTE (GLOBAL (CurrentActivity)) == IN_LAST_BATTLE)
+				/*&& LOBYTE (GLOBAL (CurrentActivity)) == IN_LAST_BATTLE*/)
 			next_reduction = (2 << ZOOM_SHIFT);
 	}
 
