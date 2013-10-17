@@ -706,7 +706,9 @@ StartShipExplosion (ELEMENT *ShipPtr, bool playSound)
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
 
+	/* Keep explosions moving!
 	ZeroVelocityComponents (&ShipPtr->velocity);
+	*/
 
 	DeltaEnergy (ShipPtr,
 			-(SIZE)StarShipPtr->RaceDescPtr->ship_info.energy_level);
