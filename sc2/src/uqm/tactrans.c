@@ -50,6 +50,50 @@ static STARSHIP *winnerStarShip;
 		// Indicates which ship is the winner of the current battle.
 		// The winner will be last to pick the next ship.
 
+/* Cleanup of dead ships in Crazy Mod is made more complicated because we want
+ * to preserve the missiles/DOGIs/etc of dead ships until they themselves die.
+ * This function makes sure we clean up the dead *ship* without cleaning up its
+ * other elements.
+ */
+static void
+dead_ship_maybe_free_data(ELEMENT *DeadShipPtr)
+{
+	BOOLEAN needs_to_wait = false;
+	HELEMENT hElement, hSuccElement;
+	STARSHIP *DeadStarShipPtr;
+
+	GetElementStarShip (DeadShipPtr, &DeadStarShipPtr);
+
+	for (hElement = GetHeadElement (); hElement; hElement = hSuccElement)
+	{
+		ELEMENT *ElementPtr;
+		STARSHIP *StarShipPtr;
+
+		LockElement (hElement, &ElementPtr);
+		hSuccElement = GetSuccElement (ElementPtr);
+		GetElementStarShip (ElementPtr, &StarShipPtr);
+		
+		if(DeadStarShipPtr == StarShipPtr && (ElementPtr->state_flags & PERSISTENT))
+		{
+			needs_to_wait = true;
+			break;
+		}
+
+		UnlockElement (hElement);
+	}
+
+	if(needs_to_wait)
+	{
+		DeadShipPtr->state_flags &= ~DISAPPEARING;
+		DeadShipPtr->life_span = 0;
+		DeadShipPtr->death_func = dead_ship_maybe_free_data;
+	}
+	else
+	{
+		free_ship (DeadStarShipPtr->RaceDescPtr, TRUE, TRUE);
+		//UnbatchGraphics ();
+	}
+}
 
 BOOLEAN
 OpponentAlive (STARSHIP *TestStarShipPtr)
@@ -318,21 +362,24 @@ cleanup_dead_ship (ELEMENT *DeadShipPtr)
 			{
 				// This element belongs to the dead ship; it may be the
 				// ship's own element.
-				SetElementStarShip (ElementPtr, 0);
-
-				if (!(ElementPtr->state_flags & CREW_OBJECT)
-						|| ElementPtr->preprocess_func != crew_preprocess)
+				if (!(ElementPtr->state_flags & PERSISTENT))
 				{
-					// Set the element up for deletion.
-					SetPrimType (&DisplayArray[ElementPtr->PrimIndex],
-							NO_PRIM);
-					ElementPtr->life_span = 0;
-					ElementPtr->state_flags =
-							NONSOLID | DISAPPEARING | FINITE_LIFE;
-					ElementPtr->preprocess_func = 0;
-					ElementPtr->postprocess_func = 0;
-					ElementPtr->death_func = 0;
-					ElementPtr->collision_func = 0;
+					SetElementStarShip (ElementPtr, 0);
+
+					if (!(ElementPtr->state_flags & CREW_OBJECT)
+							|| ElementPtr->preprocess_func != crew_preprocess)
+					{
+						// Set the element up for deletion.
+						SetPrimType (&DisplayArray[ElementPtr->PrimIndex],
+								NO_PRIM);
+						ElementPtr->life_span = 0;
+						ElementPtr->state_flags =
+								NONSOLID | DISAPPEARING | FINITE_LIFE;
+						ElementPtr->preprocess_func = 0;
+						ElementPtr->postprocess_func = 0;
+						ElementPtr->death_func = 0;
+						ElementPtr->collision_func = 0;
+					}
 				}
 			}
 
@@ -470,10 +517,10 @@ new_ship (ELEMENT *DeadShipPtr)
 		StopMusic ();
 		StopSound ();
 
-		SetElementStarShip (DeadShipPtr, 0);
+		/*SetElementStarShip (DeadShipPtr, 0);*/
 		RestartMusic = OpponentAlive (DeadStarShipPtr);
 
-		free_ship (DeadStarShipPtr->RaceDescPtr, TRUE, TRUE);
+		dead_ship_maybe_free_data (DeadShipPtr);
 		DeadStarShipPtr->RaceDescPtr = 0;
 		
 		// Graphics are batched while the draw queue is processed,

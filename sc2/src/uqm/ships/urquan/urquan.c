@@ -423,7 +423,7 @@ spawn_fighters (ELEMENT *ElementPtr)
 		FighterElementPtr->thrust_wait = TRACK_THRESHOLD + 1;
 		FighterElementPtr->playerNr = ElementPtr->playerNr;
 		FighterElementPtr->state_flags = APPEARING | FINITE_LIFE
-				| CREW_OBJECT | IGNORE_SIMILAR;
+				| CREW_OBJECT | IGNORE_SIMILAR | PERSISTENT;
 		FighterElementPtr->life_span = FIGHTER_LIFE;
 		SetPrimType (&(GLOBAL (DisplayArray))[FighterElementPtr->PrimIndex],
 				STAMP_PRIM);

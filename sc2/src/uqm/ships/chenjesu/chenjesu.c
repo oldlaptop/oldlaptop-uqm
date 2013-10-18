@@ -363,7 +363,7 @@ spawn_doggy (ELEMENT *ElementPtr)
 		DoggyElementPtr->mass_points = DOGGY_MASS;
 		DoggyElementPtr->thrust_wait = 0;
 		DoggyElementPtr->playerNr = ElementPtr->playerNr;
-		DoggyElementPtr->state_flags = APPEARING;
+		DoggyElementPtr->state_flags |= (APPEARING | PERSISTENT);
 		DoggyElementPtr->life_span = NORMAL_LIFE;
 		SetPrimType (&(GLOBAL (DisplayArray))[DoggyElementPtr->PrimIndex],
 				STAMP_PRIM);

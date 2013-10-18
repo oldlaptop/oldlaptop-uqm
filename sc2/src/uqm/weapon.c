@@ -57,7 +57,7 @@ initialize_laser (LASER_BLOCK *pLaserBlock)
 		LaserElementPtr->hit_points = 1;
 		LaserElementPtr->mass_points = 1;
 		LaserElementPtr->state_flags = APPEARING | FINITE_LIFE
-				| pLaserBlock->flags;
+				| PERSISTENT | pLaserBlock->flags;
 		LaserElementPtr->life_span = LASER_LIFE;
 		LaserElementPtr->collision_func = weapon_collision_cb;
 		LaserElementPtr->blast_offset = 1;
@@ -101,7 +101,7 @@ initialize_missile (MISSILE_BLOCK *pMissileBlock)
 		MissileElementPtr->mass_points = (BYTE)pMissileBlock->damage;
 		MissileElementPtr->playerNr = pMissileBlock->sender;
 		MissileElementPtr->state_flags = APPEARING | FINITE_LIFE
-				| pMissileBlock->flags;
+				| PERSISTENT | pMissileBlock->flags;
 		MissileElementPtr->life_span = pMissileBlock->life;
 		SetPrimType (&DisplayArray[MissileElementPtr->PrimIndex], STAMP_PRIM);
 		MissileElementPtr->current.image.farray = pMissileBlock->farray;

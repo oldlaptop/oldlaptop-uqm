@@ -34,7 +34,7 @@ extern "C" {
 typedef HLINK HELEMENT;
 
 // Bits for ELEMENT_FLAGS:
-// bits 0 and 1 are now available
+// bit 0 available
 #define PLAYER_SHIP (1 << 2)
 		// The ELEMENT is a player controlable ship, and not some bullet,
 		// crew, asteroid, fighter, etc. This does not mean that the ship
@@ -64,6 +64,8 @@ typedef HLINK HELEMENT;
 		// of other elements; elements that have this flag set are not
 		// included in the checksum used for netplay games.
 		// It can be used for graphical mods that don't impede netplay.
+
+#define PERSISTENT (1 << 1)
 
 
 #define HYPERJUMP_LIFE 15
