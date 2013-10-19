@@ -35,6 +35,10 @@
 #include "sounds.h"
 #include "libs/mathlib.h"
 
+/* Crazy Mod adds damage to planetary collisions based on speed.
+ * The speed per extra hitpoint of damage is given here.
+ */
+#define SPEED_PER_ONE_DAMAGE  WORLD_TO_VELOCITY (42)
 
 void
 animation_preprocess (ELEMENT *ElementPtr)
@@ -342,6 +346,9 @@ ship_postprocess (ELEMENT *ElementPtr)
 	if (StarShipPtr->special_counter)
 		--StarShipPtr->special_counter;
 
+	if (StarShipPtr->planet_hit_counter)
+		--StarShipPtr->planet_hit_counter;
+
 	if (RDPtr->postprocess_func)
 		(*RDPtr->postprocess_func) (ElementPtr);
 
@@ -353,23 +360,38 @@ void
 collision (ELEMENT *ElementPtr0, POINT *pPt0,
 		ELEMENT *ElementPtr1, POINT *pPt1)
 {
+	STARSHIP *StarShipPtr0;
+	GetElementStarShip (ElementPtr0, &StarShipPtr0);
+
 	if (!(ElementPtr1->state_flags & FINITE_LIFE))
 	{
 		ElementPtr0->state_flags |= COLLISION;
 		if (GRAVITY_MASS (ElementPtr1->mass_points))
 		{
 			// Collision with a planet.
-			SIZE damage;
+			if(!(ElementPtr0->state_flags & PLAYER_SHIP) || !(StarShipPtr0->planet_hit_counter))
+			{
+				SIZE damage;
+				SIZE crew_damage;
+				SIZE dx, dy;
 
-			damage = ElementPtr0->hit_points >> 2;
-			if (damage == 0)
-				damage = 1;
-			do_damage (ElementPtr0, damage);
+				GetCurrentVelocityComponents(&ElementPtr0->velocity, &dx, &dy);
+				crew_damage = (ElementPtr0->hit_points >> 3);
+				if(crew_damage > 5)
+					crew_damage = 5;
 
-			damage = TARGET_DAMAGED_FOR_1_PT + (damage >> 1);
-			if (damage > TARGET_DAMAGED_FOR_6_PLUS_PT)
-				damage = TARGET_DAMAGED_FOR_6_PLUS_PT;
-			ProcessSound (SetAbsSoundIndex (GameSounds, damage), ElementPtr0);
+				damage = crew_damage + (square_root((dx*dx) + (dy*dy)) / SPEED_PER_ONE_DAMAGE);
+				if (damage == 0)
+					damage = 1;
+				do_damage ((ELEMENT*)ElementPtr0, damage);
+	
+				damage = TARGET_DAMAGED_FOR_1_PT + (damage >> 1);
+				if (damage > TARGET_DAMAGED_FOR_6_PLUS_PT)
+					damage = TARGET_DAMAGED_FOR_6_PLUS_PT;
+				ProcessSound (SetAbsSoundIndex (GameSounds, damage), ElementPtr0);
+			}
+			if(ElementPtr0->state_flags & PLAYER_SHIP)
+				StarShipPtr0->planet_hit_counter = 2;
 		}
 	}
 	(void) pPt0;  /* Satisfying compiler (unused parameter) */
