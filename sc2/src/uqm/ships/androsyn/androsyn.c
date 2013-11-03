@@ -33,16 +33,12 @@
 #define THRUST_WAIT 0
 #define SHIP_MASS 6
 
-// Bubbles
-#define WEAPON_ENERGY_COST 3
+// Twin Lasers
+#define WEAPON_ENERGY_COST 0
 #define WEAPON_WAIT 0
-#define ANDROSYNTH_OFFSET 14
-#define MISSILE_OFFSET 3
-#define MISSILE_SPEED DISPLAY_TO_WORLD (8)
-#define MISSILE_LIFE 200
-#define MISSILE_HITS 3
-#define MISSILE_DAMAGE 2
-#define TRACK_WAIT 2
+#define ANDROSYNTH_OFFSET_CENTER 14
+#define ANDROSYNTH_OFFSET_SIDE 34
+#define LASER_RANGE 1023
 
 // Blazer
 #define SPECIAL_ENERGY_COST 2
@@ -59,7 +55,7 @@ static RACE_DESC androsynth_desc =
 	{ /* SHIP_INFO */
 		"guardian",
 		FIRES_FORE | SEEKING_WEAPON,
-		15, /* Super Melee cost */
+		24, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		ANDROSYNTH_RACE_STRINGS,
@@ -189,80 +185,30 @@ blazer_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 	collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
 }
 
-static void
-bubble_preprocess (ELEMENT *ElementPtr)
-{
-	BYTE thrust_wait, turn_wait;
-
-	thrust_wait = HINIBBLE (ElementPtr->turn_wait);
-	turn_wait = LONIBBLE (ElementPtr->turn_wait);
-	if (thrust_wait > 0)
-		--thrust_wait;
-	else
-	{
-		ElementPtr->next.image.frame =
-				IncFrameIndex (ElementPtr->current.image.frame);
-		ElementPtr->state_flags |= CHANGING;
-
-		thrust_wait = (BYTE)((COUNT)TFB_Random () & 3);
-	}
-
-	if (turn_wait > 0)
-		--turn_wait;
-	else
-	{
-		COUNT facing;
-		SIZE delta_facing;
-
-		facing = NORMALIZE_FACING (ANGLE_TO_FACING (
-				GetVelocityTravelAngle (&ElementPtr->velocity)));
-		if ((delta_facing = TrackShip (ElementPtr, &facing)) == -1)
-			facing = (COUNT)TFB_Random ();
-		else if (delta_facing <= ANGLE_TO_FACING (HALF_CIRCLE))
-			facing += (COUNT)TFB_Random () & (ANGLE_TO_FACING (HALF_CIRCLE) - 1);
-		else
-			facing -= (COUNT)TFB_Random () & (ANGLE_TO_FACING (HALF_CIRCLE) - 1);
-		SetVelocityVector (&ElementPtr->velocity,
-				MISSILE_SPEED, facing);
-		turn_wait = TRACK_WAIT;
-	}
-
-	ElementPtr->turn_wait = MAKE_BYTE (turn_wait, thrust_wait);
-}
-
 static COUNT
-initialize_bubble (ELEMENT *ShipPtr, HELEMENT BubbleArray[])
+initialize_androsynth_laser (ELEMENT *ShipPtr, HELEMENT LaserArray[])
 {
+	COUNT i;
 	STARSHIP *StarShipPtr;
-	MISSILE_BLOCK MissileBlock;
+	LASER_BLOCK LaserBlock;
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
-	MissileBlock.cx = ShipPtr->next.location.x;
-	MissileBlock.cy = ShipPtr->next.location.y;
-	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
-	MissileBlock.face = StarShipPtr->ShipFacing;
-	MissileBlock.index = 0;
-	MissileBlock.sender = ShipPtr->playerNr;
-	MissileBlock.flags = IGNORE_SIMILAR;
-	MissileBlock.pixoffs = ANDROSYNTH_OFFSET;
-	MissileBlock.speed = MISSILE_SPEED;
-	MissileBlock.hit_points = MISSILE_HITS;
-	MissileBlock.damage = MISSILE_DAMAGE;
-	MissileBlock.life = MISSILE_LIFE;
-	MissileBlock.preprocess_func = bubble_preprocess;
-	MissileBlock.blast_offs = MISSILE_OFFSET;
-	BubbleArray[0] = initialize_missile (&MissileBlock);
+	LaserBlock.face = StarShipPtr->ShipFacing;
+	LaserBlock.sender = ShipPtr->playerNr;
+	LaserBlock.flags = IGNORE_SIMILAR;
+	LaserBlock.pixoffs = ANDROSYNTH_OFFSET_CENTER;
+	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x1F), 0x0F);
+	LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
+	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
 
-	if (BubbleArray[0])
+	for (i = 0; i < 2; ++i)
 	{
-		ELEMENT *BubblePtr;
-
-		LockElement (BubbleArray[0], &BubblePtr);
-		BubblePtr->turn_wait = 0;
-		UnlockElement (BubbleArray[0]);
+		LaserBlock.cx = ShipPtr->next.location.x + COSINE (FACING_TO_ANGLE (LaserBlock.face + 4), ANDROSYNTH_OFFSET_SIDE * (i * 2 - 1));
+		LaserBlock.cy = ShipPtr->next.location.y + SINE (FACING_TO_ANGLE (LaserBlock.face + 4), ANDROSYNTH_OFFSET_SIDE * (i * 2 - 1));
+		LaserArray[i] = initialize_laser (&LaserBlock);
 	}
 
-	return (1);
+	return (2);
 }
 
 static void
@@ -310,6 +256,10 @@ androsynth_intelligence (ELEMENT *ShipPtr, EVALUATE_DESC *ObjectsOfConcern,
 
 		ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
 
+		/* EP has this block commented out, causing the AI not to use
+		 * the blazer. Leaving it open for now, TODO: ask EP why this
+		 * was disabled.
+		 */
 		if (StarShipPtr->special_counter == 0)
 		{
 			StarShipPtr->ship_input_state &= ~SPECIAL;
@@ -428,14 +378,12 @@ androsynth_preprocess (ELEMENT *ElementPtr)
 	cur_status_flags = StarShipPtr->cur_status_flags;
 	if (ElementPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.ship)
 	{
-		if (cur_status_flags & SPECIAL)
+		if (cur_status_flags & SPECIAL && !(StarShipPtr->old_status_flags & SPECIAL))
 		{
 			if (StarShipPtr->RaceDescPtr->ship_info.energy_level < SPECIAL_ENERGY_COST)
 				DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST); /* so text will flash */
 			else
 			{
-				cur_status_flags &= ~WEAPON;
-
 				ElementPtr->next.image.farray =
 						StarShipPtr->RaceDescPtr->ship_data.special;
 				ElementPtr->next.image.frame =
@@ -447,7 +395,32 @@ androsynth_preprocess (ELEMENT *ElementPtr)
 	}
 	else
 	{
-		cur_status_flags &= ~(THRUST | WEAPON | SPECIAL);
+		cur_status_flags &= ~WEAPON;
+
+		if (cur_status_flags & THRUST)
+		{
+			COUNT facing;
+			SIZE delta_facing;
+			facing = StarShipPtr->ShipFacing;
+			delta_facing = TrackShip(ElementPtr, &facing);
+			if(delta_facing == -1 || delta_facing == 0)
+			{
+				cur_status_flags &= ~(LEFT | RIGHT);
+			}
+			else if(delta_facing < ANGLE_TO_FACING(HALF_CIRCLE)
+				|| (delta_facing == ANGLE_TO_FACING(HALF_CIRCLE) && (TFB_Random() & 1)))
+			{
+				cur_status_flags |= RIGHT;
+				cur_status_flags &= ~LEFT;
+			}
+			else
+			{
+				cur_status_flags |= LEFT;
+				cur_status_flags &= ~RIGHT;
+			}
+		}
+
+		cur_status_flags &= ~THRUST;
 
 					/* protection against vux */
 		if (StarShipPtr->RaceDescPtr->characteristics.turn_wait > BLAZER_TURN_WAIT)
@@ -458,8 +431,10 @@ androsynth_preprocess (ELEMENT *ElementPtr)
 			StarShipPtr->RaceDescPtr->characteristics.turn_wait = BLAZER_TURN_WAIT;
 		}
 
-		if (StarShipPtr->RaceDescPtr->ship_info.energy_level == 0)
+		if (StarShipPtr->RaceDescPtr->ship_info.energy_level == 0
+			|| ((StarShipPtr->cur_status_flags & SPECIAL) && !(StarShipPtr->old_status_flags & SPECIAL)))
 		{
+			// HMm.... do I really want to give them such easy brakes? - EP
 			ZeroVelocityComponents (&ElementPtr->velocity);
 			cur_status_flags &= ~(LEFT | RIGHT
 					| SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);
@@ -519,7 +494,7 @@ init_androsynth (void)
 	androsynth_desc.uninit_func = uninit_androsynth;
 	androsynth_desc.preprocess_func = androsynth_preprocess;
 	androsynth_desc.postprocess_func = androsynth_postprocess;
-	androsynth_desc.init_weapon_func = initialize_bubble;
+	androsynth_desc.init_weapon_func = initialize_androsynth_laser;
 	androsynth_desc.cyborg_control.intelligence_func = androsynth_intelligence;
 
 	RaceDescPtr = &androsynth_desc;
