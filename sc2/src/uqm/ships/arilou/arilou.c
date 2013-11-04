@@ -23,25 +23,32 @@
 #include "libs/mathlib.h"
 
 // Core characteristics
-#define MAX_CREW 6
+#define MAX_CREW 16
 #define MAX_ENERGY 20
 #define ENERGY_REGENERATION 1
 #define ENERGY_WAIT 6
-#define MAX_THRUST /* DISPLAY_TO_WORLD (10) */ 40
-#define THRUST_INCREMENT MAX_THRUST
-#define THRUST_WAIT 0
-#define TURN_WAIT 0
+#define MAX_THRUST 50
+#define THRUST_INCREMENT 10
+#define THRUST_WAIT 0 
+#define TURN_WAIT 1
 #define SHIP_MASS 1
 
-// Tracking Laser
-#define WEAPON_ENERGY_COST 2
+// Speed bolts
+#define WEAPON_ENERGY_COST 1
 #define WEAPON_WAIT 1
 #define ARILOU_OFFSET 9
-#define LASER_RANGE DISPLAY_TO_WORLD (100 + ARILOU_OFFSET)
+#define MISSILE_SPEED DISPLAY_TO_WORLD (70)
+#define MISSILE_HITS 1
+#define MISSILE_LIFE 7
+#define MISSILE_DAMAGE 0
+#define MISSILE_OFFSET 0
 
 // Teleporter
 #define SPECIAL_ENERGY_COST 3
-#define SPECIAL_WAIT 2
+#define SPECIAL_WAIT 1 /* This now seems to be thrown out so special_counter
+                        * can be abused to control the alternating speedbolt
+                        * things.
+                        */
 #define HYPER_LIFE 5
 
 static RACE_DESC arilou_desc =
@@ -49,7 +56,7 @@ static RACE_DESC arilou_desc =
 	{ /* SHIP_INFO */
 		"skiff",
 		/* FIRES_FORE | */ IMMEDIATE_WEAPON,
-		16, /* Super Melee cost */
+		28, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		ARILOU_RACE_STRINGS,
@@ -105,7 +112,7 @@ static RACE_DESC arilou_desc =
 	},
 	{
 		0,
-		LASER_RANGE >> 1,
+		100,
 		NULL,
 	},
 	(UNINIT_FUNC *) NULL,
@@ -116,30 +123,96 @@ static RACE_DESC arilou_desc =
 	0, /* CodeRef */
 };
 
-static COUNT
-initialize_autoaim_laser (ELEMENT *ShipPtr, HELEMENT LaserArray[])
+static void
+speedlaser_collision (ELEMENT *ElementPtr0, POINT *pPt0, ELEMENT *
+		ElementPtr1, POINT *pPt1)
 {
-	COUNT orig_facing;
-	SIZE delta_facing;
+	if (ElementPtr1->state_flags & PLAYER_SHIP)
+	{
+		STARSHIP *StarShipPtr;
+		RACE_DESC *RDPtr;
+		COUNT num_thrusts;
+		SIZE dx, dy;
+
+		GetElementStarShip (ElementPtr1, &StarShipPtr);
+		RDPtr = StarShipPtr->RaceDescPtr;
+
+		if(RDPtr->characteristics.thrust_increment > 0)
+		{
+			num_thrusts = RDPtr->characteristics.max_thrust /
+						RDPtr->characteristics.thrust_increment;
+
+			RDPtr->characteristics.thrust_increment += (RDPtr->characteristics.thrust_increment / 3) + 1;
+
+			RDPtr->characteristics.max_thrust =
+					RDPtr->characteristics.thrust_increment * num_thrusts;
+		}
+
+		GetCurrentVelocityComponents (&ElementPtr0->velocity, &dx, &dy);
+		DeltaVelocityComponents (&ElementPtr1->velocity, dx / 20, dy / 20);
+
+		ElementPtr0->mass_points = 0;
+	}
+
+	ElementPtr0->hit_points = 0;
+	weapon_collision(ElementPtr0, pPt0, ElementPtr1, pPt1);
+
+	(void) pPt0;  /* Satisfying compiler (unused parameter) */
+	(void) pPt1;  /* Satisfying compiler (unused parameter) */
+}
+
+static COUNT initialize_speedlaser (ELEMENT *ShipPtr, HELEMENT
+		LaserArray[]);
+
+static void
+speedlaser_death (ELEMENT *ElementPtr)
+{
+	if(ElementPtr->hit_points && ElementPtr->turn_wait && !(ElementPtr->state_flags & COLLISION))
+	{
+		HELEMENT Laser;
+
+		initialize_speedlaser (ElementPtr, &Laser);
+		if (Laser)
+			PutElement (Laser);
+	}
+}
+
+/* TODO: this function is quite hairy, it also seems to abuse special_counter.
+ * Rework it sometime.
+ */
+static COUNT
+initialize_speedlaser (ELEMENT *ShipPtr, HELEMENT LaserArray[])
+{
+	BOOLEAN isFirstSegment;
 	STARSHIP *StarShipPtr;
-	LASER_BLOCK LaserBlock;
+	LASER_BLOCK MissileBlock;
+	SIZE sideways_offs;
 
+	isFirstSegment = (ShipPtr->state_flags & PLAYER_SHIP);
 	GetElementStarShip (ShipPtr, &StarShipPtr);
-	LaserBlock.face = orig_facing = StarShipPtr->ShipFacing;
-	if ((delta_facing = TrackShip (ShipPtr, &LaserBlock.face)) > 0)
-		LaserBlock.face = NORMALIZE_FACING (orig_facing + delta_facing);
-	ShipPtr->hTarget = 0;
+	MissileBlock.face = isFirstSegment ? StarShipPtr->ShipFacing : ANGLE_TO_FACING (GetVelocityTravelAngle(&ShipPtr->velocity));
+	sideways_offs = isFirstSegment ? (StarShipPtr->special_counter ? -50 : 50) : 0;
+	MissileBlock.cx = ShipPtr->next.location.x + COSINE(FACING_TO_ANGLE (MissileBlock.face + 4), sideways_offs);
+	MissileBlock.cy = ShipPtr->next.location.y + SINE(FACING_TO_ANGLE (MissileBlock.face + 4), sideways_offs);
+	MissileBlock.ex = COSINE(FACING_TO_ANGLE (MissileBlock.face), MISSILE_SPEED);
+	MissileBlock.ey = SINE(FACING_TO_ANGLE (MissileBlock.face), MISSILE_SPEED);
+	MissileBlock.sender = ShipPtr->playerNr;
+	MissileBlock.flags = IGNORE_SIMILAR;
+	MissileBlock.pixoffs = isFirstSegment ? ARILOU_OFFSET : 0;
+	MissileBlock.color = BUILD_COLOR (MAKE_RGB15 (0x08, 0x1F, 0x06), 0x0A);
+	LaserArray[0] = initialize_laser (&MissileBlock);
 
-	LaserBlock.cx = ShipPtr->next.location.x;
-	LaserBlock.cy = ShipPtr->next.location.y;
-	LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
-	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
-	LaserBlock.sender = ShipPtr->playerNr;
-	LaserBlock.flags = IGNORE_SIMILAR;
-	LaserBlock.pixoffs = ARILOU_OFFSET;
-	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x1F, 0x0A), 0x0E);
-	LaserArray[0] = initialize_laser (&LaserBlock);
+	if (LaserArray[0])
+	{
+		ELEMENT *LaserPtr;
 
+		LockElement (LaserArray[0], &LaserPtr);
+		LaserPtr->collision_func = speedlaser_collision;
+		LaserPtr->death_func = speedlaser_death;
+		LaserPtr->turn_wait = (ShipPtr->state_flags & PLAYER_SHIP) ? 8 : ShipPtr->turn_wait - 1;
+
+		UnlockElement (LaserArray[0]);
+	}
 	return (1);
 }
 
@@ -150,49 +223,8 @@ arilou_intelligence (ELEMENT *ShipPtr, EVALUATE_DESC *ObjectsOfConcern,
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
-	StarShipPtr->ship_input_state |= THRUST;
 
-	 ObjectsOfConcern[ENEMY_SHIP_INDEX].MoveState = ENTICE;
 	ship_intelligence (ShipPtr, ObjectsOfConcern, ConcernCounter);
-
-	if (StarShipPtr->special_counter == 0)
-	{
-		EVALUATE_DESC *lpEvalDesc;
-
-		StarShipPtr->ship_input_state &= ~SPECIAL;
-
-		lpEvalDesc = &ObjectsOfConcern[ENEMY_WEAPON_INDEX];
-		if (lpEvalDesc->ObjectPtr && lpEvalDesc->which_turn <= 6)
-		{
-			BOOLEAN IsTrackingWeapon;
-			STARSHIP *EnemyStarShipPtr;
-
-			GetElementStarShip (lpEvalDesc->ObjectPtr, &EnemyStarShipPtr);
-			if (((EnemyStarShipPtr->RaceDescPtr->ship_info.ship_flags
-					& SEEKING_WEAPON) &&
-					lpEvalDesc->ObjectPtr->next.image.farray ==
-					EnemyStarShipPtr->RaceDescPtr->ship_data.weapon) ||
-					((EnemyStarShipPtr->RaceDescPtr->ship_info.ship_flags
-					& SEEKING_SPECIAL) &&
-					lpEvalDesc->ObjectPtr->next.image.farray ==
-					EnemyStarShipPtr->RaceDescPtr->ship_data.special))
-				IsTrackingWeapon = TRUE;
-			else
-				IsTrackingWeapon = FALSE;
-
-			if (((lpEvalDesc->ObjectPtr->state_flags & PLAYER_SHIP) /* means IMMEDIATE WEAPON */
-					|| (IsTrackingWeapon && (lpEvalDesc->which_turn == 1
-					|| (lpEvalDesc->ObjectPtr->state_flags & CREW_OBJECT))) /* FIGHTERS!!! */
-					|| PlotIntercept (lpEvalDesc->ObjectPtr, ShipPtr, 3, 0))
-					&& !(TFB_Random () & 3))
-			{
-				StarShipPtr->ship_input_state &= ~(LEFT | RIGHT | THRUST | WEAPON);
-				StarShipPtr->ship_input_state |= SPECIAL;
-			}
-		}
-	}
-	if (StarShipPtr->RaceDescPtr->ship_info.energy_level <= SPECIAL_ENERGY_COST << 1)
-		StarShipPtr->ship_input_state &= ~WEAPON;
 }
 
 static void
@@ -201,17 +233,18 @@ arilou_preprocess (ELEMENT *ElementPtr)
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
+	
+	if(StarShipPtr->weapon_counter)
+	{
+		if(StarShipPtr->special_counter)
+			StarShipPtr->special_counter = 0;
+		else StarShipPtr->special_counter = WEAPON_WAIT + ENERGY_WAIT + 1;
+	}
+
 	if (!(ElementPtr->state_flags & NONSOLID))
 	{
-		if (ElementPtr->thrust_wait == 0)
-		{
-			ZeroVelocityComponents (&ElementPtr->velocity);
-			StarShipPtr->cur_status_flags &= ~SHIP_AT_MAX_SPEED;
-		}
-
 		if ((StarShipPtr->cur_status_flags & SPECIAL)
-				&& StarShipPtr->special_counter == 0
-				&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+				&& CleanDeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 		{
 			/* Special key is pressed; start teleport */
 			ZeroVelocityComponents (&ElementPtr->velocity);
@@ -229,13 +262,13 @@ arilou_preprocess (ELEMENT *ElementPtr)
 			ProcessSound (SetAbsSoundIndex (
 							/* HYPERJUMP */
 					StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
-			StarShipPtr->special_counter =
-					StarShipPtr->RaceDescPtr->characteristics.special_wait;
 		}
 	}
 	else if (ElementPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.special)
 	{
 		COUNT life_span;
+
+		ZeroVelocityComponents(&ElementPtr->velocity); //just in case
 
 		StarShipPtr->cur_status_flags =
 				(StarShipPtr->cur_status_flags
@@ -252,7 +285,6 @@ arilou_preprocess (ELEMENT *ElementPtr)
 		{
 			/* Ending teleport */
 			ElementPtr->state_flags &= ~(NONSOLID | FINITE_LIFE);
-			ElementPtr->state_flags |= APPEARING;
 			ElementPtr->current.image.farray =
 					ElementPtr->next.image.farray =
 					StarShipPtr->RaceDescPtr->ship_data.ship;
@@ -277,10 +309,17 @@ arilou_preprocess (ELEMENT *ElementPtr)
 			}
 			else
 			{
-				ElementPtr->next.location.x =
-						WRAP_X (DISPLAY_ALIGN_X (TFB_Random ()));
-				ElementPtr->next.location.y =
-						WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
+				POINT real_current_location;
+				real_current_location = ElementPtr->current.location;
+				do
+				{
+					ElementPtr->next.location.x = ElementPtr->current.location.x =
+							WRAP_X (DISPLAY_ALIGN_X (TFB_Random ()));
+					ElementPtr->next.location.y = ElementPtr->current.location.y =
+							WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
+				}
+				while(TimeSpaceMatterConflict(ElementPtr));
+				ElementPtr->current.location = real_current_location;
 			}
 		}
 
@@ -294,7 +333,7 @@ init_arilou (void)
 	RACE_DESC *RaceDescPtr;
 
 	arilou_desc.preprocess_func = arilou_preprocess;
-	arilou_desc.init_weapon_func = initialize_autoaim_laser;
+	arilou_desc.init_weapon_func = initialize_speedlaser;
 	arilou_desc.cyborg_control.intelligence_func = arilou_intelligence;
 
 	RaceDescPtr = &arilou_desc;
