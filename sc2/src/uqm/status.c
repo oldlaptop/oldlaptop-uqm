@@ -293,6 +293,20 @@ DeltaEnergy (ELEMENT *ElementPtr, SIZE energy_delta)
 {
 	BOOLEAN retval;
 	STARSHIP *StarShipPtr;
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	retval = CleanDeltaEnergy(ElementPtr, energy_delta);
+
+	if (retval)
+		StarShipPtr->energy_counter = StarShipPtr->RaceDescPtr->characteristics.energy_wait;
+
+	return (retval);
+}
+
+BOOLEAN
+CleanDeltaEnergy (ELEMENT *ElementPtr, SIZE energy_delta)
+{
+	BOOLEAN retval;
+	STARSHIP *StarShipPtr;
 	SHIP_INFO *ShipInfoPtr;
 
 	retval = TRUE;
@@ -319,8 +333,6 @@ DeltaEnergy (ELEMENT *ElementPtr, SIZE energy_delta)
 	else
 	{
 		StarShipPtr->cur_status_flags &= ~LOW_ON_ENERGY;
-		StarShipPtr->energy_counter =
-				StarShipPtr->RaceDescPtr->characteristics.energy_wait;
 
 		DeltaStatistics (ShipInfoPtr, status_y_offsets[StarShipPtr->playerNr],
 				0, energy_delta);

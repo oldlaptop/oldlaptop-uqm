@@ -63,6 +63,7 @@ extern void DrawBattleCrewAmount (SHIP_INFO *ShipInfoPtr, COORD y_offs);
 
 extern void DrawCaptainsWindow (STARSHIP *StarShipPtr);
 extern BOOLEAN DeltaEnergy (ELEMENT *ElementPtr, SIZE energy_delta);
+extern BOOLEAN CleanDeltaEnergy (ELEMENT *ElementPtr, SIZE energy_delta);
 extern BOOLEAN DeltaCrew (ELEMENT *ElementPtr, SIZE crew_delta);
 
 extern void PreProcessStatus (ELEMENT *ShipPtr);
