@@ -19,6 +19,7 @@
 #include "../ship.h"
 #include "chenjesu.h"
 #include "resinst.h"
+#include "uqm/colors.h"
 
 #include "uqm/globdata.h"
 #include "libs/mathlib.h"
@@ -29,7 +30,7 @@
 #define ENERGY_REGENERATION 1
 #define ENERGY_WAIT 4
 #define MAX_THRUST /* DISPLAY_TO_WORLD (7) */ 27
-#define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 3
+#define THRUST_INCREMENT 4
 #define THRUST_WAIT 4
 #define TURN_WAIT 6
 #define SHIP_MASS 10
@@ -44,6 +45,7 @@
 		/* actually, it's as long as you hold the button down. */
 #define MISSILE_HITS 10
 #define MISSILE_DAMAGE 6
+#define MISSILE_TURN_WAIT 7
 #define NUM_SPARKLES 8
 
 // Shrapnel
@@ -65,13 +67,15 @@
 #define MAX_DOGGIES 4
 #define DOGGY_HITS 3
 #define DOGGY_MASS 4
+#define DOGGY_LASER_RANGE (UWORD)64
+#define DOGGY_LASER_WAIT 5
 
 static RACE_DESC chenjesu_desc =
 {
 	{ /* SHIP_INFO */
 		"broodhome",
 		FIRES_FORE | SEEKING_SPECIAL | SEEKING_WEAPON,
-		28, /* Super Melee cost */
+		23, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		CHENJESU_RACE_STRINGS,
@@ -197,6 +201,24 @@ crystal_preprocess (ELEMENT *ElementPtr)
 
 		ElementPtr->postprocess_func = crystal_postprocess;
 	}
+
+	if (ElementPtr->turn_wait > 0)
+		--ElementPtr->turn_wait;
+	else
+	{
+		COUNT facing;
+
+		facing = NORMALIZE_FACING (ANGLE_TO_FACING (
+				GetVelocityTravelAngle (&ElementPtr->velocity)
+				));
+		
+		TrackShip (ElementPtr, &facing);
+
+		SetVelocityVector (&ElementPtr->velocity,
+				MISSILE_SPEED, facing);
+
+		ElementPtr->turn_wait = MISSILE_TURN_WAIT;
+	}
 }
 
 static void
@@ -244,13 +266,166 @@ crystal_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 	}
 }
 
+/* These functions are taken from Chmmr's spawn_point_defence and
+ * satellite_postprocess - original Crazy Mod did the same thing, but we have
+ * used current versions of these functions instead.
+ */
+
+//BEGIN copied and modified code
+static void
+spawn_doggy_laser (ELEMENT *ElementPtr)
+{
+	BYTE weakest;
+	UWORD best_dist;
+	STARSHIP *StarShipPtr;
+	HELEMENT hObject, hNextObject, hBestObject;
+	ELEMENT *DoggyPtr;
+	ELEMENT *ObjectPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	hBestObject = 0;
+	best_dist = DOGGY_LASER_RANGE + 1;
+	weakest = 255;
+	LockElement (ElementPtr->hTarget, &DoggyPtr);
+	for (hObject = GetPredElement (ElementPtr);
+			hObject; hObject = hNextObject)
+	{
+		LockElement (hObject, &ObjectPtr);
+		hNextObject = GetPredElement (ObjectPtr);
+		if (!elementsOfSamePlayer (ObjectPtr, ElementPtr)
+				&& ObjectPtr->playerNr != NEUTRAL_PLAYER_NUM
+				&& CollisionPossible (ObjectPtr, ElementPtr)
+				&& !OBJECT_CLOAKED (ObjectPtr))
+		{
+			SIZE delta_x, delta_y;
+			UWORD dist;
+
+			delta_x = ObjectPtr->next.location.x
+					- DoggyPtr->next.location.x;
+			delta_y = ObjectPtr->next.location.y
+					- DoggyPtr->next.location.y;
+			if (delta_x < 0)
+				delta_x = -delta_x;
+			if (delta_y < 0)
+				delta_y = -delta_y;
+			delta_x = WORLD_TO_DISPLAY (delta_x);
+			delta_y = WORLD_TO_DISPLAY (delta_y);
+			if ((UWORD)delta_x <= DOGGY_LASER_RANGE &&
+					(UWORD)delta_y <= DOGGY_LASER_RANGE &&
+					(dist =
+					(UWORD)delta_x * (UWORD)delta_x
+					+ (UWORD)delta_y * (UWORD)delta_y) <=
+					DOGGY_LASER_RANGE * DOGGY_LASER_RANGE
+					&& (ObjectPtr->hit_points < weakest
+					|| (ObjectPtr->hit_points == weakest
+					&& dist < best_dist)))
+			{
+				hBestObject = hObject;
+				best_dist = dist;
+				weakest = ObjectPtr->hit_points;
+			}
+		}
+		UnlockElement (hObject);
+	}
+
+	if (hBestObject)
+	{
+		LASER_BLOCK LaserBlock;
+		HELEMENT hPointDefense;
+
+		LockElement (hBestObject, &ObjectPtr);
+
+		LaserBlock.face = NORMALIZE_FACING (
+				  ANGLE_TO_FACING (
+				  ARCTAN ( 
+					  ObjectPtr->current.location.x -
+					  DoggyPtr->current.location.x,
+					  ObjectPtr->current.location.y -
+					  DoggyPtr->current.location.y)));
+
+		LaserBlock.cx = DoggyPtr->next.location.x;
+		LaserBlock.cy = DoggyPtr->next.location.y;
+		LaserBlock.ex = ObjectPtr->next.location.x
+				- DoggyPtr->next.location.x;
+		LaserBlock.ey = ObjectPtr->next.location.y
+				- DoggyPtr->next.location.y;
+		LaserBlock.sender = DoggyPtr->playerNr;
+		LaserBlock.flags = IGNORE_SIMILAR;
+		LaserBlock.pixoffs = DOGGY_OFFSET;
+		LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x00, 0x01, 0x1F), 0x4D);
+		hPointDefense = initialize_laser (&LaserBlock);
+		if (hPointDefense)
+		{
+			ELEMENT *PDPtr;
+
+			LockElement (hPointDefense, &PDPtr);
+			SetElementStarShip (PDPtr, StarShipPtr);
+			PDPtr->hTarget = 0;
+			UnlockElement (hPointDefense);
+
+			PutElement (hPointDefense);
+		}
+
+		UnlockElement (hBestObject);
+	}
+
+	UnlockElement (ElementPtr->hTarget);
+	UnlockElement (StarShipPtr->hShip);
+}
+
+static void
+doggy_postprocess (ELEMENT *ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+
+	if (ElementPtr->turn_wait || ElementPtr->life_span == 0)
+		--ElementPtr->turn_wait;
+	else
+	{
+		HELEMENT hDefense;
+
+		hDefense = AllocElement ();
+		if (hDefense)
+		{
+			ELEMENT *DefensePtr;
+			
+			PutElement (hDefense);
+
+			LockElement (hDefense, &DefensePtr);
+			DefensePtr->playerNr = ElementPtr->playerNr;
+			DefensePtr->state_flags = APPEARING | NONSOLID | FINITE_LIFE;
+
+			{
+				ELEMENT *SuccPtr;
+
+				LockElement (GetSuccElement (ElementPtr), &SuccPtr);
+				DefensePtr->hTarget = GetPredElement (SuccPtr);
+				UnlockElement (GetSuccElement (ElementPtr));
+
+				DefensePtr->death_func = spawn_doggy_laser;
+			}
+
+			GetElementStarShip (ElementPtr, &StarShipPtr);
+			SetElementStarShip (DefensePtr, StarShipPtr);
+			
+			UnlockElement (hDefense);
+
+			ElementPtr->turn_wait = DOGGY_LASER_WAIT;
+		}
+	}
+}
+//END copied and modified code
+
 static void
 doggy_preprocess (ELEMENT *ElementPtr)
 {
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	++StarShipPtr->special_counter;
+
+	if(StarShipPtr->RaceDescPtr->ship_info.crew_level)
+		++StarShipPtr->special_counter;
+
 	if (ElementPtr->thrust_wait > 0) /* could be non-zero after a collision */
 		--ElementPtr->thrust_wait;
 	else
@@ -363,13 +538,13 @@ spawn_doggy (ELEMENT *ElementPtr)
 		DoggyElementPtr->mass_points = DOGGY_MASS;
 		DoggyElementPtr->thrust_wait = 0;
 		DoggyElementPtr->playerNr = ElementPtr->playerNr;
-		DoggyElementPtr->state_flags |= (APPEARING | PERSISTENT);
+		DoggyElementPtr->state_flags = (APPEARING | PERSISTENT);
 		DoggyElementPtr->life_span = NORMAL_LIFE;
 		SetPrimType (&(GLOBAL (DisplayArray))[DoggyElementPtr->PrimIndex],
 				STAMP_PRIM);
 		{
 			DoggyElementPtr->preprocess_func = doggy_preprocess;
-			DoggyElementPtr->postprocess_func = NULL;
+			DoggyElementPtr->postprocess_func = doggy_postprocess;
 			DoggyElementPtr->collision_func = doggy_collision;
 			DoggyElementPtr->death_func = doggy_death;
 		}
@@ -532,6 +707,7 @@ initialize_crystal (ELEMENT *ShipPtr, HELEMENT CrystalArray[])
 
 		LockElement (CrystalArray[0], &CrystalPtr);
 		CrystalPtr->collision_func = crystal_collision;
+		CrystalPtr->turn_wait = MISSILE_TURN_WAIT;
 		UnlockElement (CrystalArray[0]);
 	}
 
