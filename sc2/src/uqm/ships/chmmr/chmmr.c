@@ -48,19 +48,19 @@
 #define NUM_SHADOWS 5
 
 // Satellites
-#define NUM_SATELLITES 3
+#define NUM_SATELLITES 9
 #define SATELLITE_OFFSET DISPLAY_TO_WORLD (64)
-#define SATELLITE_HITPOINTS 10
+#define SATELLITE_HITPOINTS 6
 #define SATELLITE_MASS 10
 #define DEFENSE_RANGE (UWORD)64
-#define DEFENSE_WAIT 2
+#define DEFENSE_WAIT 2	/* Must be between 0 and 3 (stored in two bits) */
 
 static RACE_DESC chmmr_desc =
 {
 	{ /* SHIP_INFO */
 		"avatar",
 		FIRES_FORE | IMMEDIATE_WEAPON | SEEKING_SPECIAL | POINT_DEFENSE,
-		30, /* Super Melee cost */
+		39, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		CHMMR_RACE_STRINGS,
@@ -217,6 +217,7 @@ static COUNT
 initialize_megawatt_laser (ELEMENT *ShipPtr, HELEMENT LaserArray[])
 {
 	RECT r;
+	COUNT i;
 	STARSHIP *StarShipPtr;
 	LASER_BLOCK LaserBlock;
 	static const Color cycle_array[] =
@@ -232,37 +233,60 @@ initialize_megawatt_laser (ELEMENT *ShipPtr, HELEMENT LaserArray[])
 	GetFrameRect (SetAbsFrameIndex (
 			StarShipPtr->RaceDescPtr->ship_data.weapon[0], LaserBlock.face
 			), &r);
-	LaserBlock.cx = DISPLAY_ALIGN (ShipPtr->next.location.x)
-			+ DISPLAY_TO_WORLD (r.corner.x);
-	LaserBlock.cy = DISPLAY_ALIGN (ShipPtr->next.location.y)
-			+ DISPLAY_TO_WORLD (r.corner.y);
-	LaserBlock.ex = COSINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
-	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
 	LaserBlock.sender = ShipPtr->playerNr;
 	LaserBlock.flags = IGNORE_SIMILAR;
 	LaserBlock.pixoffs = 0;
 	LaserBlock.color = cycle_array[StarShipPtr->special_counter];
-	LaserArray[0] = initialize_laser (&LaserBlock);
 
-	if (LaserArray[0])
+	for (i = 0; i < 3; ++i)
 	{
-		ELEMENT *LaserPtr;
+		LaserBlock.cx = DISPLAY_ALIGN (ShipPtr->next.location.x)
+				+ DISPLAY_TO_WORLD (r.corner.x)
+				+ COSINE (FACING_TO_ANGLE (LaserBlock.face + 4),
+				DISPLAY_TO_WORLD (16)) * (i - 1);
+		LaserBlock.cy =
+				DISPLAY_ALIGN (ShipPtr->next.location.y) +
+				DISPLAY_TO_WORLD (r.corner.y) +
+				SINE (FACING_TO_ANGLE (LaserBlock.face + 4),
+				DISPLAY_TO_WORLD (16)) * (i - 1);
 
-		LockElement (LaserArray[0], &LaserPtr);
+		if (i != 1)
+		{
+			LaserBlock.cx -=
+					COSINE (FACING_TO_ANGLE (LaserBlock.face),
+					DISPLAY_TO_WORLD (24));
+			LaserBlock.cy -=
+					SINE (FACING_TO_ANGLE (LaserBlock.face),
+					DISPLAY_TO_WORLD (24));
+		}
+		LaserBlock.ex =
+				COSINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
+		LaserBlock.ey =
+				SINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
 
-		LaserPtr->mass_points = 2;
-		LaserPtr->death_func = laser_death;
-		LaserPtr->turn_wait = (BYTE)((StarShipPtr->special_counter + 1)
-				% NUM_CYCLES);
 
-		UnlockElement (LaserArray[0]);
+		LaserArray[i] = initialize_laser (&LaserBlock);
+
+		if (LaserArray[i])
+		{
+			ELEMENT * LaserPtr;
+
+			LockElement (LaserArray[i], &LaserPtr);
+
+			LaserPtr->mass_points = 2;
+			LaserPtr->death_func = laser_death;
+			LaserPtr->turn_wait = (BYTE) ((StarShipPtr->special_counter + 1)
+					% NUM_CYCLES);
+
+			UnlockElement (LaserArray[i]);
+		}
 	}
 
-	return (1);
+	return (3);
 }
 
 static void
-chmmr_intelligence (ELEMENT *ShipPtr, EVALUATE_DESC *ObjectsOfConcern,
+chmmr_intelligence (ELEMENT * ShipPtr, EVALUATE_DESC * ObjectsOfConcern,
 		COUNT ConcernCounter)
 {
 	STARSHIP *StarShipPtr;
@@ -459,6 +483,12 @@ static void
 satellite_preprocess (ELEMENT *ElementPtr)
 {
 	STARSHIP *StarShipPtr;
+	BYTE angle_from_ship, fire_wait;
+
+	/* TODO: this is horrifying, redo this in a cleaner way */
+	//nibble 8-bit variable into a 2-bit variable and a 6-bit variable
+	angle_from_ship = ElementPtr->turn_wait >> 2;
+	fire_wait = ElementPtr->turn_wait & 3;
 
 	++ElementPtr->life_span;
 
@@ -467,9 +497,7 @@ satellite_preprocess (ELEMENT *ElementPtr)
 			(GetFrameIndex (ElementPtr->current.image.frame) + 1) & 7);
 	ElementPtr->state_flags |= CHANGING;
 
-	ElementPtr->turn_wait = (BYTE)NORMALIZE_ANGLE (
-			ElementPtr->turn_wait + 1
-			);
+	angle_from_ship = (BYTE) NORMALIZE_ANGLE (angle_from_ship + 1);
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (StarShipPtr->hShip)
@@ -482,10 +510,10 @@ satellite_preprocess (ELEMENT *ElementPtr)
 		LockElement (StarShipPtr->hShip, &ShipPtr);
 
 		dx = (ShipPtr->next.location.x
-				+ COSINE (ElementPtr->turn_wait, SATELLITE_OFFSET))
+				+ COSINE (angle_from_ship, SATELLITE_OFFSET))
 				- ElementPtr->current.location.x;
 		dy = (ShipPtr->next.location.y
-				+ SINE (ElementPtr->turn_wait, SATELLITE_OFFSET))
+				+ SINE (angle_from_ship, SATELLITE_OFFSET))
 				- ElementPtr->current.location.y;
 		dx = WRAP_DELTA_X (dx);
 		dy = WRAP_DELTA_Y (dy);
@@ -506,6 +534,8 @@ satellite_preprocess (ELEMENT *ElementPtr)
 
 		UnlockElement (StarShipPtr->hShip);
 	}
+	//re-make 8-bit variable from a 2-bit variable and a 6-bit variable
+	ElementPtr->turn_wait = (angle_from_ship << 2) | fire_wait;
 }
 
 static void
@@ -530,10 +560,16 @@ spawn_point_defense (ELEMENT *ElementPtr)
 	{
 		LockElement (hObject, &ObjectPtr);
 		hNextObject = GetPredElement (ObjectPtr);
-		if (!elementsOfSamePlayer (ObjectPtr, ShipPtr)
+		if ((!elementsOfSamePlayer (ObjectPtr, ShipPtr)
 				&& ObjectPtr->playerNr != NEUTRAL_PLAYER_NUM
 				&& CollisionPossible (ObjectPtr, ShipPtr)
 				&& !OBJECT_CLOAKED (ObjectPtr))
+			|| //it's an asteroid:
+			(!(ObjectPtr->state_flags
+				& (APPEARING | GOOD_GUY | BAD_GUY
+				| PLAYER_SHIP | FINITE_LIFE))
+				&& !GRAVITY_MASS (ObjectPtr->mass_points)
+				&& CollisionPossible (ObjectPtr, ElementPtr)))
 		{
 			SIZE delta_x, delta_y;
 			UWORD dist;
@@ -588,6 +624,7 @@ spawn_point_defense (ELEMENT *ElementPtr)
 		if (hPointDefense)
 		{
 			ELEMENT *PDPtr;
+			BYTE angle_from_ship, fire_wait;
 
 			LockElement (hPointDefense, &PDPtr);
 			SetElementStarShip (PDPtr, StarShipPtr);
@@ -596,9 +633,15 @@ spawn_point_defense (ELEMENT *ElementPtr)
 
 			PutElement (hPointDefense);
 
-			SattPtr->thrust_wait = DEFENSE_WAIT;
-		}
+			//nibble 8-bit variable into a 2-bit variable and a 6-bit variable
+			angle_from_ship = SattPtr->turn_wait >> 2;
+			fire_wait = SattPtr->turn_wait & 3;
 
+			fire_wait = DEFENSE_WAIT;
+
+			//re-make 8-bit variable from a 2-bit variable and a 6-bit variable
+			SattPtr->turn_wait = (angle_from_ship << 2) | fire_wait;
+		}
 		UnlockElement (hBestObject);
 	}
 
@@ -610,9 +653,14 @@ static void
 satellite_postprocess (ELEMENT *ElementPtr)
 {
 	STARSHIP *StarShipPtr;
+	BYTE angle_from_ship, fire_wait;
 
-	if (ElementPtr->thrust_wait || ElementPtr->life_span == 0)
-		--ElementPtr->thrust_wait;
+	//nibble 8-bit variable into a 2-bit variable and a 6-bit variable
+	angle_from_ship = ElementPtr->turn_wait >> 2;
+	fire_wait = ElementPtr->turn_wait & 3;
+
+	if (fire_wait || ElementPtr->life_span == 0)
+		--fire_wait;
 	else
 	{
 		HELEMENT hDefense;
@@ -621,7 +669,7 @@ satellite_postprocess (ELEMENT *ElementPtr)
 		if (hDefense)
 		{
 			ELEMENT *DefensePtr;
-			
+
 			PutElement (hDefense);
 
 			LockElement (hDefense, &DefensePtr);
@@ -640,15 +688,17 @@ satellite_postprocess (ELEMENT *ElementPtr)
 
 			GetElementStarShip (ElementPtr, &StarShipPtr);
 			SetElementStarShip (DefensePtr, StarShipPtr);
-			
+
 			UnlockElement (hDefense);
 		}
 	}
+	//re-make 8-bit variable from a 2-bit variable and a 6-bit variable
+	ElementPtr->turn_wait = (angle_from_ship << 2) | fire_wait;
 }
 
 static void
-satellite_collision (ELEMENT *ElementPtr0, POINT *pPt0,
-		ELEMENT *ElementPtr1, POINT *pPt1)
+satellite_collision (ELEMENT * ElementPtr0, POINT * pPt0,
+		ELEMENT * ElementPtr1, POINT * pPt1)
 {
 	(void) ElementPtr0;  /* Satisfying compiler (unused parameter) */
 	(void) pPt0;  /* Satisfying compiler (unused parameter) */
@@ -678,8 +728,64 @@ satellite_death (ELEMENT *ElementPtr)
 	ElementPtr->collision_func = NULL;
 }
 
+/* Following three funcs mostly copied from original Crazy Mod, with formatting
+ * changes (uqm-indent and removal of commented-out code), as well as the usual
+ * STARSHIPPTR -> STARSHIP * type changes.
+ */
+//BEGIN copied from original
+void
+spawn_satellite (ELEMENT *ElementPtr, COUNT hit_points, COUNT angle,
+		BYTE offset, FRAME farray[])
+{
+	HELEMENT hSatellite;
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	hSatellite = AllocElement ();
+	if (hSatellite)
+	{
+		ELEMENT * SattPtr;
+
+		LockElement (hSatellite, &SattPtr);
+		SattPtr->state_flags =
+				IGNORE_SIMILAR | APPEARING | FINITE_LIFE
+				| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
+		SattPtr->life_span = NORMAL_LIFE + 1;
+		SattPtr->hit_points = hit_points;
+		SattPtr->mass_points = 10;
+
+		SattPtr->turn_wait = (BYTE) NORMALIZE_ANGLE (angle) << 2;
+		SattPtr->current.location.x = ElementPtr->next.location.x
+				+ COSINE (angle,
+				DISPLAY_TO_WORLD (offset));
+		SattPtr->current.location.y =
+				ElementPtr->next.location.y + SINE (angle,
+				DISPLAY_TO_WORLD (offset));
+		SattPtr->current.image.farray = farray;
+		SattPtr->current.image.frame = SetAbsFrameIndex (farray[0],
+				(COUNT) TFB_Random () & 0x07);
+
+		SattPtr->thrust_wait = offset;
+
+		SattPtr->preprocess_func = satellite_preprocess;
+		SattPtr->postprocess_func = satellite_postprocess;
+		SattPtr->death_func = satellite_death;
+		SattPtr->collision_func = satellite_collision;
+
+		SetElementStarShip (SattPtr, StarShipPtr);
+
+		SetPrimType (&(GLOBAL (DisplayArray))[SattPtr->PrimIndex],
+				STAMP_PRIM);
+
+		UnlockElement (hSatellite);
+		PutElement (hSatellite);
+	}
+}
+
 static void
-spawn_satellites (ELEMENT *ElementPtr)
+spawn_satellites (ELEMENT *ElementPtr, COUNT num_satellites,
+		COUNT part_of_circle, COUNT hit_points, BYTE offset, FRAME farray[])
 {
 	COUNT i;
 	STARSHIP *StarShipPtr;
@@ -688,56 +794,29 @@ spawn_satellites (ELEMENT *ElementPtr)
 	if (StarShipPtr->hShip)
 	{
 		LockElement (StarShipPtr->hShip, &ElementPtr);
-		for (i = 0; i < NUM_SATELLITES; ++i)
+		for (i = 0; i < num_satellites; ++i)
 		{
-			HELEMENT hSatellite;
-
-			hSatellite = AllocElement ();
-			if (hSatellite)
-			{
-				COUNT angle;
-				ELEMENT *SattPtr;
-
-				LockElement (hSatellite, &SattPtr);
-				SattPtr->playerNr = ElementPtr->playerNr;
-				SattPtr->state_flags = IGNORE_SIMILAR | APPEARING
-						| FINITE_LIFE;
-				SattPtr->life_span = NORMAL_LIFE + 1;
-				SattPtr->hit_points = SATELLITE_HITPOINTS;
-				SattPtr->mass_points = SATELLITE_MASS;
-
-				angle = (i * FULL_CIRCLE + (NUM_SATELLITES >> 1))
-						/ NUM_SATELLITES;
-				SattPtr->turn_wait = (BYTE)angle;
-				SattPtr->current.location.x = ElementPtr->next.location.x
-						+ COSINE (angle, SATELLITE_OFFSET);
-				SattPtr->current.location.y = ElementPtr->next.location.y
-						+ SINE (angle, SATELLITE_OFFSET);
-				SattPtr->current.image.farray =
-						StarShipPtr->RaceDescPtr->ship_data.special;
-				SattPtr->current.image.frame = SetAbsFrameIndex (
-						StarShipPtr->RaceDescPtr->ship_data.special[0],
-						(COUNT)TFB_Random () & 0x07
-						);
-
-				SattPtr->preprocess_func = satellite_preprocess;
-				SattPtr->postprocess_func = satellite_postprocess;
-				SattPtr->death_func = satellite_death;
-				SattPtr->collision_func = satellite_collision;
-
-				SetElementStarShip (SattPtr, StarShipPtr);
-
-				SetPrimType (&(GLOBAL (DisplayArray))[
-						SattPtr->PrimIndex
-						], STAMP_PRIM);
-
-				UnlockElement (hSatellite);
-				PutElement (hSatellite);
-			}
+			spawn_satellite (ElementPtr, hit_points,
+					(i * (FULL_CIRCLE / part_of_circle) +
+							(num_satellites >> 1)) / (num_satellites),
+					offset, farray);
 		}
 		UnlockElement (StarShipPtr->hShip);
 	}
 }
+
+static void
+spawn_chmmr_satellites (ELEMENT *ElementPtr)
+{
+#define NUM_SATELLITES 9
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	spawn_satellites (ElementPtr, NUM_SATELLITES, 2, SATELLITE_HITPOINTS, SATELLITE_OFFSET,
+			StarShipPtr->RaceDescPtr->ship_data.special);
+}
+//END copied from original
 
 static void
 chmmr_preprocess (ELEMENT *ElementPtr)
@@ -758,14 +837,12 @@ chmmr_preprocess (ELEMENT *ElementPtr)
 				| APPEARING;
 		SattPtr->life_span = HYPERJUMP_LIFE + 1;
 
-		SattPtr->death_func = spawn_satellites;
+		SattPtr->death_func = spawn_chmmr_satellites;
 
 		GetElementStarShip (ElementPtr, &StarShipPtr);
 		SetElementStarShip (SattPtr, StarShipPtr);
 
-		SetPrimType (&(GLOBAL (DisplayArray))[
-				SattPtr->PrimIndex
-				], NO_PRIM);
+		SetPrimType (&(GLOBAL (DisplayArray))[SattPtr->PrimIndex], NO_PRIM);
 
 		UnlockElement (hSatellite);
 		PutElement (hSatellite);
@@ -788,4 +865,3 @@ init_chmmr (void)
 
 	return (RaceDescPtr);
 }
-
