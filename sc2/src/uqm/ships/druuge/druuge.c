@@ -37,7 +37,7 @@
 #define DRUUGE_OFFSET 24
 #define MISSILE_OFFSET 6
 #define MISSILE_SPEED DISPLAY_TO_WORLD (30)
-#define MISSILE_LIFE 20
+#define MISSILE_LIFE 20 /* Actually forever */
 #define MISSILE_RANGE (MISSILE_SPEED * MISSILE_LIFE)
 #define MISSILE_HITS 4
 #define MISSILE_DAMAGE 6
@@ -53,7 +53,7 @@ static RACE_DESC druuge_desc =
 	{ /* SHIP_INFO */
 		"mauler",
 		FIRES_FORE,
-		17, /* Super Melee cost */
+		15, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		DRUUGE_RACE_STRINGS,
@@ -126,35 +126,47 @@ cannon_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 {
 	weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
 
-	if ((ElementPtr1->state_flags & PLAYER_SHIP)
-			&& ElementPtr1->crew_level
-			&& !GRAVITY_MASS (ElementPtr1->mass_points + 1))
+	if (!GRAVITY_MASS (ElementPtr1->mass_points + 1))
 	{
 		COUNT angle;
 		SIZE cur_delta_x, cur_delta_y;
-		STARSHIP *StarShipPtr;
 
-		GetElementStarShip (ElementPtr1, &StarShipPtr);
-		StarShipPtr->cur_status_flags &=
-				~(SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);
+		if ((ElementPtr1->state_flags & PLAYER_SHIP))
+		{
+			STARSHIP *StarShipPtr;
+
+			GetElementStarShip (ElementPtr1, &StarShipPtr);
+			StarShipPtr->cur_status_flags &=
+					~(SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);
+		}
 
 		angle = FACING_TO_ANGLE (
 				GetFrameIndex (ElementPtr0->next.image.frame)
 				);
 		DeltaVelocityComponents (&ElementPtr1->velocity,
-				COSINE (angle, RECOIL_VELOCITY),
-				SINE (angle, RECOIL_VELOCITY));
+				COSINE (angle, RECOIL_VELOCITY * 10),
+				SINE (angle, RECOIL_VELOCITY * 10));
 		GetCurrentVelocityComponents (&ElementPtr1->velocity,
 				&cur_delta_x, &cur_delta_y);
 		if ((long)cur_delta_x * (long)cur_delta_x
 				+ (long)cur_delta_y * (long)cur_delta_y
-				> (long)MAX_RECOIL_VELOCITY * (long)MAX_RECOIL_VELOCITY)
+				> (long)MAX_RECOIL_VELOCITY * ((long)MAX_RECOIL_VELOCITY * 100))
 		{
 			angle = ARCTAN (cur_delta_x, cur_delta_y);
 			SetVelocityComponents (&ElementPtr1->velocity,
-					COSINE (angle, MAX_RECOIL_VELOCITY),
-					SINE (angle, MAX_RECOIL_VELOCITY));
+					COSINE (angle, MAX_RECOIL_VELOCITY * 10),
+					SINE (angle, MAX_RECOIL_VELOCITY * 10));
 		}
+	}
+}
+
+static void
+cannon_preprocess (ELEMENT *ElementPtr)
+{
+	if(ElementPtr->life_span < (MISSILE_LIFE - 1))
+	{
+		++ElementPtr->life_span;
+		ElementPtr->state_flags &= ~IGNORE_SIMILAR;
 	}
 }
 
@@ -177,7 +189,7 @@ initialize_cannon (ELEMENT *ShipPtr, HELEMENT CannonArray[])
 	MissileBlock.hit_points = MISSILE_HITS;
 	MissileBlock.damage = MISSILE_DAMAGE;
 	MissileBlock.life = MISSILE_LIFE;
-	MissileBlock.preprocess_func = NULL;
+	MissileBlock.preprocess_func = cannon_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 	CannonArray[0] = initialize_missile (&MissileBlock);
 
