@@ -120,7 +120,10 @@ static void
 spawn_rubble (ELEMENT *AsteroidElementPtr)
 {
 	HELEMENT hRubbleElement;
-	
+
+	SIZE dx, dy;
+	GetCurrentVelocityComponents(&AsteroidElementPtr->velocity, &dx, &dy);
+
 	hRubbleElement = AllocElement ();
 	if (hRubbleElement)
 	{
@@ -139,6 +142,9 @@ spawn_rubble (ELEMENT *AsteroidElementPtr)
 		RubbleElementPtr->current.location = AsteroidElementPtr->current.location;
 		RubbleElementPtr->preprocess_func = animation_preprocess;
 		RubbleElementPtr->death_func = spawn_asteroid;
+
+		SetVelocityComponents(&RubbleElementPtr->velocity, dx, dy);
+
 		UnlockElement (hRubbleElement);
 	}
 }
