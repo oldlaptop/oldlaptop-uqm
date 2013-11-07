@@ -40,7 +40,10 @@
 #define HUMAN_OFFSET 42
 #define NUKE_OFFSET 8
 #define MIN_MISSILE_SPEED DISPLAY_TO_WORLD (10)
+
+/* Crazy Mod throws this out, see below to re-enable */
 #define MAX_MISSILE_SPEED DISPLAY_TO_WORLD (20)
+
 #define MISSILE_SPEED (MAX_THRUST >= MIN_MISSILE_SPEED ? \
 		MAX_THRUST : MIN_MISSILE_SPEED)
 #define THRUST_SCALE DISPLAY_TO_WORLD (1)
@@ -50,8 +53,8 @@
 #define TRACK_WAIT 3
 
 // Point-Defense Laser
-#define SPECIAL_ENERGY_COST 4
-#define SPECIAL_WAIT 9
+#define SPECIAL_ENERGY_COST 0
+#define SPECIAL_WAIT 2
 #define LASER_RANGE (UWORD)100
 
 static RACE_DESC human_desc =
@@ -59,7 +62,7 @@ static RACE_DESC human_desc =
 	{ /* SHIP_INFO */
 		"cruiser",
 		FIRES_FORE | SEEKING_WEAPON | POINT_DEFENSE,
-		11, /* Super Melee cost */
+		38, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		HUMAN_RACE_STRINGS,
@@ -153,7 +156,9 @@ nuke_preprocess (ELEMENT *ElementPtr)
 		if ((speed = MISSILE_SPEED +
 				((MISSILE_LIFE - ElementPtr->life_span) *
 				THRUST_SCALE)) > MAX_MISSILE_SPEED)
+			/* Uncomment to re-enable missile speed limit
 			speed = MAX_MISSILE_SPEED;
+			*/
 		SetVelocityVector (&ElementPtr->velocity,
 				speed, facing);
 	}
@@ -339,7 +344,8 @@ human_postprocess (ELEMENT *ElementPtr)
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& StarShipPtr->special_counter == 0)
+			&& StarShipPtr->special_counter == 0
+			&& StarShipPtr->weapon_counter == 0)
 	{
 		spawn_point_defense (ElementPtr);
 	}
