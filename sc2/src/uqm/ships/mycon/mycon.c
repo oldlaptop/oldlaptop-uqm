@@ -22,17 +22,18 @@
 
 // Core characteristics
 #define MAX_CREW 20
-#define MAX_ENERGY 40
+#define MAX_ENERGY MAX_ENERGY_SIZE
+#define INITIAL_ENERGY 14
 #define ENERGY_REGENERATION 1
-#define ENERGY_WAIT 4
-#define MAX_THRUST /* DISPLAY_TO_WORLD (7) */ 27
-#define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 9
-#define THRUST_WAIT 6
-#define TURN_WAIT 6
-#define SHIP_MASS 7
+#define ENERGY_WAIT 6
+#define MAX_THRUST 0
+#define THRUST_INCREMENT 0
+#define THRUST_WAIT 255
+#define TURN_WAIT 9
+#define SHIP_MASS 10
 
 // Plasmoid
-#define WEAPON_ENERGY_COST 20
+#define WEAPON_ENERGY_COST 6
 #define WEAPON_WAIT 5
 #define MYCON_OFFSET 24
 #define MISSILE_OFFSET 0
@@ -41,22 +42,27 @@
 #define PLASMA_DURATION 13
 #define MISSILE_LIFE (NUM_PLASMAS * PLASMA_DURATION)
 #define MISSILE_SPEED DISPLAY_TO_WORLD (8)
+#define MISSILE_HELD_SPEED DISPLAY_TO_WORLD (16)
 #define MISSILE_DAMAGE 10
 #define TRACK_WAIT 1
 
-// Regenerate
-#define SPECIAL_ENERGY_COST MAX_ENERGY
+// Rapid rotate
+#define SPECIAL_ENERGY_COST 2
 #define SPECIAL_WAIT 0
-#define REGENERATION_AMOUNT 4
+
+// Automatic crew regeneration
+#define REGEN_WAIT 15
+#define REGEN_ENERGY_COST 1
+#define REGENERATION_AMOUNT 2
 
 static RACE_DESC mycon_desc =
 {
 	{ /* SHIP_INFO */
 		"podship",
 		FIRES_FORE | SEEKING_WEAPON,
-		21, /* Super Melee cost */
+		37, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
-		MAX_ENERGY, MAX_ENERGY,
+		INITIAL_ENERGY, MAX_ENERGY,
 		MYCON_RACE_STRINGS,
 		MYCON_ICON_MASK_PMAP_ANIM,
 		MYCON_MICON_MASK_PMAP_ANIM,
@@ -156,6 +162,20 @@ plasma_preprocess (ELEMENT *ElementPtr)
 					MISSILE_SPEED, facing);
 
 		ElementPtr->turn_wait = TRACK_WAIT;
+	}
+}
+
+static void
+plasma_held_preprocess (ELEMENT *ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	if (StarShipPtr->cur_status_flags & WEAPON)
+		++ElementPtr->life_span; /* keep it going while key pressed */
+	else
+	{
+		ElementPtr->preprocess_func = plasma_preprocess;
 	}
 }
 
@@ -314,11 +334,11 @@ initialize_plasma (ELEMENT *ShipPtr, HELEMENT PlasmaArray[])
 	MissileBlock.sender = ShipPtr->playerNr;
 	MissileBlock.flags = 0;
 	MissileBlock.pixoffs = MYCON_OFFSET;
-	MissileBlock.speed = MISSILE_SPEED;
+	MissileBlock.speed = MISSILE_HELD_SPEED;
 	MissileBlock.hit_points = MISSILE_DAMAGE;
 	MissileBlock.damage = MISSILE_DAMAGE;
 	MissileBlock.life = MISSILE_LIFE;
-	MissileBlock.preprocess_func = plasma_preprocess;
+	MissileBlock.preprocess_func = plasma_held_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 	PlasmaArray[0] = initialize_missile (&MissileBlock);
 
@@ -338,13 +358,54 @@ initialize_plasma (ELEMENT *ShipPtr, HELEMENT PlasmaArray[])
 static void
 mycon_postprocess (ELEMENT *ElementPtr)
 {
-	STARSHIP *StarShipPtr;
+	HELEMENT hShip, hNextShip;
+	ELEMENT *EnemyElementPtr;
+	STARSHIP *StarShipPtr, *EnemyStarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& StarShipPtr->special_counter == 0
+
+	for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+	{
+		LockElement (hShip, &EnemyElementPtr);
+		hNextShip = GetSuccElement (EnemyElementPtr);
+		if (EnemyElementPtr->state_flags & PLAYER_SHIP
+			&& (ElementPtr->playerNr != EnemyElementPtr->playerNr))
+		{
+			GetElementStarShip (EnemyElementPtr, &EnemyStarShipPtr);
+			if(EnemyStarShipPtr->SpeciesID == StarShipPtr->SpeciesID)
+			{
+				//if you're in a mirror match, DIE!
+				do_damage(ElementPtr, 50);
+				ElementPtr->life_span = 0;
+				ElementPtr->crew_level = 0;
+				ElementPtr->state_flags |= COLLISION | NONSOLID;
+			}
+		}
+		UnlockElement(hShip);
+	}
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL) && ElementPtr->turn_wait < TURN_WAIT)
+	{
+		/* Retained for posterity - this was how original Crazy Mod
+		 * determined the cost for each frame of rapid rotate. This
+		 * always came up with 2, which happens to be the same as
+		 * SPECIAL_ENERGY_COST (both here and in original Crazy Mod),
+		 * so we just use the #define.
+
+		COUNT cost;
+		
+		cost = (ElementPtr->turn_wait + 4) / 5;
+		 */
+
+		if(DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+		{
+			ElementPtr->turn_wait = 0;
+		}
+	}
+
+	if (StarShipPtr->special_counter == 0
 			&& ElementPtr->crew_level != StarShipPtr->RaceDescPtr->ship_info.max_crew
-			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+			&& DeltaEnergy (ElementPtr, -REGEN_ENERGY_COST))
 	{
 		SIZE add_crew;
 
@@ -356,9 +417,22 @@ mycon_postprocess (ELEMENT *ElementPtr)
 			add_crew = StarShipPtr->RaceDescPtr->ship_info.max_crew - ElementPtr->crew_level;
 		DeltaCrew (ElementPtr, add_crew);
 		
-		StarShipPtr->special_counter =
-				StarShipPtr->RaceDescPtr->characteristics.special_wait;
+		StarShipPtr->special_counter = REGEN_WAIT;
 	}
+}
+
+static void
+mycon_preprocess (ELEMENT *ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	if (StarShipPtr->weapon_counter == 0
+			&& (StarShipPtr->cur_status_flags
+			& StarShipPtr->old_status_flags & WEAPON))
+		++StarShipPtr->weapon_counter;
+
+	ZeroVelocityComponents(&ElementPtr->velocity);
 }
 
 RACE_DESC*
@@ -366,6 +440,7 @@ init_mycon (void)
 {
 	RACE_DESC *RaceDescPtr;
 
+	mycon_desc.preprocess_func = mycon_preprocess;
 	mycon_desc.postprocess_func = mycon_postprocess;
 	mycon_desc.init_weapon_func = initialize_plasma;
 	mycon_desc.cyborg_control.intelligence_func = mycon_intelligence;
