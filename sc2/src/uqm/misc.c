@@ -546,3 +546,30 @@ AbandonShip (ELEMENT *ShipPtr, ELEMENT *TargetPtr,
 	}
 }
 
+/*
+ * Returns TRUE if there is a Pkunk present, FALSE otherwise.
+ */
+BOOLEAN
+find_pkunk (void)
+{
+	HELEMENT hShip, hNextShip;
+	ELEMENT *PkunkElementPtr;
+	STARSHIP *PkunkStarShipPtr;
+	BOOLEAN found_a_pkunk = FALSE;
+
+	for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+	{
+		LockElement (hShip, &PkunkElementPtr);
+		hNextShip = GetSuccElement (PkunkElementPtr);
+		GetElementStarShip (PkunkElementPtr, &PkunkStarShipPtr);
+		if ((PkunkElementPtr->state_flags & PLAYER_SHIP)
+				&& PkunkStarShipPtr->SpeciesID == PKUNK_ID)
+		{
+			found_a_pkunk = TRUE;
+			UnlockElement (hShip);
+			break;
+		}
+		UnlockElement (hShip);
+	}
+	return found_a_pkunk;
+}

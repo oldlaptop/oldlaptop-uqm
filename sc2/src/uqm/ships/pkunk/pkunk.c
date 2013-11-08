@@ -19,18 +19,22 @@
 #include "../ship.h"
 #include "pkunk.h"
 #include "resinst.h"
+#include "../zoqfot/resinst.h"
 
 #include "uqm/globdata.h"
 #include "uqm/tactrans.h"
 #include "libs/mathlib.h"
+#include "libs/log.h"
 
 // Core characteristics
-#define MAX_CREW 8
+#define MAX_CREW 12
 #define MAX_ENERGY 12
-#define ENERGY_REGENERATION 0
+#define ENERGY_REGENERATION 0 /* No normal regeneration */
 #define ENERGY_WAIT 0
-#define MAX_THRUST 64
-#define THRUST_INCREMENT 16
+#define TAUNT_REGEN 2 /* But auto-taunt for 2 energy every SPECIAL_WAIT frames */
+#define SPECIAL_WAIT 5
+#define MAX_THRUST 128
+#define THRUST_INCREMENT 24
 #define THRUST_WAIT 0
 #define TURN_WAIT 0
 #define SHIP_MASS 1
@@ -45,9 +49,14 @@
 #define MISSILE_HITS 1
 #define MISSILE_DAMAGE 1
 
-// Taunt
-#define SPECIAL_ENERGY_COST 2
-#define SPECIAL_WAIT 16
+// Tongue
+#define SPECIAL_ENERGY_COST 8
+#define TONGUE_WAIT 6
+#define TONGUE_SPEED 0
+#define TONGUE_HITS 1
+#define TONGUE_DAMAGE 100
+#define TONGUE_PIXOFFS 20
+#define TONGUE_BLASTOFFS 4
 
 // Respawn
 #define PHOENIX_LIFE 12
@@ -60,7 +69,7 @@ static RACE_DESC pkunk_desc =
 	{ /* SHIP_INFO */
 		"fury",
 		FIRES_FORE | FIRES_LEFT | FIRES_RIGHT,
-		20, /* Super Melee cost */
+		36, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		PKUNK_RACE_STRINGS,
@@ -126,6 +135,8 @@ static RACE_DESC pkunk_desc =
 	0,
 	0, /* CodeRef */
 };
+
+static FRAME tongue_data_farray[NUM_VIEWS];
 
 // Private per-instance ship data
 typedef struct
@@ -206,32 +217,127 @@ initialize_bug_missile (ELEMENT *ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.preprocess_func = NULL;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 
-	for (i = 0; i < 3; ++i)
+	for (i = 0; i < 6; ++i)
 	{
 		MissileBlock.face =
 				StarShipPtr->ShipFacing
-				+ (ANGLE_TO_FACING (QUADRANT) * i);
-		if (i == 2)
+				+ (ANGLE_TO_FACING (QUADRANT) * (i % 3));
+		if ((i % 3) == 2)
 			MissileBlock.face += ANGLE_TO_FACING (QUADRANT);
 		MissileBlock.face = NORMALIZE_FACING (MissileBlock.face);
 
 		if ((MissileArray[i] = initialize_missile (&MissileBlock)))
 		{
-			SIZE dx, dy;
 			ELEMENT *MissilePtr;
 
 			LockElement (MissileArray[i], &MissilePtr);
-			GetCurrentVelocityComponents (&ShipPtr->velocity, &dx, &dy);
-			DeltaVelocityComponents (&MissilePtr->velocity, dx, dy);
-			MissilePtr->current.location.x -= VELOCITY_TO_WORLD (dx);
-			MissilePtr->current.location.y -= VELOCITY_TO_WORLD (dy);
+
+			if (i < 3)
+			{
+				SIZE dx, dy;
+
+				GetCurrentVelocityComponents (&ShipPtr->velocity, &dx, &dy);
+				DeltaVelocityComponents (&MissilePtr->velocity, dx, dy);
+				MissilePtr->current.location.x -= VELOCITY_TO_WORLD (dx);
+				MissilePtr->current.location.y -= VELOCITY_TO_WORLD (dy);
+			}
 
 			MissilePtr->preprocess_func = animate;
 			UnlockElement (MissileArray[i]);
 		}
 	}
 
-	return (3);
+	return (6);
+}
+
+static void spawn_tongue (ELEMENT *ElementPtr);
+
+static void
+tongue_postprocess (ELEMENT *ElementPtr)
+{
+	if (ElementPtr->turn_wait)
+		spawn_tongue (ElementPtr);
+}
+
+static void
+tongue_collision (ELEMENT *ElementPtr0, POINT *pPt0, ELEMENT *ElementPtr1, POINT *pPt1)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr0, &StarShipPtr);
+	if (StarShipPtr->special_counter == 6)
+		weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+
+	StarShipPtr->special_counter -= ElementPtr0->turn_wait;
+	ElementPtr0->turn_wait = 0;
+	ElementPtr0->state_flags |= NONSOLID;
+}
+
+static void
+spawn_tongue (ELEMENT *ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+	MISSILE_BLOCK TongueBlock;
+	HELEMENT Tongue;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	
+	TongueBlock.cx = ElementPtr->next.location.x;
+	TongueBlock.cy = ElementPtr->next.location.y;
+	TongueBlock.farray = tongue_data_farray;
+
+	TongueBlock.face =
+			(ElementPtr->state_flags & PLAYER_SHIP)
+			? (NORMALIZE_FACING (StarShipPtr->ShipFacing + 8))
+			: StarShipPtr->ShipFacing;
+
+	TongueBlock.index = TongueBlock.face;
+	TongueBlock.sender = StarShipPtr->playerNr;
+	TongueBlock.flags = IGNORE_SIMILAR;
+	TongueBlock.pixoffs = (ElementPtr->state_flags & PLAYER_SHIP) ? TONGUE_PIXOFFS : 0;
+	TongueBlock.speed = TONGUE_SPEED;
+	TongueBlock.hit_points = TONGUE_HITS;
+	TongueBlock.damage = TONGUE_DAMAGE;
+	TongueBlock.life = 1;
+	TongueBlock.preprocess_func = 0;
+	TongueBlock.blast_offs = TONGUE_BLASTOFFS;
+	Tongue = initialize_missile (&TongueBlock);
+	if (Tongue)
+	{
+		ELEMENT *TonguePtr;
+
+		LockElement (Tongue, &TonguePtr);
+		TonguePtr->postprocess_func = tongue_postprocess;
+		TonguePtr->collision_func = tongue_collision;
+		if (ElementPtr->state_flags & PLAYER_SHIP)
+			TonguePtr->turn_wait = StarShipPtr->special_counter;
+		else
+		{
+			COUNT angle;
+			RECT r;
+			SIZE x_offs, y_offs;
+
+			TonguePtr->turn_wait = ElementPtr->turn_wait - 1;
+
+			GetFrameRect (TonguePtr->current.image.frame, &r);
+			x_offs = DISPLAY_TO_WORLD (r.extent.width >> 1);
+			y_offs = DISPLAY_TO_WORLD (r.extent.height >> 1);
+
+			angle = FACING_TO_ANGLE (NORMALIZE_FACING (StarShipPtr->ShipFacing + 8));
+			if (angle > HALF_CIRCLE && angle < FULL_CIRCLE)
+				TonguePtr->current.location.x -= x_offs;
+			else if (angle > 0 && angle < HALF_CIRCLE)
+				TonguePtr->current.location.x += x_offs;
+			if (angle < QUADRANT || angle > FULL_CIRCLE - QUADRANT)
+				TonguePtr->current.location.y -= y_offs;
+			else if (angle > QUADRANT && angle < FULL_CIRCLE - QUADRANT)
+				TonguePtr->current.location.y += y_offs;
+		}
+
+		SetElementStarShip (TonguePtr, StarShipPtr);
+		UnlockElement (Tongue);
+		PutElement (Tongue);
+	}
 }
 
 static void
@@ -486,6 +592,8 @@ pkunk_preprocess (ELEMENT *ElementPtr)
 	PkunkData = GetCustomShipData (StarShipPtr->RaceDescPtr);
 	if (ElementPtr->state_flags & APPEARING)
 	{
+		ElementPtr->collision_func = less_planet_damage_collision;
+
 		HELEMENT hPhoenix = 0;
 
 		if (TFB_Random () & 1)
@@ -580,11 +688,21 @@ pkunk_postprocess (ELEMENT *ElementPtr)
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if (StarShipPtr->RaceDescPtr->characteristics.special_wait)
-		--StarShipPtr->RaceDescPtr->characteristics.special_wait;
-	else if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& StarShipPtr->RaceDescPtr->ship_info.energy_level <
-			StarShipPtr->RaceDescPtr->ship_info.max_energy)
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& StarShipPtr->special_counter == 0
+			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		StarShipPtr->special_counter = TONGUE_WAIT;
+	}
+
+	if (StarShipPtr->special_counter)
+		spawn_tongue (ElementPtr);
+
+ 	if (StarShipPtr->RaceDescPtr->characteristics.special_wait)
+ 		--StarShipPtr->RaceDescPtr->characteristics.special_wait;
+	else if ((StarShipPtr->RaceDescPtr->ship_info.energy_level <
+			StarShipPtr->RaceDescPtr->ship_info.max_energy))
 	{
 		COUNT CurSound;
 
@@ -599,7 +717,7 @@ pkunk_postprocess (ELEMENT *ElementPtr)
 				), ElementPtr);
 		LastSound = CurSound;
 
-		DeltaEnergy (ElementPtr, SPECIAL_ENERGY_COST);
+		DeltaEnergy (ElementPtr, TAUNT_REGEN);
 
 		StarShipPtr->RaceDescPtr->characteristics.special_wait = SPECIAL_WAIT;
 	}
@@ -609,6 +727,15 @@ static void
 uninit_pkunk (RACE_DESC *pRaceDesc)
 {
 	SetCustomShipData (pRaceDesc, NULL);
+}
+
+static inline BOOLEAN
+init_tongue (void)
+{
+	return load_animation (&tongue_data_farray,
+			STINGER_BIG_MASK_PMAP_ANIM,
+			STINGER_MED_MASK_PMAP_ANIM,
+			STINGER_SML_MASK_PMAP_ANIM);
 }
 
 RACE_DESC*
@@ -636,6 +763,9 @@ init_pkunk (void)
 			// We need to reinitialise it at least each battle, to ensure
 			// that NetPlay is synchronised if one player played another
 			// game before playing against a networked opponent.
+
+	if (!init_tongue ())
+		log_add (log_Error, "ERROR: pkunk.c:744: could not load ZFP tongue");
 
 	return (RaceDescPtr);
 }

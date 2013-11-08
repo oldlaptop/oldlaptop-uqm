@@ -33,6 +33,8 @@ extern void ship_preprocess (ELEMENT *ElementPtr);
 extern void ship_postprocess (ELEMENT *ElementPtr);
 extern void collision (ELEMENT *ElementPtr0, POINT *pPt0,
 		ELEMENT *ElementPtr1, POINT *pPt1);
+extern void less_planet_damage_collision (ELEMENT *ElementPtr0, POINT *pPt0,
+		ELEMENT *ElementPtr1, POINT *pPt1);
 
 extern STATUS_FLAGS inertial_thrust (ELEMENT *ElementPtr);
 

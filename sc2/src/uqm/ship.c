@@ -398,6 +398,31 @@ collision (ELEMENT *ElementPtr0, POINT *pPt0,
 	(void) pPt1;  /* Satisfying compiler (unused parameter) */
 }
 
+void
+less_planet_damage_collision (ELEMENT *ElementPtr0, POINT *pPt0,
+		ELEMENT *ElementPtr1, POINT *pPt1)
+{
+	STARSHIP *StarShipPtr;
+	GetElementStarShip(ElementPtr0, &StarShipPtr);
+
+	//Take minimal damage from hitting planets
+	if (!(ElementPtr1->state_flags & FINITE_LIFE))
+	{
+		ElementPtr0->state_flags |= COLLISION;
+		if (GRAVITY_MASS (ElementPtr1->mass_points))
+		{
+			if(!(ElementPtr0->state_flags & PLAYER_SHIP) || !(StarShipPtr->planet_hit_counter))
+			{
+				do_damage ((ELEMENT *)ElementPtr0, 1);
+				ProcessSound (SetAbsSoundIndex (GameSounds, TARGET_DAMAGED_FOR_1_PT), ElementPtr0);
+			}
+			if(ElementPtr0->state_flags & PLAYER_SHIP)StarShipPtr->planet_hit_counter = 2;
+		}
+	}
+	(void) pPt0;  /* Satisfying compiler (unused parameter) */
+	(void) pPt1;  /* Satisfying compiler (unused parameter) */
+}
+
 static BOOLEAN
 spawn_ship (STARSHIP *StarShipPtr)
 {
