@@ -31,7 +31,7 @@
 #define ENERGY_WAIT 6
 #define MAX_THRUST 35
 #define THRUST_INCREMENT 5
-#define THRUST_WAIT 0
+#define THRUST_WAIT 1
 #define TURN_WAIT 1
 #define SHIP_MASS 4
 
@@ -39,20 +39,24 @@
 #define WEAPON_ENERGY_COST (MAX_ENERGY / 3)
 #define WEAPON_WAIT 4
 #define ORZ_OFFSET 9
-#define MISSILE_SPEED DISPLAY_TO_WORLD (30)
+#define MISSILE_SPEED DISPLAY_TO_WORLD (55)
 #define MISSILE_LIFE 12
-#define MISSILE_HITS 2
-#define MISSILE_DAMAGE 3
+#define MISSILE_HITS 10
+#define MISSILE_DAMAGE 6
 #define MISSILE_OFFSET 1
+#define NUM_MISSILES 2
+#define MISSILE_SPACING 70
 
-// Marine
-#define SPECIAL_ENERGY_COST 0
-#define SPECIAL_WAIT 12
+// Shield (destructo_collision)
+#define SPECIAL_ENERGY_COST MAX_ENERGY
+#define SPECIAL_WAIT 120
+
+// Invincible space marine
 #define MARINE_MAX_THRUST 32
 #define MARINE_THRUST_INCREMENT 8
 #define MARINE_HIT_POINTS 3
 #define MARINE_MASS_POINTS 1
-#define MAX_MARINES 8
+#define MAX_MARINES 1
 #define MARINE_WAIT 12
 #define ION_LIFE 1
 #define START_ION_COLOR BUILD_COLOR (MAKE_RGB15 (0x1F, 0x15, 0x00), 0x7A)
@@ -66,7 +70,7 @@ static RACE_DESC orz_desc =
 	{ /* SHIP_INFO */
 		"nemesis",
 		FIRES_FORE | SEEKING_SPECIAL,
-		23, /* Super Melee cost */
+		43, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		ORZ_RACE_STRINGS,
@@ -144,6 +148,7 @@ howitzer_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 static COUNT
 initialize_turret_missile (ELEMENT *ShipPtr, HELEMENT MissileArray[])
 {
+	COUNT i;
 	ELEMENT *TurretPtr;
 	STARSHIP *StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
@@ -154,17 +159,7 @@ initialize_turret_missile (ELEMENT *ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
 
 	LockElement (GetSuccElement (ShipPtr), &TurretPtr);
-	if (TurretPtr->turn_wait == 0
-			&& (StarShipPtr->cur_status_flags & SPECIAL)
-			&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT)))
-	{
-		if (StarShipPtr->cur_status_flags & RIGHT)
-			++TurretPtr->thrust_wait;
-		else
-			--TurretPtr->thrust_wait;
 
-		TurretPtr->turn_wait = TURRET_WAIT + 1;
-	}
 	MissileBlock.face = MissileBlock.index =
 			NORMALIZE_FACING (StarShipPtr->ShipFacing
 			+ TurretPtr->thrust_wait);
@@ -179,18 +174,28 @@ initialize_turret_missile (ELEMENT *ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = NULL;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
-	MissileArray[0] = initialize_missile (&MissileBlock);
 
-	if (MissileArray[0])
+	MissileBlock.cx = MissileBlock.cx - COSINE (FACING_TO_ANGLE(MissileBlock.face + 4), (MISSILE_SPACING * (NUM_MISSILES - 1)) / 2);
+	MissileBlock.cy = MissileBlock.cy - SINE (FACING_TO_ANGLE(MissileBlock.face + 4), (MISSILE_SPACING * (NUM_MISSILES - 1)) / 2);
+
+	for(i = 0; i < NUM_MISSILES; ++i)
 	{
-		ELEMENT *HowitzerPtr;
+		MissileArray[i] = initialize_missile (&MissileBlock);
 
-		LockElement (MissileArray[0], &HowitzerPtr);
-		HowitzerPtr->collision_func = howitzer_collision;
-		UnlockElement (MissileArray[0]);
+		MissileBlock.cx = MissileBlock.cx + COSINE (FACING_TO_ANGLE(MissileBlock.face + 4), MISSILE_SPACING);
+		MissileBlock.cy = MissileBlock.cy + SINE (FACING_TO_ANGLE(MissileBlock.face + 4), MISSILE_SPACING);
+	
+		if (MissileArray[i])
+		{
+			ELEMENT *HowitzerPtr;
+	
+			LockElement (MissileArray[0], &HowitzerPtr);
+			HowitzerPtr->collision_func = howitzer_collision;
+			UnlockElement (MissileArray[0]);
+		}
 	}
 
-	return (1);
+	return (NUM_MISSILES);
 }
 
 static BYTE
@@ -409,7 +414,6 @@ intruder_preprocess (ELEMENT *ElementPtr)
 			{
 				UnlockElement (hElement);
 				hElement = 0;
-LeftShip:
 				s.origin.x = 16 + (ElementPtr->turn_wait & 3) * 9;
 				s.origin.y = 14 + (ElementPtr->turn_wait >> 2) * 11;
 				s.frame = ElementPtr->next.image.frame;
@@ -422,16 +426,8 @@ LeftShip:
 				ElementPtr->thrust_wait = MARINE_WAIT;
 
 				randval = (BYTE)TFB_Random ();
-				if (randval < (0x0100 / 16))
-				{
-					ElementPtr->life_span = 0;
-					ElementPtr->state_flags |= DISAPPEARING;
 
-					ProcessSound (SetAbsSoundIndex (
-							StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 4), ElementPtr);
-					goto LeftShip;
-				}
-				else if (randval < (0x0100 / 2 + 0x0100 / 16))
+				if (randval < (0x0100 / 2))
 				{
 					if (!DeltaCrew (ShipPtr, -1))
 						ShipPtr->life_span = 0;
@@ -618,6 +614,9 @@ marine_preprocess (ELEMENT *ElementPtr)
 			delta_y = WRAP_DELTA_Y (delta_y);
 			if (GRAVITY_MASS (ObjectPtr->mass_points))
 			{
+				//added to satisfy compiler (and it might fix something? not sure)
+				pfacing = ANGLE_TO_FACING (ARCTAN (delta_x, delta_y));
+
 				delta_facing = NORMALIZE_FACING (pfacing - facing
 						+ ANGLE_TO_FACING (OCTANT));
 
@@ -736,10 +735,16 @@ void
 marine_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 		ELEMENT *ElementPtr1, POINT *pPt1)
 {
+	ElementPtr0->hit_points = 10000;
+
 	if (ElementPtr0->life_span
 			&& !(ElementPtr0->state_flags & (NONSOLID | COLLISION))
 			&& !(ElementPtr1->state_flags & FINITE_LIFE))
 	{
+		STARSHIP *EnemyStarShipPtr;
+
+		GetElementStarShip(ElementPtr1, &EnemyStarShipPtr);
+
 		if (!elementsOfSamePlayer (ElementPtr0, ElementPtr1))
 		{
 			ElementPtr0->turn_wait =
@@ -751,13 +756,12 @@ marine_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 
 		if (GRAVITY_MASS (ElementPtr1->mass_points))
 		{
-			ElementPtr0->state_flags |= NONSOLID | FINITE_LIFE;
-			ElementPtr0->hit_points = 0;
-			ElementPtr0->life_span = 0;
+			ElementPtr0->state_flags |= COLLISION;
 		}
 		else if ((ElementPtr1->state_flags & PLAYER_SHIP)
 				&& ((ElementPtr1->state_flags & FINITE_LIFE)
-				|| ElementPtr1->life_span == NORMAL_LIFE))
+				|| ElementPtr1->life_span == NORMAL_LIFE)
+				&& !(EnemyStarShipPtr->RaceDescPtr->ship_info.ship_flags & CREW_IMMUNE))
 		{
 			ElementPtr1->state_flags &= ~COLLISION;
 
@@ -845,6 +849,7 @@ turret_postprocess (ELEMENT *ElementPtr)
 		if (StarShipPtr->hShip)
 		{
 			COUNT facing;
+			SIZE delta_facing;
 			HELEMENT hTurret, hSpaceMarine;
 			ELEMENT *ShipPtr;
 
@@ -865,17 +870,35 @@ turret_postprocess (ELEMENT *ElementPtr)
 				TurretPtr->turn_wait = ElementPtr->turn_wait;
 				TurretPtr->thrust_wait = ElementPtr->thrust_wait;
 
+				facing = NORMALIZE_FACING (StarShipPtr->ShipFacing
+						+ TurretPtr->thrust_wait);
+
 				if (TurretPtr->turn_wait)
 					--TurretPtr->turn_wait;
-				else if ((StarShipPtr->cur_status_flags & SPECIAL)
-						&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT)))
+				else
 				{
-					if (StarShipPtr->cur_status_flags & RIGHT)
+					delta_facing = TrackShip(ElementPtr, &facing);
+					if(!ElementPtr->hTarget)
+						delta_facing = NORMALIZE_FACING(-TurretPtr->thrust_wait);
+					if(delta_facing <= 0)
+					{
+					}
+					else if(delta_facing < 8)
+					{
 						++TurretPtr->thrust_wait;
-					else
+						TurretPtr->turn_wait = TURRET_WAIT;
+					}
+					else if(delta_facing > 8)
+					{
 						--TurretPtr->thrust_wait;
-
-					TurretPtr->turn_wait = TURRET_WAIT;
+						TurretPtr->turn_wait = TURRET_WAIT;
+					}
+					else
+					{
+						TurretPtr->thrust_wait += ((TFB_Random() & 1) << 1) - 1;
+						TurretPtr->turn_wait = TURRET_WAIT;
+					}
+					ElementPtr->hTarget = 0;
 				}
 				facing = NORMALIZE_FACING (StarShipPtr->ShipFacing
 						+ TurretPtr->thrust_wait);
@@ -958,22 +981,21 @@ turret_postprocess (ELEMENT *ElementPtr)
 				InsertElement (hTurret, GetSuccElement (ElementPtr));
 			}
 
-			if (StarShipPtr->special_counter == 0
-					&& (StarShipPtr->cur_status_flags & SPECIAL)
-					&& (StarShipPtr->cur_status_flags & WEAPON)
-					&& ShipPtr->crew_level > 1
+			if (ShipPtr->crew_level > 1
 					&& count_marines (StarShipPtr, FALSE) < MAX_MARINES
 					&& TrackShip (ShipPtr, &facing) >= 0
 					&& (hSpaceMarine = AllocElement ()))
 			{
 				ELEMENT *SpaceMarinePtr;
+				
+				ShipPtr->hTarget = 0;
 
 				LockElement (hSpaceMarine, &SpaceMarinePtr);
 				SpaceMarinePtr->playerNr = ElementPtr->playerNr;
 				SpaceMarinePtr->state_flags = IGNORE_SIMILAR | APPEARING
 						| CREW_OBJECT;
 				SpaceMarinePtr->life_span = NORMAL_LIFE;
-				SpaceMarinePtr->hit_points = MARINE_HIT_POINTS;
+				SpaceMarinePtr->hit_points = 10000;
 				SpaceMarinePtr->mass_points = MARINE_MASS_POINTS;
 
 				facing = FACING_TO_ANGLE (StarShipPtr->ShipFacing);
@@ -1006,9 +1028,6 @@ turret_postprocess (ELEMENT *ElementPtr)
 				ProcessSound (SetAbsSoundIndex (
 						StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1),
 						SpaceMarinePtr);
-
-				StarShipPtr->special_counter =
-						StarShipPtr->RaceDescPtr->characteristics.special_wait;
 			}
 
 			UnlockElement (StarShipPtr->hShip);
@@ -1017,27 +1036,80 @@ turret_postprocess (ELEMENT *ElementPtr)
 }
 
 static void
+destructo_collision (ELEMENT *ElementPtr0, POINT *pPt0, ELEMENT *ElementPtr1, POINT *pPt1)
+{
+	BYTE old_offs;
+	COUNT old_crew_level;
+	COUNT old_life;
+	COUNT old_mass;
+	HELEMENT hBlastElement;
+
+	old_crew_level = ElementPtr0->crew_level;
+	old_life = ElementPtr0->life_span;
+	old_offs = ElementPtr0->blast_offset;
+	old_mass = ElementPtr0->mass_points;
+	ElementPtr0->blast_offset = 0;
+	ElementPtr0->mass_points = 7;
+	hBlastElement = weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	if (hBlastElement)
+	{
+		RemoveElement (hBlastElement);
+		FreeElement (hBlastElement);
+	}
+	ElementPtr0->mass_points = old_mass;
+	ElementPtr0->blast_offset = old_offs;
+	ElementPtr0->life_span = old_life;
+	ElementPtr0->crew_level = old_crew_level;
+
+	ElementPtr0->state_flags &= ~(DISAPPEARING | NONSOLID);
+
+	if (!(ElementPtr1->state_flags & FINITE_LIFE))
+		ElementPtr0->state_flags |= COLLISION;
+}
+
+static void
 orz_preprocess (ELEMENT *ElementPtr)
+{
+	PRIMITIVE *lpPrim;
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& StarShipPtr->special_counter == 0
+			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		StarShipPtr->special_counter = 
+				StarShipPtr->RaceDescPtr->characteristics.special_wait;
+	}
+
+	lpPrim = &(GLOBAL (DisplayArray))[ElementPtr->PrimIndex];
+	if(StarShipPtr->special_counter)
+	{	
+		SetPrimColor (lpPrim, BUILD_COLOR (MAKE_RGB15 (0x1F, 0x08, 0x14), 0));
+		SetPrimType (lpPrim, STAMPFILL_PRIM);
+		ElementPtr->life_span = NORMAL_LIFE + 5;
+		ElementPtr->collision_func = destructo_collision;
+		DeltaEnergy(ElementPtr, -StarShipPtr->RaceDescPtr->ship_info.energy_level);
+	}
+	else
+	{
+		SetPrimType (lpPrim, STAMP_PRIM);
+		ElementPtr->life_span = NORMAL_LIFE;
+		ElementPtr->collision_func = collision;
+	}
+}
+
+
+static void
+orz_arrival_preprocess (ELEMENT *ElementPtr)
 {
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (!(ElementPtr->state_flags & APPEARING))
 	{
-		if (((StarShipPtr->cur_status_flags
-				| StarShipPtr->old_status_flags) & SPECIAL)
-				&& (StarShipPtr->cur_status_flags & (LEFT | RIGHT))
-				&& ElementPtr->turn_wait == 0)
-		{
-			++ElementPtr->turn_wait;
-		}
-
-		if ((StarShipPtr->cur_status_flags & SPECIAL)
-				&& (StarShipPtr->cur_status_flags & WEAPON)
-				&& StarShipPtr->weapon_counter == 0)
-		{
-			++StarShipPtr->weapon_counter;
-		}
+		StarShipPtr->special_counter = 2;
 	}
 	else
 	{
@@ -1066,6 +1138,7 @@ orz_preprocess (ELEMENT *ElementPtr)
 			InsertElement (hTurret, GetSuccElement (ElementPtr));
 		}
 	}
+		StarShipPtr->RaceDescPtr->preprocess_func = orz_preprocess;
 }
 
 RACE_DESC*
@@ -1073,7 +1146,7 @@ init_orz (void)
 {
 	RACE_DESC *RaceDescPtr;
 
-	orz_desc.preprocess_func = orz_preprocess;
+	orz_desc.preprocess_func = orz_arrival_preprocess;
 	orz_desc.init_weapon_func = initialize_turret_missile;
 	orz_desc.cyborg_control.intelligence_func = orz_intelligence;
 
