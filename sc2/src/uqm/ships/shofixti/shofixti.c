@@ -19,47 +19,57 @@
 #include "../ship.h"
 #include "shofixti.h"
 #include "resinst.h"
+#include "../sis_ship/resinst.h"
 
 #include "uqm/globdata.h"
 #include "uqm/tactrans.h"
 #include "libs/mathlib.h"
 
 // Core characteristics
-#define MAX_CREW 6
-#define MAX_ENERGY 4
-#define ENERGY_REGENERATION 1
+#define MAX_CREW 144
+#define MAX_ENERGY 24
+#define ENERGY_REGENERATION 6
 #define ENERGY_WAIT 9
-#define MAX_THRUST 35
+#define MAX_THRUST 28
 #define THRUST_INCREMENT 5
 #define TURN_WAIT 1
 #define THRUST_WAIT 0
 #define WEAPON_WAIT 3
 #define SPECIAL_WAIT 0
-#define SHIP_MASS 1
+#define SHIP_MASS 10
 
-// Dart Gun
-#define WEAPON_ENERGY_COST 1
-#define SHOFIXTI_OFFSET 15
+// Dart Guns
+#define WEAPON_ENERGY_COST 6
+#define SHOFIXTI_OFFSET 28
 #define MISSILE_OFFSET 1
 #define MISSILE_SPEED DISPLAY_TO_WORLD (24)
 #define MISSILE_LIFE 10
 #define MISSILE_HITS 1
 #define MISSILE_DAMAGE 1
 
-// Glory Device
+// Embarked Scouts
 #define SPECIAL_ENERGY_COST 0
+#define SCOUT_MAX_THRUST 35
+#define SCOUT_THRUST_INCREMENT 5
+#define SCOUT_TURN_WAIT 1
+#define SCOUT_HITS 6
+#define SCOUT_MASS 1
+#define SHOFIXTI_SPECIAL_OFFS 28
 #define DESTRUCT_RANGE 180
 #define MAX_DESTRUCTION (DESTRUCT_RANGE / 10)
 
 // Full game: Tanaka/Katana's damaged ships
 #define NUM_LIMPETS 3
 
+/* Uncomment this to enable crew regeneration
+#define SHOFIXTI_CARRIER_REPRODUCTION
+*/
 static RACE_DESC shofixti_desc =
 {
 	{ /* SHIP_INFO */
 		"scout",
 		FIRES_FORE,
-		5, /* Super Melee cost */
+		34, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		SHOFIXTI_RACE_STRINGS,
@@ -126,6 +136,8 @@ static RACE_DESC shofixti_desc =
 	0, /* CodeRef */
 };
 
+static FRAME sis_ship_farray[NUM_VIEWS];
+
 static COUNT
 initialize_standard_missile (ELEMENT *ShipPtr, HELEMENT MissileArray[])
 {
@@ -147,9 +159,202 @@ initialize_standard_missile (ELEMENT *ShipPtr, HELEMENT MissileArray[])
 	MissileBlock.life = MISSILE_LIFE;
 	MissileBlock.preprocess_func = NULL;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
-	MissileArray[0] = initialize_missile (&MissileBlock);
 
-	return (1);
+	MissileArray[0] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + 1;
+	MissileArray[1] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing - 1;
+	MissileArray[2] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + 8;
+	MissileArray[3] = initialize_missile (&MissileBlock);
+	MissileBlock.pixoffs = 20;
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing + 4;
+	MissileArray[4] = initialize_missile (&MissileBlock);
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing - 4;
+	MissileArray[5] = initialize_missile (&MissileBlock);
+	return (6);
+}
+
+static void self_destruct (ELEMENT* ElementPtr);
+
+void
+thrust_hack (ELEMENT *ElementPtr, COUNT thrust_increment, COUNT max_thrust, BOOLEAN ion_trail)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	//major hack!
+	if(ion_trail)
+	{
+		extern void spawn_ion_trail (ELEMENT *ElementPtr);
+
+		ElementPtr->state_flags |= PLAYER_SHIP;
+		spawn_ion_trail (ElementPtr);
+		ElementPtr->state_flags &= ~PLAYER_SHIP;
+	}
+
+	//major hack!
+	{
+		COUNT orig_facing;
+		COUNT orig_max_thrust, orig_thrust_increment;
+		DWORD current_speed, max_speed;
+		ELEMENT_FLAGS orig_flags;
+		SIZE dx, dy;
+
+		orig_facing = StarShipPtr->ShipFacing;
+		orig_flags = StarShipPtr->cur_status_flags;
+		orig_thrust_increment =
+				StarShipPtr->RaceDescPtr->characteristics.thrust_increment;
+		orig_max_thrust =
+				StarShipPtr->RaceDescPtr->characteristics.max_thrust;
+
+		GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
+		max_speed = VelocitySquared (WORLD_TO_VELOCITY (max_thrust), 0);
+		current_speed = VelocitySquared (dx, dy);
+
+		if (current_speed == max_speed)
+			StarShipPtr->cur_status_flags |= SHIP_AT_MAX_SPEED;
+		else
+			StarShipPtr->cur_status_flags &= ~SHIP_AT_MAX_SPEED;
+		if (current_speed > max_speed)
+			StarShipPtr->cur_status_flags |= SHIP_BEYOND_MAX_SPEED;
+		else
+			StarShipPtr->cur_status_flags &= ~SHIP_BEYOND_MAX_SPEED;
+		if (CalculateGravity (ElementPtr))
+			StarShipPtr->cur_status_flags |= SHIP_IN_GRAVITY_WELL;
+		else
+			StarShipPtr->cur_status_flags &= ~SHIP_IN_GRAVITY_WELL;
+
+		StarShipPtr->ShipFacing =
+				GetFrameIndex (ElementPtr->current.image.frame);
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust = max_thrust;
+		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
+				thrust_increment;
+
+		inertial_thrust (ElementPtr);
+
+		StarShipPtr->ShipFacing = orig_facing;
+		StarShipPtr->cur_status_flags = orig_flags;
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust =
+				orig_max_thrust;
+		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
+				orig_thrust_increment;
+	}
+}
+
+static void
+shofixti_fighter_preprocess (ELEMENT *ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if(ElementPtr->turn_wait)--ElementPtr->turn_wait;
+	else
+	{
+		if(StarShipPtr->cur_status_flags & RIGHT)
+		{
+			ElementPtr->next.image.frame = IncFrameIndex(ElementPtr->next.image.frame);
+			ElementPtr->turn_wait = 1;
+		}
+		else if(StarShipPtr->cur_status_flags & LEFT)
+		{
+			ElementPtr->next.image.frame = DecFrameIndex(ElementPtr->next.image.frame);
+			ElementPtr->turn_wait = 1;
+		}
+	}
+
+	if(StarShipPtr->cur_status_flags & THRUST)
+			thrust_hack(ElementPtr, SCOUT_THRUST_INCREMENT, SCOUT_MAX_THRUST, TRUE);
+}
+
+static void
+shofixti_fighter_postprocess (ELEMENT *ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if (!(StarShipPtr->cur_status_flags & SPECIAL))
+	{
+		ZeroVelocityComponents (&ElementPtr->velocity);
+		PlaySound (SetAbsSoundIndex (
+				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1),
+				CalcSoundPosition (ElementPtr), ElementPtr,
+				GAME_SOUND_PRIORITY + 1);
+		ElementPtr->state_flags |= FINITE_LIFE;
+
+		self_destruct (ElementPtr);
+	}
+}
+
+extern void explosion_preprocess (ELEMENT *ShipPtr);
+
+/* Used when the fighter is destroyed by external causes, *not* for self
+ * destruct */
+static void
+shofixti_fighter_death (ELEMENT *ShipPtr)
+{
+	ShipPtr->life_span = NUM_EXPLOSION_FRAMES * 3;
+	ShipPtr->state_flags &= ~DISAPPEARING;
+	ShipPtr->state_flags |= FINITE_LIFE | NONSOLID;
+	ShipPtr->postprocess_func = NULL;
+	ShipPtr->death_func = NULL;
+	ShipPtr->hTarget = 0;
+	ShipPtr->preprocess_func = explosion_preprocess;
+
+	PlaySound (SetAbsSoundIndex (GameSounds, SHIP_EXPLODES),
+			CalcSoundPosition (ShipPtr), ShipPtr, GAME_SOUND_PRIORITY + 1);
+}
+
+static void
+spawn_shofixti_fighter (ELEMENT *ShipPtr)
+{
+#define SHOFIXTI_OFFSET 28
+#define FIGHTER_HITS 6
+	SIZE i;
+	HELEMENT Missile;
+	STARSHIP *StarShipPtr;
+	MISSILE_BLOCK MissileBlock;
+
+	GetElementStarShip (ShipPtr, &StarShipPtr);
+
+	/* Determine the scout's crew level - if we have less than six crew the
+	 * scout will leave understaffed */
+	i = ShipPtr->crew_level > FIGHTER_HITS ? FIGHTER_HITS : (ShipPtr->crew_level - 1);
+	DeltaCrew(ShipPtr, -i);
+	MissileBlock.hit_points = i; //FIGHTER_HITS;
+
+	MissileBlock.cx = ShipPtr->next.location.x;
+	MissileBlock.cy = ShipPtr->next.location.y;
+	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.ship;
+	MissileBlock.face = MissileBlock.index = StarShipPtr->ShipFacing;
+	MissileBlock.sender = ShipPtr->playerNr;
+	MissileBlock.flags = IGNORE_SIMILAR;
+	MissileBlock.pixoffs = SHOFIXTI_OFFSET;
+	MissileBlock.speed = 0;
+	MissileBlock.damage = SCOUT_MASS; //mass, really
+	MissileBlock.life = MISSILE_LIFE;
+	MissileBlock.preprocess_func = shofixti_fighter_preprocess;
+	MissileBlock.blast_offs = 0;
+
+	Missile = initialize_missile (&MissileBlock);
+	if (Missile)
+	{
+		ELEMENT *MissilePtr;
+
+		LockElement (Missile, &MissilePtr);
+		SetElementStarShip(MissilePtr, StarShipPtr);
+		MissilePtr->postprocess_func = shofixti_fighter_postprocess;
+		MissilePtr->collision_func = collision;
+		MissilePtr->turn_wait = 0;
+		MissilePtr->state_flags &= ~FINITE_LIFE;
+		MissilePtr->life_span = NORMAL_LIFE;
+		MissilePtr->death_func = shofixti_fighter_death;
+		UnlockElement (Missile);
+		PutElement (Missile);
+	}
 }
 
 static void
@@ -297,7 +502,7 @@ self_destruct_kill_objects (ELEMENT *ElementPtr)
 				if (!DeltaCrew (ObjPtr, -destruction))
 					ObjPtr->life_span = 0;
 			}
-			else if (!GRAVITY_MASS (ObjPtr->mass_points))
+			else
 			{
 				if (destruction < ObjPtr->hit_points)
 					ObjPtr->hit_points -= destruction;
@@ -316,49 +521,31 @@ self_destruct_kill_objects (ELEMENT *ElementPtr)
 // This function is called when the ship dies via Glory Device.
 // The generic ship_death() function is not called for the ship in this case.
 static void
-shofixti_destruct_death (ELEMENT *ShipPtr)
+shofixti_destruct_death (ELEMENT *ScoutPtr)
 {
 	STARSHIP *StarShip;
-	STARSHIP *winner;
 
-	GetElementStarShip (ShipPtr, &StarShip);
+	GetElementStarShip (ScoutPtr, &StarShip);
 
-	StopAllBattleMusic ();
+	ScoutPtr->life_span = NUM_EXPLOSION_FRAMES * 3;
+	ScoutPtr->state_flags &= ~DISAPPEARING;
+	ScoutPtr->state_flags |= FINITE_LIFE | NONSOLID;
+	ScoutPtr->preprocess_func = destruct_preprocess;
 
-	StartShipExplosion (ShipPtr, false);
-	// We process the explosion ourselves because it is different
-	ShipPtr->preprocess_func = destruct_preprocess;
+	/* Clean up postprocess_func and death_func, if they're called again
+	 * hilarity will ensue. */
+	ScoutPtr->postprocess_func = NULL;
+	ScoutPtr->death_func = NULL;
 	
 	PlaySound (SetAbsSoundIndex (StarShip->RaceDescPtr->ship_data.ship_sounds,
-			1), CalcSoundPosition (ShipPtr), ShipPtr, GAME_SOUND_PRIORITY + 1);
-
-	winner = GetWinnerStarShip ();
-	if (winner == NULL)
-	{	// No winner determined yet
-		winner = FindAliveStarShip (ShipPtr);
-		if (winner == NULL)
-		{	// No ships left alive after the Glory Device thus Shofixti wins
-			winner = StarShip;
-		}
-		SetWinnerStarShip (winner);
-	}
-	else if (winner == StarShip)
-	{	// This ship is the winner
-		// It may have self-destructed before the ditty started playing,
-		// and in that case, there should be no ditty
-		StarShip->cur_status_flags &= ~PLAY_VICTORY_DITTY;
-	}
-	RecordShipDeath (ShipPtr);
+			1), CalcSoundPosition (ScoutPtr), ScoutPtr, GAME_SOUND_PRIORITY + 1);
 }
 
 static void
 self_destruct (ELEMENT *ElementPtr)
 {
-	STARSHIP *StarShipPtr;
 	HELEMENT hDestruct;
 
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-		
 	// Spawn a temporary element, which dies in this same frame, in order
 	// to defer the effects of the glory explosion.
 	// It will be the last element (or one of the last) for which the
@@ -387,8 +574,6 @@ self_destruct (ELEMENT *ElementPtr)
 	// Must kill off the remaining crew ourselves
 	DeltaCrew (ElementPtr, -(int)ElementPtr->crew_level);
 
-	ElementPtr->state_flags |= NONSOLID;
-	ElementPtr->life_span = 0;
 	// The ship is now dead. It's death_func, i.e. shofixti_destruct_death(),
 	// will be called the next frame.
 	ElementPtr->death_func = shofixti_destruct_death;
@@ -434,24 +619,127 @@ shofixti_intelligence (ELEMENT *ShipPtr, EVALUATE_DESC *ObjectsOfConcern,
 	}
 }
 
+static COUNT
+detect_scouts (ELEMENT *ShipPtr)
+{
+	COUNT result;
+	ELEMENT *ElementPtr;
+	HELEMENT hElement, hNextElement;
+
+	result = 0;
+	for (hElement = GetHeadElement (); hElement != 0; hElement = hNextElement)
+	{
+		LockElement (hElement, &ElementPtr);
+		hNextElement = GetSuccElement (ElementPtr);
+		if(ElementPtr->preprocess_func == shofixti_fighter_preprocess
+				&& (ShipPtr->playerNr) == (ElementPtr->playerNr))
+		{
+			++result;
+		}
+		UnlockElement (hElement);
+	}
+	return result;
+}
+
+
 static void
 shofixti_postprocess (ELEMENT *ElementPtr)
 {
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if ((StarShipPtr->cur_status_flags
-			^ StarShipPtr->old_status_flags) & SPECIAL)
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& !(StarShipPtr->old_status_flags & SPECIAL)
+			&& ElementPtr->crew_level > 1
+			&& !detect_scouts(ElementPtr)
+			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
 	{
-		StarShipPtr->RaceDescPtr->ship_data.captain_control.special =
-				IncFrameIndex (StarShipPtr->RaceDescPtr->ship_data.
-				captain_control.special);
-		if (GetFrameCount (StarShipPtr->RaceDescPtr->ship_data.
-				captain_control.special)
-				- GetFrameIndex (StarShipPtr->RaceDescPtr->ship_data.
-				captain_control.special) == 3)
-			self_destruct (ElementPtr);
+		spawn_shofixti_fighter (ElementPtr);
+
+		StarShipPtr->special_counter = SPECIAL_WAIT;
 	}
+
+#ifdef SHOFIXTI_CARRIER_REPRODUCTION
+	//shofixti reproduce fast ;) - EP
+	if(ElementPtr->crew_level >= 2)
+	{
+		COUNT i;
+		for(i = 0; i < (ElementPtr->crew_level / 2); ++i)
+		{
+			if(!(TFB_Random() & 127))
+			{
+				DeltaCrew(ElementPtr, 1);
+			}
+		}
+		if(!(TFB_Random() & 31))DeltaCrew(ElementPtr, 1);
+	}
+#endif
+}
+
+static COUNT shofixties_present = 0;
+
+static void
+shofixti_preprocess (ELEMENT * ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if (ElementPtr->state_flags & APPEARING)
+	{
+		++shofixties_present;
+		ElementPtr->next.image.farray = sis_ship_farray;
+		ElementPtr->next.image.frame =
+				SetEquFrameIndex (sis_ship_farray[0],
+				ElementPtr->next.image.frame);
+		ElementPtr->state_flags |= CHANGING;
+	}
+
+	if (detect_scouts (ElementPtr))
+	{
+		/* We have a scout active, player is controlling it. Disable
+		 * movement for the mothership in the meantime. */
+		if (ElementPtr->turn_wait == 0)
+			++ElementPtr->turn_wait;
+		if (ElementPtr->thrust_wait == 0)
+			++ElementPtr->thrust_wait;
+		if (StarShipPtr->weapon_counter == 0)
+			++StarShipPtr->weapon_counter;
+	}
+}
+
+void
+clearGraphicsHack (FRAME farray[])
+{
+	DestroyDrawable(ReleaseDrawable(farray[0]));
+	farray[0] = (FRAME)0;
+	DestroyDrawable(ReleaseDrawable(farray[1]));
+	farray[1] = (FRAME)0;
+	DestroyDrawable(ReleaseDrawable(farray[2]));
+	farray[2] = (FRAME)0;
+}
+
+static void
+shofixti_dispose_graphics (RACE_DESC *RaceDescPtr)
+{
+	--shofixties_present;
+
+	if(!shofixties_present)
+	{
+		clearGraphicsHack(sis_ship_farray);
+	}
+
+	(void) RaceDescPtr; /* Satisfying compiler (unused parameter) */
+}
+
+BOOLEAN
+init_carrierhack (void)
+{
+	return load_animation (&sis_ship_farray,
+			SIS_BIG_MASK_PMAP_ANIM,
+			SIS_MED_MASK_PMAP_ANIM,
+			SIS_SML_MASK_PMAP_ANIM);
 }
 
 RACE_DESC*
@@ -461,9 +749,13 @@ init_shofixti (void)
 	// The caller of this func will copy the struct
 	static RACE_DESC new_shofixti_desc;
 
+	init_carrierhack ();
+
+	shofixti_desc.preprocess_func = shofixti_preprocess;
 	shofixti_desc.postprocess_func = shofixti_postprocess;
 	shofixti_desc.init_weapon_func = initialize_standard_missile;
 	shofixti_desc.cyborg_control.intelligence_func = shofixti_intelligence;
+	shofixti_desc.uninit_func = shofixti_dispose_graphics;
 
 	new_shofixti_desc = shofixti_desc;
 	if (LOBYTE (GLOBAL (CurrentActivity)) == IN_ENCOUNTER
@@ -519,4 +811,3 @@ init_shofixti (void)
 
 	return (RaceDescPtr);
 }
-
