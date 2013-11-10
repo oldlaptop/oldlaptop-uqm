@@ -302,7 +302,7 @@ ship_postprocess (ELEMENT *ElementPtr)
 			-RDPtr->characteristics.weapon_energy_cost))
 	{
 		COUNT num_weapons;
-		HELEMENT Weapon[6];
+		HELEMENT Weapon[50];
 
 		num_weapons = (*RDPtr->init_weapon_func) (ElementPtr, Weapon);
 
