@@ -175,8 +175,6 @@ spin_asteroid (ELEMENT *ElementPtr)
 	}
 }
 
-static void asteroid_preprocess (ELEMENT *ElementPtr);
-
 static void
 asteroid_chasing_preprocess (ELEMENT *ElementPtr)
 {
@@ -211,7 +209,7 @@ asteroid_chasing_preprocess (ELEMENT *ElementPtr)
 	}
 }
 
-static void
+void
 asteroid_preprocess (ELEMENT *ElementPtr)
 {
 	spin_asteroid (ElementPtr);
