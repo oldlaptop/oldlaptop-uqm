@@ -37,6 +37,8 @@ static BOOLEAN planet_respawn_wait_decremented = false;
 static void respawn_planet_reset (ELEMENT* ElementPtr)
 {
 	planet_respawn_wait_decremented = false;
+
+	(void) ElementPtr; /* satisfying compiler (unused parameter) */
 }
 
 static void respawn_planet (ELEMENT* ElementPtr)
@@ -152,7 +154,7 @@ spawn_rubble (ELEMENT *AsteroidElementPtr)
 /* The original contents of asteroid_preprocess, which both the normal
  * preprocess_func and the 'chasing' preprocess_func need to execute.
  */
-inline void
+static inline void
 spin_asteroid (ELEMENT *ElementPtr)
 {
 	if (ElementPtr->turn_wait > 0)
