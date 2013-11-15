@@ -23,31 +23,40 @@
 #include "uqm/globdata.h"
 
 // Core characteristics
-#define MAX_CREW 8
-#define MAX_ENERGY 24
+#define MAX_CREW MAX_CREW_SIZE
+#define MAX_ENERGY MAX_ENERGY_SIZE
 #define ENERGY_REGENERATION 1
-#define ENERGY_WAIT 6
+#define ENERGY_WAIT 3
 #define MAX_THRUST 28
 #define THRUST_INCREMENT 7
-#define THRUST_WAIT 0
-#define TURN_WAIT 1
+#define THRUST_WAIT 3
+#define TURN_WAIT 3
 #define SHIP_MASS 7
 
-// Ion Blasters
-#define WEAPON_ENERGY_COST 2
-#define WEAPON_WAIT 12
-#define MISSILE_SPEED DISPLAY_TO_WORLD (30)
-#define MISSILE_LIFE 15
+// Basic missile
+#define WEAPON_ENERGY_COST 7
+#define WEAPON_WAIT 8
+#define MISSILE_THRUST_WAIT 24
+#define MISSILE_THRUST_INCREMENT 12
+#define MISSILE_MAX_THRUST 72
+#define MISSILE_LIFE 48
 #define MISSILE_OFFSET 3
 #define THRADDASH_OFFSET 9
-#define MISSILE_HITS 2
-#define MISSILE_DAMAGE 1
+#define MISSILE_HITS 6
+#define MISSILE_DAMAGE 6
 
-// Afterburner
-#define SPECIAL_ENERGY_COST 1
-#define SPECIAL_WAIT 0
-#define SPECIAL_THRUST_INCREMENT 12
-#define SPECIAL_MAX_THRUST 72
+// Homing missile
+#define SPECIAL_ENERGY_COST 21
+#define SPECIAL_WAIT 24
+#define TRACK_WAIT 0
+#define HMISSILE_THRUST_WAIT 72
+#define HMISSILE_LIFE 240
+#define HMISSILE_HITS 6
+#define HMISSILE_DAMAGE 6
+
+// Napalm
+#define NAPALM_THRUST_INCREMENT 12
+#define NAPALM_MAX_THRUST 72
 #define NAPALM_LIFE 48
 #define NAPALM_OFFSET 0
 #define NAPALM_HITS 1
@@ -64,7 +73,7 @@ static RACE_DESC thraddash_desc =
 	{ /* SHIP_INFO */
 		"torch",
 		FIRES_FORE,
-		10, /* Super Melee cost */
+		40, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		THRADDASH_RACE_STRINGS,
@@ -120,7 +129,7 @@ static RACE_DESC thraddash_desc =
 	},
 	{
 		0,
-		(MISSILE_SPEED * MISSILE_LIFE) >> 1,
+		(MISSILE_MAX_THRUST * MISSILE_LIFE) >> 1,
 		NULL,
 	},
 	(UNINIT_FUNC *) NULL,
@@ -261,8 +270,37 @@ flame_napalm_preprocess (ELEMENT *ElementPtr)
 	}
 }
 
+static void afterburner_preprocess (ELEMENT *ElementPtr);
+
+static void
+homing_preprocess (ELEMENT *ElementPtr)
+{
+	if (ElementPtr->turn_wait > 0)
+		--ElementPtr->turn_wait;
+	else
+	{
+		COUNT facing;
+
+		facing = GetFrameIndex (ElementPtr->next.image.frame);
+		if (TrackShip (ElementPtr, &facing) > 0)
+		{
+			ElementPtr->next.image.frame =
+					SetAbsFrameIndex (ElementPtr->next.image.frame,
+					facing);
+			ElementPtr->state_flags |= CHANGING;
+		}
+
+		ElementPtr->turn_wait = TRACK_WAIT;
+	}
+
+	afterburner_preprocess (ElementPtr);
+}
+
+/* Initializes both crazy Thraddash weapons, but requires an extra parameter.
+ * Not used directly except by initialize_hvar and spawn_sidewinder.
+ */
 static COUNT
-initialize_horn (ELEMENT *ShipPtr, HELEMENT HornArray[])
+initialize_thradd_missile (ELEMENT *ShipPtr, HELEMENT HornArray[], BOOLEAN homing)
 {
 	STARSHIP *StarShipPtr;
 	MISSILE_BLOCK MissileBlock;
@@ -275,60 +313,79 @@ initialize_horn (ELEMENT *ShipPtr, HELEMENT HornArray[])
 	MissileBlock.sender = ShipPtr->playerNr;
 	MissileBlock.flags = IGNORE_SIMILAR;
 	MissileBlock.pixoffs = THRADDASH_OFFSET;
-	MissileBlock.speed = MISSILE_SPEED;
-	MissileBlock.hit_points = MISSILE_HITS;
-	MissileBlock.damage = MISSILE_DAMAGE;
-	MissileBlock.life = MISSILE_LIFE;
-	MissileBlock.preprocess_func = NULL;
+	MissileBlock.speed = 0; /* Movement is handled specially */
+	MissileBlock.hit_points = homing ? HMISSILE_HITS : MISSILE_HITS;
+	MissileBlock.damage = homing ? HMISSILE_DAMAGE : MISSILE_DAMAGE;
+	MissileBlock.life = homing ? HMISSILE_LIFE : MISSILE_LIFE;
+	MissileBlock.preprocess_func = homing ? homing_preprocess : afterburner_preprocess;
 	MissileBlock.blast_offs = MISSILE_OFFSET;
 	HornArray[0] = initialize_missile (&MissileBlock);
+
+	if(HornArray[0])
+	{
+		ELEMENT *HornPtr;
+		LockElement(HornArray[0], &HornPtr);
+		HornPtr->thrust_wait = homing ? HMISSILE_THRUST_WAIT : MISSILE_THRUST_WAIT;
+		UnlockElement(HornArray[0]);
+	}
 
 	return (1);
 }
 
+/* Thraddash init_weapon_func - abstracts away initialize_thradd_missile's
+ * extra parameter (initializes a non-homing missile)
+ */
+static COUNT
+initialize_hvar (ELEMENT *ShipPtr, HELEMENT hvar_array[])
+{
+	return initialize_thradd_missile (ShipPtr, hvar_array, FALSE);
+}
+
+/* Spawns Thraddash secondary (homing missile) */
 static void
-thraddash_preprocess (ELEMENT *ElementPtr)
+spawn_sidewinder (ELEMENT *ElementPtr)
+{
+	HELEMENT sidewinder;
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	StarShipPtr->weapon_counter = SPECIAL_WAIT;
+
+	initialize_thradd_missile (ElementPtr, &sidewinder, TRUE);
+	if (sidewinder)
+	{
+		ELEMENT *sidewinder_ptr;
+
+		LockElement (sidewinder, &sidewinder_ptr);
+		SetElementStarShip (sidewinder_ptr, StarShipPtr);
+
+		ProcessSound (StarShipPtr->RaceDescPtr->ship_data.ship_sounds,
+				sidewinder_ptr);
+
+		UnlockElement (sidewinder);
+		PutElement (sidewinder);
+	}
+}
+
+/* Now meant as the preprocess_func for Thraddash missiles */
+static void
+afterburner_preprocess (ELEMENT *ElementPtr)
 {
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if (!(StarShipPtr->cur_status_flags & SPECIAL))
+
+	if (ElementPtr->thrust_wait < 3)
+		++ElementPtr->thrust_wait;
+	else
 	{
-		if ((StarShipPtr->old_status_flags & SPECIAL)
-				&& (StarShipPtr->cur_status_flags & SHIP_AT_MAX_SPEED))
-			StarShipPtr->cur_status_flags |= SHIP_BEYOND_MAX_SPEED;
-	}
-	else if (DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
-	{
-		COUNT max_thrust, thrust_increment;
-		STATUS_FLAGS thrust_status;
 		HELEMENT hTrailElement;
 
-		if (!(StarShipPtr->old_status_flags & SPECIAL))
-			StarShipPtr->cur_status_flags &=
-					~(SHIP_AT_MAX_SPEED | SHIP_BEYOND_MAX_SPEED);
+		extern void thrust_hack (ELEMENT *ElementPtr, COUNT thrust_increment, COUNT max_thrust, BOOLEAN ion_trail);
+		thrust_hack (ElementPtr, MISSILE_THRUST_INCREMENT, MISSILE_MAX_THRUST, FALSE);
 
-		if (ElementPtr->thrust_wait == 0)
-			++ElementPtr->thrust_wait;
-
-		thrust_increment =
-				StarShipPtr->RaceDescPtr->characteristics.thrust_increment;
-		max_thrust = StarShipPtr->RaceDescPtr->characteristics.max_thrust;
-		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
-				SPECIAL_THRUST_INCREMENT;
-		StarShipPtr->RaceDescPtr->characteristics.max_thrust =
-				SPECIAL_MAX_THRUST;
-
-		thrust_status = inertial_thrust (ElementPtr);
-		StarShipPtr->cur_status_flags &=
-				~(SHIP_AT_MAX_SPEED
-				| SHIP_BEYOND_MAX_SPEED
-				| SHIP_IN_GRAVITY_WELL);
-		StarShipPtr->cur_status_flags |= thrust_status;
-
-		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
-				thrust_increment;
-		StarShipPtr->RaceDescPtr->characteristics.max_thrust = max_thrust;
+		ElementPtr->thrust_wait -= 3;
 
 		{
 			MISSILE_BLOCK MissileBlock;
@@ -386,13 +443,27 @@ thraddash_preprocess (ELEMENT *ElementPtr)
 	}
 }
 
+static void
+thraddash_postprocess (ELEMENT *ElementPtr)
+{	
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& StarShipPtr->weapon_counter == 0
+			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		spawn_sidewinder (ElementPtr);
+	}
+}
+
 RACE_DESC*
 init_thraddash (void)
 {
 	RACE_DESC *RaceDescPtr;
 
-	thraddash_desc.preprocess_func = thraddash_preprocess;
-	thraddash_desc.init_weapon_func = initialize_horn;
+	thraddash_desc.postprocess_func = thraddash_postprocess;
+	thraddash_desc.init_weapon_func = initialize_hvar;
 	thraddash_desc.cyborg_control.intelligence_func = thraddash_intelligence;
 
 	RaceDescPtr = &thraddash_desc;
