@@ -40,7 +40,8 @@
 #define CONE_OFFSET 0
 #define CONE_SPEED 0
 #define CONE_HITS 100
-#define CONE_DAMAGE 1
+#define CONE_DAMAGE 50
+#define CONE_PLANET_DAMAGE 18 /* Cone does less damage to planets */
 #define CONE_LIFE 1
 
 // Retropropulsion
@@ -53,7 +54,7 @@ static RACE_DESC umgah_desc =
 	{ /* SHIP_INFO */
 		"drone",
 		FIRES_FORE | IMMEDIATE_WEAPON,
-		7, /* Super Melee cost */
+		26, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		UMGAH_RACE_STRINGS,
@@ -179,13 +180,23 @@ cone_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 {
 	HELEMENT hBlastElement;
 
-	hBlastElement = weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
-	if (hBlastElement)
+	if (GRAVITY_MASS (ElementPtr1->mass_points))
 	{
-		RemoveElement (hBlastElement);
-		FreeElement (hBlastElement);
+		//don't kill planets so fast (makes for some lame strategy) - EP
+		do_damage (ElementPtr1, 18);
+	}
+	else
+	{
 
-		ElementPtr0->state_flags &= ~DISAPPEARING;
+		hBlastElement =
+				weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+		if (hBlastElement)
+		{
+			RemoveElement (hBlastElement);
+			FreeElement (hBlastElement);
+
+			ElementPtr0->state_flags &= ~DISAPPEARING;
+		}
 	}
 }
 
