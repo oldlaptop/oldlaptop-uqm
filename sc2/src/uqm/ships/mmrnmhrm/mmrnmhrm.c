@@ -20,6 +20,9 @@
 #include "mmrnmhrm.h"
 #include "resinst.h"
 
+#include "uqm/colors.h"
+#include "uqm/globdata.h"
+
 // Core characteristics
 #define MAX_CREW 20
 #define MAX_ENERGY 10
@@ -43,28 +46,20 @@
 #define YWING_TURN_WAIT 14
 
 // X-Wing Lasers
-#define MMRNMHRM_OFFSET 16
 #define WEAPON_ENERGY_COST 1
 #define WEAPON_WAIT 0
-#define CENTER_OFFS DISPLAY_TO_WORLD (4)
-#define WING_OFFS DISPLAY_TO_WORLD (10)
-#define LASER_RANGE DISPLAY_TO_WORLD (125 + MMRNMHRM_OFFSET)
 
-// Y-Wing Missiles
-#define YWING_WEAPON_ENERGY_COST 1
-#define YWING_WEAPON_WAIT 20
-#define LAUNCH_OFFS DISPLAY_TO_WORLD (4)
-#define MISSILE_OFFSET 0
-#define MISSILE_SPEED DISPLAY_TO_WORLD (20)
-#define MISSILE_LIFE 40
-#define MISSILE_HITS 1
-#define MISSILE_DAMAGE 1
-#define TRACK_WAIT 5
+// Asteroid tossing
+#define ASTEROID_FIRING_SPEED 130 //200
+#define MIN_DANGEROUS_SPEED 50
 
 // Transform
 #define SPECIAL_ENERGY_COST MAX_ENERGY
 #define SPECIAL_WAIT 0
 #define YWING_SPECIAL_WAIT 0
+
+// Tractor asteroids
+#define NUM_SHADOWS 1
 
 static RACE_DESC mmrnmhrm_desc =
 {
@@ -174,31 +169,6 @@ SetCustomShipData (RACE_DESC *pRaceDesc, const CustomShipData_t *data)
 }
 
 static void
-missile_preprocess (ELEMENT *ElementPtr)
-{
-	if (ElementPtr->turn_wait > 0)
-		--ElementPtr->turn_wait;
-	else
-	{
-		COUNT facing;
-
-		facing = GetFrameIndex (ElementPtr->next.image.frame);
-		if (TrackShip (ElementPtr, &facing) > 0)
-		{
-			ElementPtr->next.image.frame =
-					SetAbsFrameIndex (ElementPtr->next.image.frame,
-					facing);
-			ElementPtr->state_flags |= CHANGING;
-
-			SetVelocityVector (&ElementPtr->velocity,
-					MISSILE_SPEED, facing);
-		}
-
-		ElementPtr->turn_wait = TRACK_WAIT;
-	}
-}
-
-static void
 mmrnmhrm_intelligence (ELEMENT *ShipPtr, EVALUATE_DESC *ObjectsOfConcern,
 		COUNT ConcernCounter)
 {
@@ -291,109 +261,256 @@ mmrnmhrm_intelligence (ELEMENT *ShipPtr, EVALUATE_DESC *ObjectsOfConcern,
 }
 
 static void
-twin_laser_collision (ELEMENT *ElementPtr0, POINT *pPt0,
-		ELEMENT *ElementPtr1, POINT *pPt1)
+mmrnmhrm_asteroid_collision (ELEMENT *ElementPtr0, POINT *pPt0, ELEMENT *ElementPtr1, POINT *pPt1)
 {
-	if (!(ElementPtr1->state_flags & PLAYER_SHIP)
-			|| !elementsOfSamePlayer (ElementPtr0, ElementPtr1))
-		weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	//if it's an asteroid
+	if((!(ElementPtr1->state_flags
+			& (APPEARING | GOOD_GUY | BAD_GUY
+			| PLAYER_SHIP | FINITE_LIFE))
+			&& !GRAVITY_MASS (ElementPtr1->mass_points)
+			&& CollisionPossible (ElementPtr1, ElementPtr0)))
+	{
+		//pass right through it
+	}
+	else weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	if(ElementPtr0->state_flags & DISAPPEARING)
+	{
+		ElementPtr0->state_flags &= ~DISAPPEARING;
+	}
+	if(GRAVITY_MASS(ElementPtr1->mass_points))
+	{
+		ElementPtr0->crew_level = 0;
+	}
 }
 
-static COUNT
-initialize_dual_weapons (ELEMENT *ShipPtr, HELEMENT WeaponArray[])
+extern void spin_asteroid (ELEMENT *ElementPtr);
+extern void asteroid_preprocess (ELEMENT *ElementPtr);
+
+static void
+mmrnmhrm_asteroid_preprocess (ELEMENT *ElementPtr)
 {
-	COORD cx, cy;
-	COUNT facing, angle;
-	SIZE offs_x, offs_y;
+	SIZE dx, dy;
+	COUNT old_turn_wait;
+
+	old_turn_wait = ElementPtr->turn_wait;
+	ElementPtr->turn_wait = 0;
+	spin_asteroid(ElementPtr);
+	ElementPtr->turn_wait = old_turn_wait;
+	
+	--ElementPtr->turn_wait;
+
+	GetCurrentVelocityComponents(&ElementPtr->velocity, &dx, &dy);
+	if((long)dx*(long)dx + (long)dy*(long)dy < (long)MIN_DANGEROUS_SPEED*(long)MIN_DANGEROUS_SPEED
+		|| ElementPtr->turn_wait == 0)
+	{
+		ElementPtr->mass_points = 3;
+		ElementPtr->crew_level = 1;
+		ElementPtr->pParent = NULL;
+		ElementPtr->collision_func = collision;
+		ElementPtr->preprocess_func = asteroid_preprocess;
+		ElementPtr->state_flags &= ~(GOOD_GUY | BAD_GUY | IGNORE_SIMILAR | PERSISTENT);
+	}
+}
+
+static void
+mmrnmhrm_asteroid_init (ELEMENT *ElementPtr)
+{
 	STARSHIP *StarShipPtr;
 
-	GetElementStarShip (ShipPtr, &StarShipPtr);
-	facing = StarShipPtr->ShipFacing;
-	angle = FACING_TO_ANGLE (facing);
-	cx = ShipPtr->next.location.x + COSINE (angle, CENTER_OFFS);
-	cy = ShipPtr->next.location.y + SINE (angle, CENTER_OFFS);
+	GetElementStarShip (ElementPtr, &StarShipPtr);
 
-	if (ShipPtr->next.image.farray == StarShipPtr->RaceDescPtr->ship_data.ship)
+	SetVelocityComponents(&ElementPtr->velocity,
+			COSINE(StarShipPtr->ShipFacing, WORLD_TO_VELOCITY(ASTEROID_FIRING_SPEED)),
+			SINE(StarShipPtr->ShipFacing, WORLD_TO_VELOCITY(ASTEROID_FIRING_SPEED)));
+	ElementPtr->mass_points = 6;
+	ElementPtr->crew_level = 2;
+	ElementPtr->turn_wait = 48; //frames until it stops being dangerous
+	ElementPtr->collision_func = mmrnmhrm_asteroid_collision;
+	ElementPtr->preprocess_func = mmrnmhrm_asteroid_preprocess;
+}
+
+/* This is the entry point for crazy Mmrnmhrm's sole weapon - when xform
+ * collides with an asteroid while WEAPON is pressed, the asteroid is fired */
+static void
+xform_collision (ELEMENT *ElementPtr0, POINT *pPt0, ELEMENT *ElementPtr1, POINT *pPt1)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr0, &StarShipPtr);
+	//if it's an asteroid
+	if ((!(ElementPtr1->state_flags
+			& (APPEARING | PLAYER_SHIP | FINITE_LIFE))
+			&& ElementPtr1->playerNr == NEUTRAL_PLAYER_NUM
+			&& !GRAVITY_MASS (ElementPtr1->mass_points)
+			&& CollisionPossible (ElementPtr1, ElementPtr0)))
 	{
-		COORD ex, ey;
-		LASER_BLOCK LaserBlock;
-		ELEMENT *LaserPtr;
-
-		LaserBlock.sender = ShipPtr->playerNr;
-		LaserBlock.flags = 0;
-		LaserBlock.pixoffs = 0;
-		LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x1F, 0x0A, 0x0A), 0x0C);
-		LaserBlock.face = facing;
-
-		ex = cx + COSINE (angle, LASER_RANGE);
-		ey = cy + SINE (angle, LASER_RANGE);
-		offs_x = -SINE (angle, WING_OFFS);
-		offs_y = COSINE (angle, WING_OFFS);
-
-		LaserBlock.cx = cx + offs_x;
-		LaserBlock.cy = cy + offs_y;
-		LaserBlock.ex = ex - LaserBlock.cx;
-		LaserBlock.ey = ey - LaserBlock.cy;
-		if ((WeaponArray[0] = initialize_laser (&LaserBlock)))
+		if (StarShipPtr->cur_status_flags & WEAPON)
 		{
-			LockElement (WeaponArray[0], &LaserPtr);
-			LaserPtr->collision_func = twin_laser_collision;
-			UnlockElement (WeaponArray[0]);
-		}
+			//bit of recoil. no sitting still and sniping for you!
+			DeltaVelocityComponents(&ElementPtr0->velocity,
+					COSINE(StarShipPtr->ShipFacing, -100),
+					SINE(StarShipPtr->ShipFacing, -100));
+			
+			//the real effect:
+			SetElementStarShip(ElementPtr1, StarShipPtr);
+			ElementPtr1->pParent = ElementPtr0->pParent;
+			ElementPtr1->playerNr = ElementPtr0->playerNr;
+			ElementPtr1->state_flags |= IGNORE_SIMILAR | PERSISTENT;
+			ElementPtr1->preprocess_func = mmrnmhrm_asteroid_init;
 
-		LaserBlock.cx = cx - offs_x;
-		LaserBlock.cy = cy - offs_y;
-		LaserBlock.ex = ex - LaserBlock.cx;
-		LaserBlock.ey = ey - LaserBlock.cy;
-		if ((WeaponArray[1] = initialize_laser (&LaserBlock)))
-		{
-			LockElement (WeaponArray[1], &LaserPtr);
-			LaserPtr->collision_func = twin_laser_collision;
-			UnlockElement (WeaponArray[1]);
+			ProcessSound (SetAbsSoundIndex (
+					StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 0), ElementPtr0);
 		}
 	}
 	else
 	{
-		MISSILE_BLOCK TorpBlock;
-		ELEMENT *TorpPtr;
+		collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	}
+}
 
-		TorpBlock.farray = StarShipPtr->RaceDescPtr->ship_data.weapon;
-		TorpBlock.sender = ShipPtr->playerNr;
-		TorpBlock.flags = IGNORE_SIMILAR;
-		TorpBlock.pixoffs = 0;
-		TorpBlock.speed = MISSILE_SPEED;
-		TorpBlock.hit_points = MISSILE_HITS;
-		TorpBlock.damage = MISSILE_DAMAGE;
-		TorpBlock.life = MISSILE_LIFE;
-		TorpBlock.preprocess_func = missile_preprocess;
-		TorpBlock.blast_offs = MISSILE_OFFSET;
+static void
+spawn_indicator_laser (ELEMENT *ShipPtr)
+{
+	HELEMENT Laser;
+	STARSHIP *StarShipPtr;
+	LASER_BLOCK LaserBlock;
 
-		TorpBlock.face = TorpBlock.index = NORMALIZE_FACING (facing - 1);
-		offs_x = -SINE (FACING_TO_ANGLE (TorpBlock.face), LAUNCH_OFFS);
-		offs_y = COSINE (FACING_TO_ANGLE (TorpBlock.face), LAUNCH_OFFS);
+	GetElementStarShip (ShipPtr, &StarShipPtr);
+	LaserBlock.face = StarShipPtr->ShipFacing / 4;
+	LaserBlock.cx = ShipPtr->next.location.x;
+	LaserBlock.cy = ShipPtr->next.location.y;
+	LaserBlock.ex = COSINE (StarShipPtr->ShipFacing, 360);
+	LaserBlock.ey = SINE (StarShipPtr->ShipFacing, 360);
+	LaserBlock.sender = ShipPtr->playerNr;
+	LaserBlock.flags = IGNORE_SIMILAR | NONSOLID;
+	LaserBlock.pixoffs = 0;
+	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x18, 0x18, 0x1F), 0x0A);
+	Laser = initialize_laser (&LaserBlock);
 
-		TorpBlock.cx = cx + offs_x;
-		TorpBlock.cy = cy + offs_y;
-		if ((WeaponArray[0] = initialize_missile (&TorpBlock)))
+	if(Laser)
+	{
+		ELEMENT *LaserPtr;
+		LockElement(Laser, &LaserPtr);
+		LaserPtr->mass_points = 0;
+		SetElementStarShip(LaserPtr, StarShipPtr);
+		UnlockElement(Laser);
+		PutElement(Laser);
+	}
+}
+
+static void
+tractor_asteroids (ELEMENT * ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+	ELEMENT *AsteroidElementPtr;
+	HELEMENT hElement, hNextElement;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	for (hElement = GetHeadElement (); hElement != 0;
+			hElement = hNextElement)
+	{
+		LockElement (hElement, &AsteroidElementPtr);
+		hNextElement = GetSuccElement (AsteroidElementPtr);
+
+		if (!(AsteroidElementPtr->state_flags
+						& (APPEARING | GOOD_GUY | BAD_GUY
+								| PLAYER_SHIP | FINITE_LIFE))
+				&& !GRAVITY_MASS (AsteroidElementPtr->mass_points)
+				&& CollisionPossible (AsteroidElementPtr, ElementPtr))
 		{
-			LockElement (WeaponArray[0], &TorpPtr);
-			TorpPtr->turn_wait = TRACK_WAIT;
-			UnlockElement (WeaponArray[0]);
-		}
+			SIZE i, dx, dy;
+			COUNT angle, magnitude;
 
-		TorpBlock.face = TorpBlock.index = NORMALIZE_FACING (facing + 1);
+			static const SIZE shadow_offs[] = {
+				DISPLAY_TO_WORLD (8),
+				DISPLAY_TO_WORLD (8 + 9),
+				DISPLAY_TO_WORLD (8 + 9 + 11),
+				DISPLAY_TO_WORLD (8 + 9 + 11 + 14),
+				DISPLAY_TO_WORLD (8 + 9 + 11 + 14 + 18),
+			};
+			static const Color color_tab[] = {
+				BUILD_COLOR (MAKE_RGB15_INIT (0x00, 0x00, 0x10), 0x53),
+				BUILD_COLOR (MAKE_RGB15_INIT (0x00, 0x00, 0x0E), 0x54),
+				BUILD_COLOR (MAKE_RGB15_INIT (0x00, 0x00, 0x0C), 0x55),
+				BUILD_COLOR (MAKE_RGB15_INIT (0x00, 0x00, 0x09), 0x56),
+				BUILD_COLOR (MAKE_RGB15_INIT (0x00, 0x00, 0x07), 0x57),
+			};
 
-		TorpBlock.cx = cx - offs_x;
-		TorpBlock.cy = cy - offs_y;
-		if ((WeaponArray[1] = initialize_missile (&TorpBlock)))
-		{
-			LockElement (WeaponArray[1], &TorpPtr);
-			TorpPtr->turn_wait = TRACK_WAIT;
-			UnlockElement (WeaponArray[1]);
+			// calculate tractor beam effect
+			angle = FACING_TO_ANGLE (StarShipPtr->ShipFacing);
+			dx = ElementPtr->next.location.x -
+					AsteroidElementPtr->next.location.x;
+			dy = ElementPtr->next.location.y -
+					AsteroidElementPtr->next.location.y;
+			angle = ARCTAN (dx, dy);
+			magnitude = WORLD_TO_VELOCITY (48) /*(12) */  /
+					AsteroidElementPtr->mass_points;
+			DeltaVelocityComponents (&AsteroidElementPtr->velocity,
+					COSINE (angle, magnitude), SINE (angle, magnitude));
+
+			GetCurrentVelocityComponents (&AsteroidElementPtr->velocity,
+					&dx, &dy);
+			dx = (dx * 9) / 10;
+			dy = (dy * 9) / 10;
+			SetVelocityComponents (&AsteroidElementPtr->velocity, dx, dy);
+
+			// add tractor beam graphical effects
+			for (i = 0; i < NUM_SHADOWS; ++i)
+			{
+				HELEMENT hShadow;
+
+				hShadow = AllocElement ();
+				if (hShadow)
+				{
+					ELEMENT *ShadowElementPtr;
+
+					LockElement (hShadow, &ShadowElementPtr);
+
+					ShadowElementPtr->state_flags =
+							FINITE_LIFE | NONSOLID | IGNORE_SIMILAR |
+							POST_PROCESS | (AsteroidElementPtr->
+							state_flags & (GOOD_GUY | BAD_GUY));
+					ShadowElementPtr->life_span = 1;
+
+					ShadowElementPtr->current = AsteroidElementPtr->next;
+					ShadowElementPtr->current.location.x +=
+							COSINE (angle, shadow_offs[i]);
+					ShadowElementPtr->current.location.y +=
+							SINE (angle, shadow_offs[i]);
+					ShadowElementPtr->next = ShadowElementPtr->current;
+
+					SetElementStarShip (ShadowElementPtr, StarShipPtr);
+					SetVelocityComponents (&ShadowElementPtr->velocity, dx,
+							dy);
+
+					SetPrimType (&(GLOBAL (DisplayArray))
+							[ShadowElementPtr->PrimIndex], STAMPFILL_PRIM);
+					SetPrimColor (&(GLOBAL (DisplayArray))
+							[ShadowElementPtr->PrimIndex], color_tab[i]);
+
+					UnlockElement (hShadow);
+					InsertElement (hShadow, GetHeadElement ());
+				}
+			}
+			UnlockElement (hElement);
 		}
 	}
+}
 
-	return (2);
+static inline void
+xform_postprocess (ELEMENT *ElementPtr)
+{
+	spawn_indicator_laser (ElementPtr);
+	tractor_asteroids (ElementPtr);
+}
+
+static inline void
+yform_postprocess (ELEMENT *ElementPtr)
+{
+	/* We don't actually need to do anything here yet, kept for future
+	 * expansion */
+	(void) (ElementPtr);
 }
 
 static void
@@ -402,6 +519,35 @@ mmrnmhrm_postprocess (ELEMENT *ElementPtr)
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	{
+		BOOLEAN is_xform;
+
+		is_xform = (ElementPtr->current.image.farray ==
+				StarShipPtr->RaceDescPtr->ship_data.ship);
+
+		switch (is_xform)
+		{
+			/* In X form */
+			case (TRUE):
+			{
+				xform_postprocess (ElementPtr);
+				break;
+			}
+			/* In Y form */
+			case (FALSE):
+			{
+				yform_postprocess (ElementPtr);
+				break;
+			}
+			default:
+			{
+				/* this should never ever happen */
+				assert (false);
+			}
+		}
+	}
+
 			/* take care of transform effect */
 	if (ElementPtr->next.image.farray != ElementPtr->current.image.farray)
 	{
@@ -452,11 +598,108 @@ mmrnmhrm_postprocess (ELEMENT *ElementPtr)
 }
 
 static void
+xform_preprocess (ELEMENT *ElementPtr)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if (ElementPtr->collision_func != xform_collision)
+		ElementPtr->collision_func = xform_collision;
+
+		if(ElementPtr->turn_wait)
+		--ElementPtr->turn_wait;
+	else
+	{
+		if(StarShipPtr->cur_status_flags & LEFT)
+		{
+			--StarShipPtr->ShipFacing;	
+			ElementPtr->turn_wait = StarShipPtr->RaceDescPtr->characteristics.turn_wait;
+		}
+		if(StarShipPtr->cur_status_flags & RIGHT)
+		{
+			++StarShipPtr->ShipFacing;
+			ElementPtr->turn_wait = StarShipPtr->RaceDescPtr->characteristics.turn_wait;
+		}
+	}
+
+	StarShipPtr->ShipFacing = NORMALIZE_ANGLE (StarShipPtr->ShipFacing);
+	ElementPtr->next.image.frame = SetAbsFrameIndex(ElementPtr->next.image.frame, NORMALIZE_FACING((StarShipPtr->ShipFacing + 2) / 4));
+	ElementPtr->state_flags |= CHANGING;
+
+	if(ElementPtr->thrust_wait)
+		--ElementPtr->thrust_wait;
+	else if(StarShipPtr->cur_status_flags & THRUST)
+	{
+		COUNT real_facing = StarShipPtr->ShipFacing;
+		StarShipPtr->ShipFacing = NORMALIZE_FACING((StarShipPtr->ShipFacing + 2) / 4);
+
+		//stolen from ship.c:
+		UWORD thrust_status;
+
+		thrust_status = inertial_thrust (ElementPtr);
+		StarShipPtr->cur_status_flags &=
+				~(SHIP_AT_MAX_SPEED
+				| SHIP_BEYOND_MAX_SPEED
+				| SHIP_IN_GRAVITY_WELL);
+		StarShipPtr->cur_status_flags |= thrust_status;
+
+		ElementPtr->thrust_wait = StarShipPtr->RaceDescPtr->characteristics.thrust_wait;
+
+		extern void spawn_ion_trail (ELEMENT *ElementPtr);
+
+		spawn_ion_trail (ElementPtr);
+		//end copied code
+		
+		StarShipPtr->ShipFacing = real_facing;
+	}
+	++ElementPtr->turn_wait;
+	++ElementPtr->thrust_wait;
+	++StarShipPtr->weapon_counter;
+}
+
+static void
+yform_preprocess (ELEMENT *ElementPtr)
+{
+	/* We don't actually need to do anything here yet, kept for future
+	 * expansion */
+	(void) (ElementPtr);
+}
+
+static void
 mmrnmhrm_preprocess (ELEMENT *ElementPtr)
 {
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	{
+		BOOLEAN is_xform;
+
+		is_xform = (ElementPtr->current.image.farray ==
+				StarShipPtr->RaceDescPtr->ship_data.ship);
+
+		switch (is_xform)
+		{
+			/* In X form */
+			case (TRUE):
+			{
+				xform_preprocess (ElementPtr);
+				break;
+			}
+			/* In Y form */
+			case (FALSE):
+			{
+				yform_preprocess (ElementPtr);
+				break;
+			}
+			default:
+			{
+				/* this should never ever happen */
+				assert (false);
+			}
+		}
+	}
 
 	if (!(ElementPtr->state_flags & APPEARING))
 	{
@@ -491,6 +734,16 @@ uninit_mmrnmhrm (RACE_DESC *pRaceDesc)
 	SetCustomShipData (pRaceDesc, NULL);
 }
 
+/* Neither Mmrnmhrm form actually has a weapon now, we need a dummy function to
+ * make this happen. */
+static COUNT
+initialize_nothing (ELEMENT *ShipPtr, HELEMENT NothingArray[])
+{
+	(void) ShipPtr;
+	(void) NothingArray;
+	return 0;
+}
+
 RACE_DESC*
 init_mmrnmhrm (void)
 {
@@ -502,7 +755,7 @@ init_mmrnmhrm (void)
 	mmrnmhrm_desc.uninit_func = uninit_mmrnmhrm;
 	mmrnmhrm_desc.preprocess_func = mmrnmhrm_preprocess;
 	mmrnmhrm_desc.postprocess_func = mmrnmhrm_postprocess;
-	mmrnmhrm_desc.init_weapon_func = initialize_dual_weapons;
+	mmrnmhrm_desc.init_weapon_func = initialize_nothing;
 	mmrnmhrm_desc.cyborg_control.intelligence_func = mmrnmhrm_intelligence;
 
 	new_mmrnmhrm_desc = mmrnmhrm_desc;
@@ -510,12 +763,12 @@ init_mmrnmhrm (void)
 	otherwing_desc.max_thrust = YWING_MAX_THRUST;
 	otherwing_desc.thrust_increment = YWING_THRUST_INCREMENT;
 	otherwing_desc.energy_regeneration = YWING_ENERGY_REGENERATION;
-	otherwing_desc.weapon_energy_cost = YWING_WEAPON_ENERGY_COST;
+	otherwing_desc.weapon_energy_cost = 0; // no weapon
 	otherwing_desc.special_energy_cost = YWING_SPECIAL_ENERGY_COST;
 	otherwing_desc.energy_wait = YWING_ENERGY_WAIT;
 	otherwing_desc.turn_wait = YWING_TURN_WAIT;
 	otherwing_desc.thrust_wait = YWING_THRUST_WAIT;
-	otherwing_desc.weapon_wait = YWING_WEAPON_WAIT;
+	otherwing_desc.weapon_wait = 0; // no weapon
 	otherwing_desc.special_wait = YWING_SPECIAL_WAIT;
 	otherwing_desc.ship_mass = SHIP_MASS;
 
