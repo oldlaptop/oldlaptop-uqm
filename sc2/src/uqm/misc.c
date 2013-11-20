@@ -154,7 +154,7 @@ spawn_rubble (ELEMENT *AsteroidElementPtr)
 /* The original contents of asteroid_preprocess, which both the normal
  * preprocess_func and the 'chasing' preprocess_func need to execute.
  */
-static inline void
+void
 spin_asteroid (ELEMENT *ElementPtr)
 {
 	if (ElementPtr->turn_wait > 0)

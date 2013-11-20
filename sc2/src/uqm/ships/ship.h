@@ -32,6 +32,16 @@
 #include "uqm/weapon.h"
 #include "uqm/ship.h"
 
+static inline void
+clearGraphicsHack (FRAME farray[])
+{
+	DestroyDrawable(ReleaseDrawable(farray[0]));
+	farray[0] = (FRAME)0;
+	DestroyDrawable(ReleaseDrawable(farray[1]));
+	farray[1] = (FRAME)0;
+	DestroyDrawable(ReleaseDrawable(farray[2]));
+	farray[2] = (FRAME)0;
+}
 
 #endif  /* _SHIP_H */
 

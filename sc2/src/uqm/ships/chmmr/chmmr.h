@@ -23,6 +23,9 @@ extern "C" {
 
 RACE_DESC *init_chmmr (void);
 
+extern void spawn_satellite (ELEMENT *ElementPtr, COUNT hit_point, COUNT angle,
+			BYTE offset, FRAME farray[]);
+
 #if defined(__cplusplus)
 }
 #endif

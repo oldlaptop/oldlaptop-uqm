@@ -730,9 +730,11 @@ satellite_death (ELEMENT *ElementPtr)
 
 /* Following three funcs mostly copied from original Crazy Mod, with formatting
  * changes (uqm-indent and removal of commented-out code), as well as the usual
- * STARSHIPPTR -> STARSHIP * type changes.
+ * STARSHIPPTR -> STARSHIP * type changes. TODO: move spawn_satellite out of
+ * chmmr.c as it is now used by other ships.
  */
 //BEGIN copied from original
+
 void
 spawn_satellite (ELEMENT *ElementPtr, COUNT hit_points, COUNT angle,
 		BYTE offset, FRAME farray[])
@@ -785,7 +787,7 @@ spawn_satellite (ELEMENT *ElementPtr, COUNT hit_points, COUNT angle,
 
 static void
 spawn_satellites (ELEMENT *ElementPtr, COUNT num_satellites,
-		COUNT part_of_circle, COUNT hit_points, BYTE offset, FRAME farray[])
+		COUNT part_of_circle, COUNT hit_points, COUNT offset, FRAME farray[])
 {
 	COUNT i;
 	STARSHIP *StarShipPtr;
@@ -808,7 +810,6 @@ spawn_satellites (ELEMENT *ElementPtr, COUNT num_satellites,
 static void
 spawn_chmmr_satellites (ELEMENT *ElementPtr)
 {
-#define NUM_SATELLITES 9
 	STARSHIP *StarShipPtr;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);

@@ -24,6 +24,7 @@
 #include "uqm/globdata.h"
 #include "uqm/tactrans.h"
 #include "libs/mathlib.h"
+#include "libs/log.h"
 
 // Core characteristics
 #define MAX_CREW 144
@@ -176,72 +177,6 @@ initialize_standard_missile (ELEMENT *ShipPtr, HELEMENT MissileArray[])
 }
 
 static void self_destruct (ELEMENT* ElementPtr);
-
-void
-thrust_hack (ELEMENT *ElementPtr, COUNT thrust_increment, COUNT max_thrust, BOOLEAN ion_trail)
-{
-	STARSHIP *StarShipPtr;
-
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-
-	//major hack!
-	if(ion_trail)
-	{
-		extern void spawn_ion_trail (ELEMENT *ElementPtr);
-
-		ElementPtr->state_flags |= PLAYER_SHIP;
-		spawn_ion_trail (ElementPtr);
-		ElementPtr->state_flags &= ~PLAYER_SHIP;
-	}
-
-	//major hack!
-	{
-		COUNT orig_facing;
-		COUNT orig_max_thrust, orig_thrust_increment;
-		DWORD current_speed, max_speed;
-		ELEMENT_FLAGS orig_flags;
-		SIZE dx, dy;
-
-		orig_facing = StarShipPtr->ShipFacing;
-		orig_flags = StarShipPtr->cur_status_flags;
-		orig_thrust_increment =
-				StarShipPtr->RaceDescPtr->characteristics.thrust_increment;
-		orig_max_thrust =
-				StarShipPtr->RaceDescPtr->characteristics.max_thrust;
-
-		GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
-		max_speed = VelocitySquared (WORLD_TO_VELOCITY (max_thrust), 0);
-		current_speed = VelocitySquared (dx, dy);
-
-		if (current_speed == max_speed)
-			StarShipPtr->cur_status_flags |= SHIP_AT_MAX_SPEED;
-		else
-			StarShipPtr->cur_status_flags &= ~SHIP_AT_MAX_SPEED;
-		if (current_speed > max_speed)
-			StarShipPtr->cur_status_flags |= SHIP_BEYOND_MAX_SPEED;
-		else
-			StarShipPtr->cur_status_flags &= ~SHIP_BEYOND_MAX_SPEED;
-		if (CalculateGravity (ElementPtr))
-			StarShipPtr->cur_status_flags |= SHIP_IN_GRAVITY_WELL;
-		else
-			StarShipPtr->cur_status_flags &= ~SHIP_IN_GRAVITY_WELL;
-
-		StarShipPtr->ShipFacing =
-				GetFrameIndex (ElementPtr->current.image.frame);
-		StarShipPtr->RaceDescPtr->characteristics.max_thrust = max_thrust;
-		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
-				thrust_increment;
-
-		inertial_thrust (ElementPtr);
-
-		StarShipPtr->ShipFacing = orig_facing;
-		StarShipPtr->cur_status_flags = orig_flags;
-		StarShipPtr->RaceDescPtr->characteristics.max_thrust =
-				orig_max_thrust;
-		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
-				orig_thrust_increment;
-	}
-}
 
 static void
 shofixti_fighter_preprocess (ELEMENT *ElementPtr)
@@ -709,19 +644,8 @@ shofixti_preprocess (ELEMENT * ElementPtr)
 	}
 }
 
-void
-clearGraphicsHack (FRAME farray[])
-{
-	DestroyDrawable(ReleaseDrawable(farray[0]));
-	farray[0] = (FRAME)0;
-	DestroyDrawable(ReleaseDrawable(farray[1]));
-	farray[1] = (FRAME)0;
-	DestroyDrawable(ReleaseDrawable(farray[2]));
-	farray[2] = (FRAME)0;
-}
-
 static void
-shofixti_dispose_graphics (RACE_DESC *RaceDescPtr)
+shofixti_dispose_graphicshack (RACE_DESC *RaceDescPtr)
 {
 	--shofixties_present;
 
@@ -733,7 +657,7 @@ shofixti_dispose_graphics (RACE_DESC *RaceDescPtr)
 	(void) RaceDescPtr; /* Satisfying compiler (unused parameter) */
 }
 
-BOOLEAN
+static inline BOOLEAN
 init_carrierhack (void)
 {
 	return load_animation (&sis_ship_farray,
@@ -749,13 +673,14 @@ init_shofixti (void)
 	// The caller of this func will copy the struct
 	static RACE_DESC new_shofixti_desc;
 
-	init_carrierhack ();
+	if (!init_carrierhack ())
+		log_add (log_Error, "ERROR: shofixti.c: could not load sis graphics");
 
 	shofixti_desc.preprocess_func = shofixti_preprocess;
 	shofixti_desc.postprocess_func = shofixti_postprocess;
 	shofixti_desc.init_weapon_func = initialize_standard_missile;
 	shofixti_desc.cyborg_control.intelligence_func = shofixti_intelligence;
-	shofixti_desc.uninit_func = shofixti_dispose_graphics;
+	shofixti_desc.uninit_func = shofixti_dispose_graphicshack;
 
 	new_shofixti_desc = shofixti_desc;
 	if (LOBYTE (GLOBAL (CurrentActivity)) == IN_ENCOUNTER

@@ -136,6 +136,7 @@ static RACE_DESC pkunk_desc =
 	0, /* CodeRef */
 };
 
+static COUNT pkunk_present = 0;
 static FRAME tongue_data_farray[NUM_VIEWS];
 
 // Private per-instance ship data
@@ -592,6 +593,7 @@ pkunk_preprocess (ELEMENT *ElementPtr)
 	PkunkData = GetCustomShipData (StarShipPtr->RaceDescPtr);
 	if (ElementPtr->state_flags & APPEARING)
 	{
+		++pkunk_present;
 		ElementPtr->collision_func = less_planet_damage_collision;
 
 		HELEMENT hPhoenix = 0;
@@ -724,9 +726,23 @@ pkunk_postprocess (ELEMENT *ElementPtr)
 }
 
 static void
+pkunk_dispose_graphicshack (RACE_DESC *RaceDescPtr)
+{
+	--pkunk_present;
+
+	if(!pkunk_present)
+	{
+		clearGraphicsHack(tongue_data_farray);
+	}
+
+	(void) RaceDescPtr; /* Satisfying compiler (unused parameter) */
+}
+
+static void
 uninit_pkunk (RACE_DESC *pRaceDesc)
 {
 	SetCustomShipData (pRaceDesc, NULL);
+	pkunk_dispose_graphicshack(pRaceDesc);
 }
 
 static inline BOOLEAN
@@ -765,7 +781,7 @@ init_pkunk (void)
 			// game before playing against a networked opponent.
 
 	if (!init_tongue ())
-		log_add (log_Error, "ERROR: pkunk.c:744: could not load ZFP tongue");
+		log_add (log_Error, "ERROR: pkunk.c: could not load ZFP tongue");
 
 	return (RaceDescPtr);
 }

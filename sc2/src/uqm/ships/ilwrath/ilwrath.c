@@ -418,6 +418,7 @@ ilwrath_postprocess (ELEMENT *ElementPtr)
 static inline BOOLEAN
 ilwrath_trying_to_decloak (ELEMENT *ElementPtr)
 {
+	(void) ElementPtr;
 	return FALSE;
 }
 static inline BOOLEAN

@@ -37,6 +37,8 @@ extern void less_planet_damage_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 		ELEMENT *ElementPtr1, POINT *pPt1);
 
 extern STATUS_FLAGS inertial_thrust (ELEMENT *ElementPtr);
+extern void thrust_hack (ELEMENT *ElementPtr, COUNT thrust_increment,
+			 COUNT max_thrust, BOOLEAN ion_trail);
 
 #if defined(__cplusplus)
 }

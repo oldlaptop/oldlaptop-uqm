@@ -300,7 +300,8 @@ spathi_intelligence (ELEMENT *ShipPtr, EVALUATE_DESC *ObjectsOfConcern,
 	}
 }
 
-MISSILE_BLOCK setup_for_one_primary_shot(ELEMENT *ShipPtr)
+static MISSILE_BLOCK
+setup_for_one_primary_shot(ELEMENT *ShipPtr)
 {
 #define SPATHI_FORWARD_OFFSET 16
 #define MISSILE_HITS 3 //1

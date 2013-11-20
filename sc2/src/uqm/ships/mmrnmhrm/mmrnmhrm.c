@@ -283,9 +283,6 @@ mmrnmhrm_asteroid_collision (ELEMENT *ElementPtr0, POINT *pPt0, ELEMENT *Element
 	}
 }
 
-extern void spin_asteroid (ELEMENT *ElementPtr);
-extern void asteroid_preprocess (ELEMENT *ElementPtr);
-
 static void
 mmrnmhrm_asteroid_preprocess (ELEMENT *ElementPtr)
 {

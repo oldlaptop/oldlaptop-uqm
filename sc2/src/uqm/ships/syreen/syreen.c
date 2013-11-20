@@ -20,9 +20,11 @@
 #include "syreen.h"
 #include "resinst.h"
 #include "../androsyn/resinst.h"
+#include "../chmmr/chmmr.h"
 #include "../chmmr/resinst.h"
 
 #include "libs/mathlib.h"
+#include "libs/log.h"
 #include "uqm/globdata.h"
 
 // Core characteristics
@@ -573,27 +575,33 @@ syreen_preprocess (ELEMENT *ElementPtr)
 
 	if (ElementPtr->state_flags & APPEARING)
 	{
-		load_animation (blazer_graphics_hack,
-				BLAZER_BIG_MASK_PMAP_ANIM,
-				BLAZER_MED_MASK_PMAP_ANIM,
-				BLAZER_SML_MASK_PMAP_ANIM);
-		load_animation (zapSatGraphicsHack,
-				SATELLITE_BIG_MASK_PMAP_ANIM,
-				SATELLITE_MED_MASK_PMAP_ANIM,
-				SATELLITE_SML_MASK_PMAP_ANIM);
-
 		++syreen_present;
 
 		spawn_mace(ElementPtr);
-
-		extern void spawn_satellite (ELEMENT *ElementPtr, COUNT hit_points, COUNT angle, BYTE offset, FRAME farray[]);
-
 		spawn_satellite(ElementPtr, 10000, 0, 64, zapSatGraphicsHack);
 	}
 }
 
+static inline BOOLEAN
+init_zapsat (void)
+{
+	return load_animation (zapSatGraphicsHack,
+			SATELLITE_BIG_MASK_PMAP_ANIM,
+			SATELLITE_MED_MASK_PMAP_ANIM,
+			SATELLITE_SML_MASK_PMAP_ANIM);
+}
+
+static inline BOOLEAN
+init_blazer (void)
+{
+	return load_animation (blazer_graphics_hack,
+			BLAZER_BIG_MASK_PMAP_ANIM,
+			BLAZER_MED_MASK_PMAP_ANIM,
+			BLAZER_SML_MASK_PMAP_ANIM);
+}
+
 static void
-syreen_dispose_graphics (RACE_DESC *RaceDescPtr)
+syreen_dispose_graphicshack (RACE_DESC *RaceDescPtr)
 {
 	--syreen_present;
 
@@ -621,11 +629,16 @@ init_syreen (void)
 {
 	RACE_DESC *RaceDescPtr;
 
+	if (!init_zapsat ())
+		log_add (log_Error, "ERROR: syreen.c: could not load zapsat graphics");
+	if (!init_blazer ())
+		log_add (log_Error, "ERROR: syreen.c: could not load blazer graphics");
+
 	syreen_desc.preprocess_func = syreen_preprocess;
 	syreen_desc.postprocess_func = syreen_postprocess;
 	syreen_desc.init_weapon_func = initialize_homing_laser;
 	syreen_desc.cyborg_control.intelligence_func = syreen_intelligence;
-	syreen_desc.uninit_func = syreen_dispose_graphics;
+	syreen_desc.uninit_func = syreen_dispose_graphicshack;
 
 	RaceDescPtr = &syreen_desc;
 

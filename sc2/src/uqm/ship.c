@@ -150,6 +150,71 @@ inertial_thrust (ELEMENT *ElementPtr)
 	}
 }
 
+/* TODO: 'major hack!' is right, merge this into the codebase properly */
+void
+thrust_hack (ELEMENT *ElementPtr, COUNT thrust_increment, COUNT max_thrust, BOOLEAN ion_trail)
+{
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	//major hack!
+	if(ion_trail)
+	{
+		ElementPtr->state_flags |= PLAYER_SHIP;
+		spawn_ion_trail (ElementPtr);
+		ElementPtr->state_flags &= ~PLAYER_SHIP;
+	}
+
+	//major hack!
+	{
+		COUNT orig_facing;
+		COUNT orig_max_thrust, orig_thrust_increment;
+		DWORD current_speed, max_speed;
+		ELEMENT_FLAGS orig_flags;
+		SIZE dx, dy;
+
+		orig_facing = StarShipPtr->ShipFacing;
+		orig_flags = StarShipPtr->cur_status_flags;
+		orig_thrust_increment =
+				StarShipPtr->RaceDescPtr->characteristics.thrust_increment;
+		orig_max_thrust =
+				StarShipPtr->RaceDescPtr->characteristics.max_thrust;
+
+		GetCurrentVelocityComponents (&ElementPtr->velocity, &dx, &dy);
+		max_speed = VelocitySquared (WORLD_TO_VELOCITY (max_thrust), 0);
+		current_speed = VelocitySquared (dx, dy);
+
+		if (current_speed == max_speed)
+			StarShipPtr->cur_status_flags |= SHIP_AT_MAX_SPEED;
+		else
+			StarShipPtr->cur_status_flags &= ~SHIP_AT_MAX_SPEED;
+		if (current_speed > max_speed)
+			StarShipPtr->cur_status_flags |= SHIP_BEYOND_MAX_SPEED;
+		else
+			StarShipPtr->cur_status_flags &= ~SHIP_BEYOND_MAX_SPEED;
+		if (CalculateGravity (ElementPtr))
+			StarShipPtr->cur_status_flags |= SHIP_IN_GRAVITY_WELL;
+		else
+			StarShipPtr->cur_status_flags &= ~SHIP_IN_GRAVITY_WELL;
+
+		StarShipPtr->ShipFacing =
+				GetFrameIndex (ElementPtr->current.image.frame);
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust = max_thrust;
+		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
+				thrust_increment;
+
+		inertial_thrust (ElementPtr);
+
+		StarShipPtr->ShipFacing = orig_facing;
+		StarShipPtr->cur_status_flags = orig_flags;
+		StarShipPtr->RaceDescPtr->characteristics.max_thrust =
+				orig_max_thrust;
+		StarShipPtr->RaceDescPtr->characteristics.thrust_increment =
+				orig_thrust_increment;
+	}
+}
+
 void
 ship_preprocess (ELEMENT *ElementPtr)
 {

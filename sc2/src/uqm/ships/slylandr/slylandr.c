@@ -207,7 +207,7 @@ spawn_slylandro_rubble (ELEMENT *AsteroidElementPtr)
  * to position the new asteroid at the Slylando ship rather than a random
  * location.
  */
-void
+static void
 spawn_slylandro_asteroid (ELEMENT *ElementPtr)
 {
 	HELEMENT hAsteroidElement;
@@ -413,13 +413,12 @@ slylandro_preprocess (ELEMENT *ElementPtr)
 }
 
 static void
-slylandro_dispose_graphics (RACE_DESC *RaceDescPtr)
+slylandro_dispose_graphicshack (RACE_DESC *RaceDescPtr)
 {
 	--slylandroes_present;
 
 	if(!slylandroes_present)
 	{
-		extern void clearGraphicsHack(FRAME farray[]);
 		clearGraphicsHack(RaceDescPtr->ship_data.weapon);
 	}
 }
@@ -433,7 +432,7 @@ init_slylandro (void)
 	slylandro_desc.postprocess_func = slylandro_postprocess;
 	slylandro_desc.init_weapon_func = initialize_nukes;
 	slylandro_desc.cyborg_control.intelligence_func = slylandro_intelligence;
-	slylandro_desc.uninit_func = slylandro_dispose_graphics;
+	slylandro_desc.uninit_func = slylandro_dispose_graphicshack;
 
 	RaceDescPtr = &slylandro_desc;
 
