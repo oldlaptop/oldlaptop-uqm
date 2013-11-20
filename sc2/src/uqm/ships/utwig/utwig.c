@@ -25,7 +25,8 @@
 
 // Core characteristics
 #define MAX_CREW 20
-#define MAX_ENERGY 20
+#define MAX_ENERGY MAX_ENERGY_SIZE
+#define STARTING_ENERGY MAX_ENERGY
 #define ENERGY_REGENERATION 0
 #define ENERGY_WAIT 255
 #define MAX_THRUST 36
@@ -36,7 +37,7 @@
 
 // Weapon
 #define WEAPON_ENERGY_COST 0
-#define WEAPON_WAIT 7
+#define WEAPON_WAIT 2
 #define UTWIG_OFFSET 9
 #define MISSILE_SPEED DISPLAY_TO_WORLD (30)
 #define MISSILE_LIFE 10
@@ -54,14 +55,18 @@
 #define SPECIAL_ENERGY_COST 1
 #define SPECIAL_WAIT 12
 
+/* Uncomment to turn shield energy absorption back on
+#define SHIELD_ABSORBS
+ */
+
 static RACE_DESC utwig_desc =
 {
 	{ /* SHIP_INFO */
 		"jugger",
 		FIRES_FORE | POINT_DEFENSE | SHIELD_DEFENSE,
-		22, /* Super Melee cost */
+		27, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
-		MAX_ENERGY >> 1, MAX_ENERGY,
+		STARTING_ENERGY, MAX_ENERGY,
 		UTWIG_RACE_STRINGS,
 		UTWIG_ICON_MASK_PMAP_ANIM,
 		UTWIG_MICON_MASK_PMAP_ANIM,
@@ -264,12 +269,21 @@ static void
 utwig_collision (ELEMENT *ElementPtr0, POINT *pPt0,
 		ELEMENT *ElementPtr1, POINT *pPt1)
 {
-	if (ElementPtr0->life_span > NORMAL_LIFE
-			&& (ElementPtr1->state_flags & FINITE_LIFE)
-			&& ElementPtr1->mass_points)
-		ElementPtr0->life_span += ElementPtr1->mass_points;
-
-	collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+	if (ElementPtr0->life_span > NORMAL_LIFE) // we are shielded
+	{
+		if ((ElementPtr1->state_flags & FINITE_LIFE)
+			&& ElementPtr1->mass_points) /* we have been hit by a
+		                                      * weapon */
+		{
+			ElementPtr0->life_span += ElementPtr1->mass_points;
+		}
+		else if (GRAVITY_MASS (ElementPtr1->mass_points)) //it is a planet
+		{
+			ElementPtr0->state_flags |= COLLISION; //collision without damage
+		}
+	}
+	else
+		collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
 }
 
 static void
@@ -286,9 +300,10 @@ utwig_preprocess (ELEMENT *ElementPtr)
 	GetElementStarShip (ElementPtr, &StarShipPtr);
 	if (ElementPtr->life_span > (NORMAL_LIFE + 1))
 	{
+#ifdef SHIELD_ABSORBS
 		DeltaEnergy (ElementPtr,
 				ElementPtr->life_span - (NORMAL_LIFE + 1));
-
+#endif
 		ProcessSound (SetAbsSoundIndex (
 				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1),
 				ElementPtr);
