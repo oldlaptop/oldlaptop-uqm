@@ -27,46 +27,33 @@
 #define MAX_CREW 20
 #define MAX_ENERGY 40
 #define ENERGY_REGENERATION 1
-#define ENERGY_WAIT 8
+#define ENERGY_WAIT 2
 #define MAX_THRUST /* DISPLAY_TO_WORLD (5) */ 21
 #define THRUST_INCREMENT /* DISPLAY_TO_WORLD (2) */ 7
-#define THRUST_WAIT 4
-#define TURN_WAIT 6
+#define THRUST_WAIT 3
+#define TURN_WAIT 4
 #define SHIP_MASS 6
 
 // Laser
 #define WEAPON_ENERGY_COST 1
 #define WEAPON_WAIT 0
 #define VUX_OFFSET 12
-#define LASER_BASE 150
-#define LASER_RANGE DISPLAY_TO_WORLD (LASER_BASE + VUX_OFFSET)
+#define LASER_RANGE 1023 /* Nigh-infinite in practice */
 
-// Limpet
-#define SPECIAL_ENERGY_COST 2
-#define SPECIAL_WAIT 7
-#define LIMPET_SPEED 25
-#define LIMPET_OFFSET 8
-#define LIMPET_LIFE 80
-#define LIMPET_HITS 1
-#define LIMPET_DAMAGE 0
-#define MIN_THRUST_INCREMENT DISPLAY_TO_WORLD (1)
+// Repulsion
+#define SPECIAL_ENERGY_COST 5
+#define SPECIAL_WAIT 12
+#define REPULSION_LEVEL 50000L
 
-// Aggressive Entry
-#define WARP_OFFSET 46
-		/* How far outside of the laser range can the ship warp in. */
-#define MAXX_ENTRY_DIST DISPLAY_TO_WORLD ((LASER_BASE + VUX_OFFSET + WARP_OFFSET) << 1)
-#define MAXY_ENTRY_DIST DISPLAY_TO_WORLD ((LASER_BASE + VUX_OFFSET + WARP_OFFSET) << 1)
-		/* Originally, the warp distance was:
-		 * DISPLAY_TO_WORLD (SPACE_HEIGHT << 1)
-		 * where SPACE_HEIGHT = SCREEN_HEIGHT - (SAFE_Y * 2)
-		 * But in reality this should be relative to the laser-range. */
+// Distant Entry
+#define MIN_ARRIVAL_DISTANCE DISPLAY_TO_WORLD (700)
 
 static RACE_DESC vux_desc =
 {
 	{ /* SHIP_INFO */
 		"intruder",
 		FIRES_FORE | SEEKING_SPECIAL | IMMEDIATE_WEAPON,
-		12, /* Super Melee cost */
+		22, /* Super Melee cost */
 		MAX_CREW, MAX_CREW,
 		MAX_ENERGY, MAX_ENERGY,
 		VUX_RACE_STRINGS,
@@ -133,123 +120,40 @@ static RACE_DESC vux_desc =
 	0, /* CodeRef */
 };
 
+static COUNT initialize_horrific_laser (ELEMENT *ElementPtr, HELEMENT
+		LaserArray[]);
 
 static void
-limpet_preprocess (ELEMENT *ElementPtr)
+horrific_laser_postprocess (ELEMENT *ElementPtr)
 {
-	COUNT facing, orig_facing;
-	SIZE delta_facing;
-
-	facing = orig_facing = NORMALIZE_FACING (ANGLE_TO_FACING (
-			GetVelocityTravelAngle (&ElementPtr->velocity)
-			));
-	if ((delta_facing = TrackShip (ElementPtr, &facing)) > 0)
+	if (ElementPtr->turn_wait
+			&& !(ElementPtr->state_flags & COLLISION))
 	{
-		facing = orig_facing + delta_facing;
-		SetVelocityVector (&ElementPtr->velocity, LIMPET_SPEED, facing);
-	}
-	ElementPtr->next.image.frame =
-			 IncFrameIndex (ElementPtr->next.image.frame);
+		HELEMENT Laser;
 
-	ElementPtr->state_flags |= CHANGING;
+		initialize_horrific_laser (ElementPtr, &Laser);
+		if (Laser)
+			PutElement (Laser);
+	}
 }
 
 static void
-limpet_collision (ELEMENT *ElementPtr0, POINT *pPt0,
-		ELEMENT *ElementPtr1, POINT *pPt1)
+horrific_laser_collision (ELEMENT *ElementPtr0, POINT *pPt0, ELEMENT *ElementPtr1, POINT *pPt1)
 {
-	if (ElementPtr1->state_flags & PLAYER_SHIP)
-	{
-		STAMP s;
-		STARSHIP *StarShipPtr;
-		RACE_DESC *RDPtr;
-
-		GetElementStarShip (ElementPtr1, &StarShipPtr);
-		RDPtr = StarShipPtr->RaceDescPtr;
-
-		if (++RDPtr->characteristics.turn_wait == 0)
-			--RDPtr->characteristics.turn_wait;
-		if (++RDPtr->characteristics.thrust_wait == 0)
-			--RDPtr->characteristics.thrust_wait;
-		if (RDPtr->characteristics.thrust_increment <= MIN_THRUST_INCREMENT)
-		{
-			RDPtr->characteristics.max_thrust =
-					RDPtr->characteristics.thrust_increment << 1;
-		}
-		else
-		{
-			COUNT num_thrusts;
-
-			num_thrusts = RDPtr->characteristics.max_thrust /
-					RDPtr->characteristics.thrust_increment;
-			--RDPtr->characteristics.thrust_increment;
-			RDPtr->characteristics.max_thrust =
-					RDPtr->characteristics.thrust_increment * num_thrusts;
-		}
-		RDPtr->cyborg_control.ManeuverabilityIndex = 0;
-
-		GetElementStarShip (ElementPtr0, &StarShipPtr);
-		ProcessSound (SetAbsSoundIndex (
-						/* LIMPET_AFFIXES */
-				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 2), ElementPtr1);
-		s.frame = SetAbsFrameIndex (
-				StarShipPtr->RaceDescPtr->ship_data.weapon[0], (COUNT)TFB_Random ()
-				);
-		ModifySilhouette (ElementPtr1, &s, MODIFY_IMAGE);
-	}
-
-	ElementPtr0->hit_points = 0;
-	ElementPtr0->life_span = 0;
-	ElementPtr0->state_flags |= COLLISION | DISAPPEARING;
-
-	(void) pPt0;  /* Satisfying compiler (unused parameter) */
-	(void) pPt1;  /* Satisfying compiler (unused parameter) */
-}
-
-static void
-spawn_limpets (ELEMENT *ElementPtr)
-{
-	HELEMENT Limpet;
-	STARSHIP *StarShipPtr;
-	MISSILE_BLOCK MissileBlock;
-
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-	MissileBlock.farray = StarShipPtr->RaceDescPtr->ship_data.special;
-	MissileBlock.face = StarShipPtr->ShipFacing + HALF_CIRCLE;
-	MissileBlock.index = 0;
-	MissileBlock.sender = ElementPtr->playerNr;
-	MissileBlock.flags = IGNORE_SIMILAR;
-	MissileBlock.pixoffs = LIMPET_OFFSET;
-	MissileBlock.speed = LIMPET_SPEED;
-	MissileBlock.hit_points = LIMPET_HITS;
-	MissileBlock.damage = LIMPET_DAMAGE;
-	MissileBlock.life = LIMPET_LIFE;
-	MissileBlock.preprocess_func = limpet_preprocess;
-	MissileBlock.blast_offs = 0;
-
-	MissileBlock.cx = ElementPtr->next.location.x;
-	MissileBlock.cy = ElementPtr->next.location.y;
-	Limpet = initialize_missile (&MissileBlock);
-	if (Limpet)
-	{
-		ELEMENT *LimpetPtr;
-
-		LockElement (Limpet, &LimpetPtr);
-		LimpetPtr->collision_func = limpet_collision;
-		SetElementStarShip (LimpetPtr, StarShipPtr);
-		UnlockElement (Limpet);
-
-		PutElement (Limpet);
-	}
+	ElementPtr0->turn_wait = 0;
+	weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
 }
 
 static COUNT
 initialize_horrific_laser (ELEMENT *ShipPtr, HELEMENT LaserArray[])
 {
+	BOOLEAN isFirstSegment;
 	STARSHIP *StarShipPtr;
 	LASER_BLOCK LaserBlock;
 
 	GetElementStarShip (ShipPtr, &StarShipPtr);
+	isFirstSegment = (ShipPtr->state_flags & PLAYER_SHIP);
+
 	LaserBlock.face = StarShipPtr->ShipFacing;
 	LaserBlock.cx = ShipPtr->next.location.x;
 	LaserBlock.cy = ShipPtr->next.location.y;
@@ -257,9 +161,32 @@ initialize_horrific_laser (ELEMENT *ShipPtr, HELEMENT LaserArray[])
 	LaserBlock.ey = SINE (FACING_TO_ANGLE (LaserBlock.face), LASER_RANGE);
 	LaserBlock.sender = ShipPtr->playerNr;
 	LaserBlock.flags = IGNORE_SIMILAR;
-	LaserBlock.pixoffs = VUX_OFFSET;
+	LaserBlock.pixoffs = isFirstSegment ? VUX_OFFSET : 0;
 	LaserBlock.color = BUILD_COLOR (MAKE_RGB15 (0x0A, 0x1F, 0x0A), 0x0A);
 	LaserArray[0] = initialize_laser (&LaserBlock);
+
+	if(LaserArray[0])
+	{
+		ELEMENT *LaserPtr;
+		
+		LockElement(LaserArray[0], &LaserPtr);
+
+		SetElementStarShip (LaserPtr, StarShipPtr);
+		LaserPtr->postprocess_func = horrific_laser_postprocess;
+		LaserPtr->collision_func = horrific_laser_collision;
+		if(isFirstSegment)
+		{
+			if ((StarShipPtr->ShipFacing / 4) * 4 == StarShipPtr->ShipFacing)
+				LaserPtr->turn_wait = 8;
+			else LaserPtr->turn_wait = 200;
+		}
+		else
+		{
+			LaserPtr->turn_wait = ShipPtr->turn_wait - 1;
+		}
+
+		UnlockElement(LaserArray[0]);
+	}
 
 	return (1);
 }
@@ -300,28 +227,112 @@ vux_intelligence (ELEMENT *ShipPtr, EVALUATE_DESC *ObjectsOfConcern,
 		StarShipPtr->ship_input_state &= ~SPECIAL;
 }
 
+//because everyone knows VUX are REPULSIVE! HA HA HA HA HA! - EP
 static void
-vux_postprocess (ELEMENT *ElementPtr)
+repel (ELEMENT *ElementPtr)
 {
-	STARSHIP *StarShipPtr;
-
-	GetElementStarShip (ElementPtr, &StarShipPtr);
-	if ((StarShipPtr->cur_status_flags & SPECIAL)
-			&& StarShipPtr->special_counter == 0
-			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	if (ElementPtr->state_flags & PLAYER_SHIP)
 	{
-		ProcessSound (SetAbsSoundIndex (
-						/* LAUNCH_LIMPET */
-				StarShipPtr->RaceDescPtr->ship_data.ship_sounds, 1), ElementPtr);
-		spawn_limpets (ElementPtr);
+		HELEMENT hRepulsion;
+		hRepulsion = AllocElement ();
+		if (hRepulsion)
+		{
+			ELEMENT *RePtr;
+			STARSHIP *StarShipPtr;
+			
+			LockElement (hRepulsion, &RePtr);
+			RePtr->playerNr = ElementPtr->playerNr;
+			RePtr->state_flags =
+					(FINITE_LIFE | NONSOLID | IGNORE_SIMILAR 
+					| APPEARING);
+			RePtr->life_span = 2;
+			RePtr->preprocess_func = repel;
+			
+			GetElementStarShip (ElementPtr, &StarShipPtr);
+			SetElementStarShip (RePtr, StarShipPtr);
+			
+			SetPrimType (&(GLOBAL (DisplayArray))[
+					RePtr->PrimIndex
+					], NO_PRIM);
+					
+			UnlockElement (hRepulsion);
+			PutElement (hRepulsion);
+		}
+	}
+	else
+	{
+		ELEMENT *ShipElementPtr;
+		STARSHIP *StarShipPtr;
+		ELEMENT *EnemyElementPtr;
+		HELEMENT hShip, hNextShip;
 
-		StarShipPtr->special_counter =
-				StarShipPtr->RaceDescPtr->characteristics.special_wait;
+		GetElementStarShip (ElementPtr, &StarShipPtr);
+		LockElement (StarShipPtr->hShip, &ShipElementPtr);
+	
+		for (hShip = GetHeadElement (); hShip != 0; hShip = hNextShip)
+		{
+			LockElement (hShip, &EnemyElementPtr);
+			hNextShip = GetSuccElement (EnemyElementPtr);
+			if (
+				!GRAVITY_MASS(EnemyElementPtr->mass_points)
+				&&
+				CollidingElement(EnemyElementPtr)
+				&&
+				!(EnemyElementPtr->state_flags & PLAYER_SHIP)
+			)
+			{
+				SIZE delta_x, delta_y;
+				delta_x = EnemyElementPtr->current.location.x -
+						ShipElementPtr->current.location.x;
+				delta_y = EnemyElementPtr->current.location.y -
+						ShipElementPtr->current.location.y;
+				delta_x = WRAP_DELTA_X (delta_x);
+				delta_y = WRAP_DELTA_Y (delta_y);
+
+				SIZE magnitude = square_root (((long)delta_x * delta_x) + ((long)delta_y * delta_y));
+
+				EnemyElementPtr->next.location.x += delta_x * REPULSION_LEVEL
+						/ magnitude / (magnitude + 300);
+				EnemyElementPtr->next.location.y += delta_y * REPULSION_LEVEL
+						/ magnitude / (magnitude + 300);
+			}
+			UnlockElement (hShip);
+		}
+		UnlockElement (StarShipPtr->hShip);
 	}
 }
 
 static void
 vux_preprocess (ELEMENT *ElementPtr)
+{
+	PRIMITIVE * lpPrim;
+	STARSHIP *StarShipPtr;
+
+	GetElementStarShip (ElementPtr, &StarShipPtr);
+
+	if ((StarShipPtr->cur_status_flags & SPECIAL)
+			&& StarShipPtr->special_counter == 0
+			&& DeltaEnergy (ElementPtr, -SPECIAL_ENERGY_COST))
+	{
+		StarShipPtr->special_counter = 
+				StarShipPtr->RaceDescPtr->characteristics.special_wait;
+	}
+
+	lpPrim = &(GLOBAL (DisplayArray))[ElementPtr->PrimIndex];
+	if(StarShipPtr->special_counter)
+	{	
+		repel(ElementPtr);
+		SetPrimColor (lpPrim, BUILD_COLOR (MAKE_RGB15 (TFB_Random()&7, TFB_Random()&31, TFB_Random()&7), 0));
+		SetPrimType (lpPrim, STAMPFILL_PRIM);
+	}
+	else
+	{
+		SetPrimType (lpPrim, STAMP_PRIM);
+	}
+}
+
+static void
+vux_arrival_preprocess (ELEMENT *ElementPtr)
 {
 	if (ElementPtr->state_flags & APPEARING)
 	{
@@ -333,6 +344,7 @@ vux_preprocess (ELEMENT *ElementPtr)
 		if (LOBYTE (GLOBAL (CurrentActivity)) != IN_ENCOUNTER
 				&& TrackShip (ElementPtr, &facing) >= 0)
 		{
+			SIZE distance;
 			ELEMENT *OtherShipPtr;
 
 			LockElement (ElementPtr->hTarget, &OtherShipPtr);
@@ -342,30 +354,25 @@ vux_preprocess (ELEMENT *ElementPtr)
 				SIZE dx, dy;
 
 				ElementPtr->current.location.x =
-						(OtherShipPtr->current.location.x -
-						(MAXX_ENTRY_DIST >> 1)) +
-						((COUNT)TFB_Random () % MAXX_ENTRY_DIST);
+						WRAP_X (DISPLAY_ALIGN_X (TFB_Random ()));
 				ElementPtr->current.location.y =
-						(OtherShipPtr->current.location.y -
-						(MAXY_ENTRY_DIST >> 1)) +
-						((COUNT)TFB_Random () % MAXY_ENTRY_DIST);
-				dx = OtherShipPtr->current.location.x -
-						ElementPtr->current.location.x;
-				dy = OtherShipPtr->current.location.y -
-						ElementPtr->current.location.y;
+						WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
+
+				dx = WRAP_DELTA_X(OtherShipPtr->current.location.x -
+						ElementPtr->current.location.x);
+				dy = WRAP_DELTA_Y(OtherShipPtr->current.location.y -
+						ElementPtr->current.location.y);
+				distance = square_root (dx*dx + dy*dy);
+
 				facing = NORMALIZE_FACING (
-						ANGLE_TO_FACING (ARCTAN (dx, dy))
+						ANGLE_TO_FACING (ARCTAN (-dx, -dy))
 						);
 				ElementPtr->current.image.frame =
 						SetAbsFrameIndex (ElementPtr->current.image.frame,
 						facing);
-
-				ElementPtr->current.location.x =
-						WRAP_X (DISPLAY_ALIGN (ElementPtr->current.location.x));
-				ElementPtr->current.location.y =
-						WRAP_Y (DISPLAY_ALIGN (ElementPtr->current.location.y));
 			} while (CalculateGravity (ElementPtr)
-					|| TimeSpaceMatterConflict (ElementPtr));
+					|| TimeSpaceMatterConflict (ElementPtr)
+					|| (distance < MIN_ARRIVAL_DISTANCE));
 
 			UnlockElement (ElementPtr->hTarget);
 			ElementPtr->hTarget = 0;
@@ -378,7 +385,7 @@ vux_preprocess (ELEMENT *ElementPtr)
 			StarShipPtr->ShipFacing = facing;
 		}
 
-		StarShipPtr->RaceDescPtr->preprocess_func = 0;
+		StarShipPtr->RaceDescPtr->preprocess_func = vux_preprocess;
 	}
 }
 
@@ -387,8 +394,8 @@ init_vux (void)
 {
 	RACE_DESC *RaceDescPtr;
 
-	vux_desc.preprocess_func = vux_preprocess;
-	vux_desc.postprocess_func = vux_postprocess;
+	vux_desc.preprocess_func = vux_arrival_preprocess;
+	vux_desc.postprocess_func = NULL;
 	vux_desc.init_weapon_func = initialize_horrific_laser;
 	vux_desc.cyborg_control.intelligence_func = vux_intelligence;
 
