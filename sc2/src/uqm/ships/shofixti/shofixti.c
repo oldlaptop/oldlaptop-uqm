@@ -259,6 +259,7 @@ spawn_shofixti_fighter (ELEMENT *ShipPtr)
 	 * scout will leave understaffed */
 	i = ShipPtr->crew_level > FIGHTER_HITS ? FIGHTER_HITS : (ShipPtr->crew_level - 1);
 	DeltaCrew(ShipPtr, -i);
+
 	MissileBlock.hit_points = i; //FIGHTER_HITS;
 
 	MissileBlock.cx = ShipPtr->next.location.x;
@@ -507,7 +508,7 @@ self_destruct (ELEMENT *ElementPtr)
 	}
 
 	// Must kill off the remaining crew ourselves
-	DeltaCrew (ElementPtr, -(int)ElementPtr->crew_level);
+	ElementPtr->crew_level = 0;
 
 	// The ship is now dead. It's death_func, i.e. shofixti_destruct_death(),
 	// will be called the next frame.
