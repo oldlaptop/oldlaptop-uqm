@@ -34,16 +34,16 @@
 #define MAX_THRUST 20
 #define THRUST_INCREMENT 5
 #define THRUST_WAIT 1
-#define TURN_WAIT 2
+#define TURN_WAIT 1 /* Actually turns quite slowly (64-angle turning!) */
 
 // Y-Wing characteristics
 #define YWING_ENERGY_REGENERATION 1
 #define YWING_SPECIAL_ENERGY_COST MAX_ENERGY
 #define YWING_ENERGY_WAIT 6
-#define YWING_MAX_THRUST 50
-#define YWING_THRUST_INCREMENT 10
+#define YWING_MAX_THRUST 80
+#define YWING_THRUST_INCREMENT 15
 #define YWING_THRUST_WAIT 0
-#define YWING_TURN_WAIT 14
+#define YWING_TURN_WAIT 1
 
 // X-Wing Lasers
 #define WEAPON_ENERGY_COST 1
@@ -264,20 +264,22 @@ static void
 mmrnmhrm_asteroid_collision (ELEMENT *ElementPtr0, POINT *pPt0, ELEMENT *ElementPtr1, POINT *pPt1)
 {
 	//if it's an asteroid
-	if((!(ElementPtr1->state_flags
-			& (APPEARING | GOOD_GUY | BAD_GUY
-			| PLAYER_SHIP | FINITE_LIFE))
+	if ((!(ElementPtr1->state_flags
+			& (APPEARING | PLAYER_SHIP | FINITE_LIFE))
 			&& !GRAVITY_MASS (ElementPtr1->mass_points)
+			&& ElementPtr1->playerNr == NEUTRAL_PLAYER_NUM
 			&& CollisionPossible (ElementPtr1, ElementPtr0)))
 	{
 		//pass right through it
 	}
-	else weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
-	if(ElementPtr0->state_flags & DISAPPEARING)
+	else
+		weapon_collision (ElementPtr0, pPt0, ElementPtr1, pPt1);
+
+	if (ElementPtr0->state_flags & DISAPPEARING)
 	{
 		ElementPtr0->state_flags &= ~DISAPPEARING;
 	}
-	if(GRAVITY_MASS(ElementPtr1->mass_points))
+	if (GRAVITY_MASS (ElementPtr1->mass_points))
 	{
 		ElementPtr0->crew_level = 0;
 	}
@@ -291,7 +293,7 @@ mmrnmhrm_asteroid_preprocess (ELEMENT *ElementPtr)
 
 	old_turn_wait = ElementPtr->turn_wait;
 	ElementPtr->turn_wait = 0;
-	spin_asteroid(ElementPtr);
+	spin_asteroid (ElementPtr);
 	ElementPtr->turn_wait = old_turn_wait;
 	
 	--ElementPtr->turn_wait;
@@ -305,7 +307,7 @@ mmrnmhrm_asteroid_preprocess (ELEMENT *ElementPtr)
 		ElementPtr->pParent = NULL;
 		ElementPtr->collision_func = collision;
 		ElementPtr->preprocess_func = asteroid_preprocess;
-		ElementPtr->state_flags &= ~(GOOD_GUY | BAD_GUY | IGNORE_SIMILAR | PERSISTENT);
+		ElementPtr->state_flags &= ~(IGNORE_SIMILAR | PERSISTENT);
 	}
 }
 
@@ -410,10 +412,9 @@ tractor_asteroids (ELEMENT * ElementPtr)
 		LockElement (hElement, &AsteroidElementPtr);
 		hNextElement = GetSuccElement (AsteroidElementPtr);
 
-		if (!(AsteroidElementPtr->state_flags
-						& (APPEARING | GOOD_GUY | BAD_GUY
-								| PLAYER_SHIP | FINITE_LIFE))
+		if (!(AsteroidElementPtr->state_flags & (APPEARING | PLAYER_SHIP | FINITE_LIFE))
 				&& !GRAVITY_MASS (AsteroidElementPtr->mass_points)
+				&& AsteroidElementPtr->playerNr == NEUTRAL_PLAYER_NUM
 				&& CollisionPossible (AsteroidElementPtr, ElementPtr))
 		{
 			SIZE i, dx, dy;
@@ -466,8 +467,8 @@ tractor_asteroids (ELEMENT * ElementPtr)
 
 					ShadowElementPtr->state_flags =
 							FINITE_LIFE | NONSOLID | IGNORE_SIMILAR |
-							POST_PROCESS | (AsteroidElementPtr->
-							state_flags & (GOOD_GUY | BAD_GUY));
+							POST_PROCESS;
+					ShadowElementPtr->playerNr = AsteroidElementPtr->playerNr;
 					ShadowElementPtr->life_span = 1;
 
 					ShadowElementPtr->current = AsteroidElementPtr->next;
@@ -604,7 +605,7 @@ xform_preprocess (ELEMENT *ElementPtr)
 	if (ElementPtr->collision_func != xform_collision)
 		ElementPtr->collision_func = xform_collision;
 
-		if(ElementPtr->turn_wait)
+	if(ElementPtr->turn_wait)
 		--ElementPtr->turn_wait;
 	else
 	{
@@ -655,12 +656,11 @@ xform_preprocess (ELEMENT *ElementPtr)
 	++StarShipPtr->weapon_counter;
 }
 
-static void
+static inline void
 yform_preprocess (ELEMENT *ElementPtr)
 {
-	/* We don't actually need to do anything here yet, kept for future
-	 * expansion */
-	(void) (ElementPtr);
+	if (ElementPtr->collision_func != collision)
+		ElementPtr->collision_func = collision;
 }
 
 static void
