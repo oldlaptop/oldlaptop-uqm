@@ -494,9 +494,13 @@ ProcessCollisions (HELEMENT hSuccElement, ELEMENT *ElementPtr,
 								STARSHIP *StarShipPtr;
 
 								GetElementStarShip (ElementPtr, &StarShipPtr);
-								StarShipPtr->ShipFacing =
-										GetFrameIndex (
-										ElementPtr->next.image.frame);
+								if (!(StarShipPtr->SpeciesID == MMRNMHRM_ID
+									|| StarShipPtr->SpeciesID == SLYLANDRO_ID))
+								{
+									StarShipPtr->ShipFacing =
+											GetFrameIndex (
+											ElementPtr->next.image.frame);
+								}
 							}
 
 							InitIntersectStartPoint (TestElementPtr);
@@ -507,9 +511,13 @@ ProcessCollisions (HELEMENT hSuccElement, ELEMENT *ElementPtr,
 								STARSHIP *StarShipPtr;
 
 								GetElementStarShip (TestElementPtr, &StarShipPtr);
-								StarShipPtr->ShipFacing =
-										GetFrameIndex (
-										TestElementPtr->next.image.frame);
+								if (!(StarShipPtr->SpeciesID == MMRNMHRM_ID
+									|| StarShipPtr->SpeciesID == SLYLANDRO_ID))
+								{
+									StarShipPtr->ShipFacing =
+											GetFrameIndex (
+											TestElementPtr->next.image.frame);
+								}
 							}
 						}
 					}
