@@ -593,10 +593,10 @@ pkunk_preprocess (ELEMENT *ElementPtr)
 	PkunkData = GetCustomShipData (StarShipPtr->RaceDescPtr);
 	if (ElementPtr->state_flags & APPEARING)
 	{
+		HELEMENT hPhoenix = 0;
+
 		++pkunk_present;
 		ElementPtr->collision_func = less_planet_damage_collision;
-
-		HELEMENT hPhoenix = 0;
 
 		if (TFB_Random () & 1)
 			hPhoenix = AllocElement ();

@@ -282,6 +282,7 @@ repel (ELEMENT *ElementPtr)
 			)
 			{
 				SIZE delta_x, delta_y;
+				SIZE magnitude;
 				delta_x = EnemyElementPtr->current.location.x -
 						ShipElementPtr->current.location.x;
 				delta_y = EnemyElementPtr->current.location.y -
@@ -289,7 +290,7 @@ repel (ELEMENT *ElementPtr)
 				delta_x = WRAP_DELTA_X (delta_x);
 				delta_y = WRAP_DELTA_Y (delta_y);
 
-				SIZE magnitude = square_root (((long)delta_x * delta_x) + ((long)delta_y * delta_y));
+				magnitude = square_root (((long)delta_x * delta_x) + ((long)delta_y * delta_y));
 
 				EnemyElementPtr->next.location.x += delta_x * REPULSION_LEVEL
 						/ magnitude / (magnitude + 300);

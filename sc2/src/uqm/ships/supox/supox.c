@@ -239,13 +239,11 @@ spawn_supox_trail (ELEMENT *ElementPtr)
 	hIonElement = AllocElement ();
 	if (hIonElement)
 	{
-		COUNT angle;
 		RECT r;
 		ELEMENT *IonElementPtr;
 		STARSHIP *StarShipPtr;
 
 		GetElementStarShip (ElementPtr, &StarShipPtr);
-		angle = FACING_TO_ANGLE (StarShipPtr->ShipFacing) + HALF_CIRCLE;
 		GetFrameRect (StarShipPtr->RaceDescPtr->ship_data.ship[0], &r);
 		r.extent.height = DISPLAY_TO_WORLD (r.extent.height + r.corner.y);
 

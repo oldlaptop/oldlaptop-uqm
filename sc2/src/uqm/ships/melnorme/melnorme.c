@@ -139,12 +139,11 @@ starspray_preprocess (ELEMENT *ElementPtr)
 	else
 	{
 		COUNT facing;
+		SIZE speed;
 
 		facing = NORMALIZE_FACING (ANGLE_TO_FACING (
 				GetVelocityTravelAngle (&ElementPtr->velocity)
 				));
-
-		SIZE speed;
 
 		if (max_turn_wait == 1)
 			speed = DISPLAY_TO_WORLD (20);

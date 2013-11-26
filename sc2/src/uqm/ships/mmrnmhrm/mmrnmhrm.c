@@ -22,6 +22,7 @@
 
 #include "uqm/colors.h"
 #include "uqm/globdata.h"
+#include "uqm/tactrans.h"
 
 // Core characteristics
 #define MAX_CREW 20
@@ -632,23 +633,23 @@ xform_preprocess (ELEMENT *ElementPtr)
 		COUNT real_facing = StarShipPtr->ShipFacing;
 		StarShipPtr->ShipFacing = NORMALIZE_FACING((StarShipPtr->ShipFacing + 2) / 4);
 
-		//stolen from ship.c:
-		UWORD thrust_status;
+		{
+			//stolen from ship.c:
+			UWORD thrust_status;
 
-		thrust_status = inertial_thrust (ElementPtr);
-		StarShipPtr->cur_status_flags &=
-				~(SHIP_AT_MAX_SPEED
-				| SHIP_BEYOND_MAX_SPEED
-				| SHIP_IN_GRAVITY_WELL);
-		StarShipPtr->cur_status_flags |= thrust_status;
+			thrust_status = inertial_thrust (ElementPtr);
+			StarShipPtr->cur_status_flags &=
+					~(SHIP_AT_MAX_SPEED
+					| SHIP_BEYOND_MAX_SPEED
+					| SHIP_IN_GRAVITY_WELL);
+			StarShipPtr->cur_status_flags |= thrust_status;
 
-		ElementPtr->thrust_wait = StarShipPtr->RaceDescPtr->characteristics.thrust_wait;
+			ElementPtr->thrust_wait = StarShipPtr->RaceDescPtr->characteristics.thrust_wait;
 
-		extern void spawn_ion_trail (ELEMENT *ElementPtr);
+			spawn_ion_trail (ElementPtr);
+			//end copied code
+		}
 
-		spawn_ion_trail (ElementPtr);
-		//end copied code
-		
 		StarShipPtr->ShipFacing = real_facing;
 	}
 	++ElementPtr->turn_wait;

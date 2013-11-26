@@ -476,10 +476,9 @@ static void
 spawn_mace (ELEMENT *ElementPtr)
 {
 	STARSHIP *StarShipPtr;
+	HELEMENT hMace;
 
 	GetElementStarShip (ElementPtr, &StarShipPtr);
-
-	HELEMENT hMace;
 
 	hMace = AllocElement ();
 	if(hMace)
