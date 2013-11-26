@@ -108,7 +108,8 @@ spawn_planet (void)
 			PlanetElementPtr->current.location.y =
 					WRAP_Y (DISPLAY_ALIGN_Y (TFB_Random ()));
 		} while (CalculateGravity (PlanetElementPtr)
-				|| TimeSpaceMatterConflict (PlanetElementPtr));
+				|| TimeSpaceMatterConflict (PlanetElementPtr)
+				|| AtLeastOneShipIsPainfullyClose (PlanetElementPtr));
 		PlanetElementPtr->mass_points = 200;
 		UnlockElement (hPlanetElement);
 
@@ -217,7 +218,7 @@ asteroid_preprocess (ELEMENT *ElementPtr)
 	spin_asteroid (ElementPtr);
 
 	//Sometimes start chasing a player:
-	if(((COUNT)TFB_Random() % 3000) == 1)
+	if/*(((COUNT)TFB_Random() % 3000) == 1)*/ (0)
 	{
 		HELEMENT hShip, hNextShip;
 		ELEMENT *Victim;

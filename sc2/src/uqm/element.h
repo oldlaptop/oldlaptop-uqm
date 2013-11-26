@@ -231,6 +231,7 @@ extern void AbandonShip (ELEMENT *ShipPtr, ELEMENT *TargetPtr,
 		COUNT crew_loss);
 extern BOOLEAN find_pkunk (void);
 extern BOOLEAN TimeSpaceMatterConflict (ELEMENT *ElementPtr);
+extern BOOLEAN AtLeastOneShipIsPainfullyClose (ELEMENT *ElementPtr);
 extern COUNT PlotIntercept (ELEMENT *ElementPtr0,
 		ELEMENT *ElementPtr1, COUNT max_turns, COUNT margin_of_error);
 
