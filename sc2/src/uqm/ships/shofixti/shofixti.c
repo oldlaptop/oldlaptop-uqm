@@ -661,7 +661,7 @@ shofixti_dispose_graphicshack (RACE_DESC *RaceDescPtr)
 static inline BOOLEAN
 init_carrierhack (void)
 {
-	return load_animation (&sis_ship_farray,
+	return load_animation ((FRAME *)&sis_ship_farray,
 			SIS_BIG_MASK_PMAP_ANIM,
 			SIS_MED_MASK_PMAP_ANIM,
 			SIS_SML_MASK_PMAP_ANIM);

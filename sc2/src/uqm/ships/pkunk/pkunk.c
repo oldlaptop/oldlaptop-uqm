@@ -748,7 +748,7 @@ uninit_pkunk (RACE_DESC *pRaceDesc)
 static inline BOOLEAN
 init_tongue (void)
 {
-	return load_animation (&tongue_data_farray,
+	return load_animation ((FRAME *)&tongue_data_farray,
 			STINGER_BIG_MASK_PMAP_ANIM,
 			STINGER_MED_MASK_PMAP_ANIM,
 			STINGER_SML_MASK_PMAP_ANIM);

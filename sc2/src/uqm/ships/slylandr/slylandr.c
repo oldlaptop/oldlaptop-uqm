@@ -377,7 +377,7 @@ slylandro_preprocess (ELEMENT *ElementPtr)
 	{
 		if(StarShipPtr->RaceDescPtr->ship_data.weapon[0] == (FRAME)0)
 		{
-			load_animation (&StarShipPtr->RaceDescPtr->ship_data.weapon,
+			load_animation ((FRAME *)&StarShipPtr->RaceDescPtr->ship_data.weapon,
 					SATURN_BIG_MASK_PMAP_ANIM,
 					SATURN_MED_MASK_PMAP_ANIM,
 					SATURN_SML_MASK_PMAP_ANIM);
