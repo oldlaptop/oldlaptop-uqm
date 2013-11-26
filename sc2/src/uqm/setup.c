@@ -136,6 +136,12 @@ LoadKernel (int argc, char *argv[])
 		loadAddon ("3dovideo");
 	}
 
+	if (!loadAddon ("crazy"))
+	{
+		log_add (log_Warning,
+			 "WARNING: Crazy Resource Pack not found, glitches may result!");
+	}
+
 	/* Now load the rest of the addons, in order. */
 	prepareAddons (optAddons);
 

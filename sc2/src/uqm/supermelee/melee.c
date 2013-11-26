@@ -98,8 +98,8 @@ enum
 
 #define MELEE_X_OFFS 2
 #define MELEE_Y_OFFS 21
-#define MELEE_BOX_WIDTH 34
-#define MELEE_BOX_HEIGHT 34
+#define MELEE_BOX_WIDTH 24
+#define MELEE_BOX_HEIGHT 24
 #define MELEE_BOX_SPACE 1
 
 #define MENU_X_OFFS 29
@@ -276,9 +276,15 @@ DrawShipBox (COUNT side, FleetShipIndex index, MeleeShip ship, BOOLEAN HiLite)
 	if (ship != MELEE_NONE)
 	{
 		STAMP s;
-		s.origin.x = r.corner.x + (r.extent.width >> 1);
-		s.origin.y = r.corner.y + (r.extent.height >> 1);
-		s.frame = GetShipMeleeIconsFromIndex (ship);
+
+		/* We've gone from nominally 32x32 images in a 34x34 box to
+		 * nominally 16x16 images in a 24x24 box, an offset of exactly
+		 * 4 is what will center this correctly.
+		 */
+		s.origin.x = r.corner.x + 4;
+		s.origin.y = r.corner.y + 4;
+
+		s.frame = GetShipIconsFromIndex (ship);
 
 		DrawStamp (&s);
 	}

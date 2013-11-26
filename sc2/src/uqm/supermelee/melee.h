@@ -34,8 +34,8 @@ extern "C" {
 
 typedef struct melee_state MELEE_STATE;
 
-#define NUM_MELEE_ROWS 2
-#define NUM_MELEE_COLUMNS 7
+#define NUM_MELEE_ROWS 3
+#define NUM_MELEE_COLUMNS 10
 //#define NUM_MELEE_COLUMNS 6
 #define MELEE_FLEET_SIZE (NUM_MELEE_ROWS * NUM_MELEE_COLUMNS)
 #define ICON_WIDTH 16
