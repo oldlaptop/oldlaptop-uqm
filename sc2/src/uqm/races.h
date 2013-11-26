@@ -38,7 +38,7 @@ extern "C" {
 
 // TODO: remove RACES_PER_PLAYER remnant of SC1
 #define RACES_PER_PLAYER 7
-#define MAX_SHIPS_PER_SIDE 14
+#define MAX_SHIPS_PER_SIDE 30
 
 /* SHIP_INFO.ship_flags - ship specific flags */
 /* bits 0 and 1 are now available */

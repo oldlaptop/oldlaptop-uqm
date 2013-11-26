@@ -513,7 +513,7 @@ InitPreBuilt (MELEE_STATE *pMS)
 {
 	MeleeTeam **list;
 
-#define PREBUILT_COUNT 15
+#define PREBUILT_COUNT 17
 	pMS->load.preBuiltList =
 			HMalloc (PREBUILT_COUNT * sizeof (MeleeTeam *));
 	pMS->load.preBuiltCount = PREBUILT_COUNT;
@@ -528,6 +528,28 @@ InitPreBuilt (MELEE_STATE *pMS)
 
 	list = pMS->load.preBuiltList;
 
+	{
+		COUNT f;
+		FleetShipIndex i = 0;
+
+		MeleeTeam_setName (*list, "All ships random");
+		for (f = 0; f < MELEE_FLEET_SIZE; ++f)
+		{
+			MeleeTeam_setShip (*list, i++, (TFB_Random() % NUM_MELEE_SHIPS));
+		}
+		list++;
+	}
+	{
+		COUNT f;
+		FleetShipIndex i = 0;
+
+		MeleeTeam_setName (*list, "One of each ship");
+		for (f = MELEE_ANDROSYNTH; f < NUM_MELEE_SHIPS; ++f)
+		{
+			MeleeTeam_setShip (*list, i++, f);
+		}
+		list++;
+	}
 	{
 		/* "Balanced Team 1" */
 		FleetShipIndex i = 0;
