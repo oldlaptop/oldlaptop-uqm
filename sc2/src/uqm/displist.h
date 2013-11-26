@@ -59,7 +59,7 @@ typedef struct /* queue */
 #endif
 	COUNT object_size;
 #ifdef QUEUE_TABLE
-	BYTE num_objects;
+	UWORD num_objects;
 #endif /* QUEUE_TABLE */
 } QUEUE;
 
@@ -93,7 +93,7 @@ UnlockLink (const QUEUE *pq, HLINK h)
 #define SetFreeList(pq, h) (pq)->free_list = (h)
 #define AllocQueueTab(pq,n) \
 		((pq)->pq_tab = HMalloc (((COUNT)(pq)->object_size * \
-		(COUNT)((pq)->num_objects = (BYTE)(n)))))
+		(COUNT)((pq)->num_objects = (UWORD)(n)))))
 #define FreeQueueTab(pq) HFree ((pq)->pq_tab); (pq)->pq_tab = NULL
 #define SizeQueueTab(pq) (COUNT)((pq)->num_objects)
 #define GetLinkAddr(pq,i) (HLINK)((pq)->pq_tab + ((pq)->object_size * ((i) - 1)))

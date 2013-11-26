@@ -180,9 +180,9 @@ elementsOfSamePlayer (ELEMENT *ElementPtr0, ELEMENT *ElementPtr1)
 extern QUEUE disp_q;
 // The maximum number of elements is chosen to provide a slight margin.
 // Currently, it is maximum *known used* in Melee + 30
-#define MAX_DISPLAY_ELEMENTS 150
+#define MAX_DISPLAY_ELEMENTS 65535
 
-#define MAX_DISPLAY_PRIMS 330
+#define MAX_DISPLAY_PRIMS 65535
 extern COUNT DisplayFreeList;
 extern PRIMITIVE DisplayArray[MAX_DISPLAY_PRIMS];
 
