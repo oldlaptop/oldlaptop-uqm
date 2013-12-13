@@ -566,8 +566,8 @@ spawn_point_defense (ELEMENT *ElementPtr)
 				&& !OBJECT_CLOAKED (ObjectPtr))
 			|| //it's an asteroid:
 			(!(ObjectPtr->state_flags
-				& (APPEARING | GOOD_GUY | BAD_GUY
-				| PLAYER_SHIP | FINITE_LIFE))
+				& (APPEARING | PLAYER_SHIP | FINITE_LIFE))
+				&& ObjectPtr->playerNr == NEUTRAL_PLAYER_NUM
 				&& !GRAVITY_MASS (ObjectPtr->mass_points)
 				&& CollisionPossible (ObjectPtr, ElementPtr)))
 		{
@@ -750,9 +750,8 @@ spawn_satellite (ELEMENT *ElementPtr, COUNT hit_points, COUNT angle,
 		ELEMENT * SattPtr;
 
 		LockElement (hSatellite, &SattPtr);
-		SattPtr->state_flags =
-				IGNORE_SIMILAR | APPEARING | FINITE_LIFE
-				| (ElementPtr->state_flags & (GOOD_GUY | BAD_GUY));
+		SattPtr->state_flags = IGNORE_SIMILAR | APPEARING | FINITE_LIFE;
+		SattPtr->playerNr = ElementPtr->playerNr;
 		SattPtr->life_span = NORMAL_LIFE + 1;
 		SattPtr->hit_points = hit_points;
 		SattPtr->mass_points = 10;
