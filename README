@@ -1,0 +1,6 @@
+This branch reconstructs (for historical reference) as much of the
+original (0.6.2-based) Crazy Mod's history as was possible using EP's
+archived tarballs. Each commit *should* accurately represent Crazy
+Mod source code (everything under sc2/src - EP's tarballs only cover
+that directory) as of the release given in the commit message.
+
