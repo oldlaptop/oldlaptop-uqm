@@ -90,6 +90,7 @@ dead_ship_maybe_free_data(ELEMENT *DeadShipPtr)
 	}
 	else
 	{
+		DeadStarShipPtr->RaceDescPtr = 0;
 		free_ship (DeadStarShipPtr->RaceDescPtr, TRUE, TRUE);
 		//UnbatchGraphics ();
 	}
@@ -521,8 +522,12 @@ new_ship (ELEMENT *DeadShipPtr)
 		RestartMusic = OpponentAlive (DeadStarShipPtr);
 
 		dead_ship_maybe_free_data (DeadShipPtr);
-		DeadStarShipPtr->RaceDescPtr = 0;
-		
+/*
+ * 		We need to postpone this until all elements belonging to the
+ * 		dead ship have also died.
+ * 
+ *		DeadStarShipPtr->RaceDescPtr = 0;
+ */		
 		// Graphics are batched while the draw queue is processed,
 		// but we are going to draw the ship selection box now
 		UnbatchGraphics ();
