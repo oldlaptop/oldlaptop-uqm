@@ -90,8 +90,8 @@ dead_ship_maybe_free_data(ELEMENT *DeadShipPtr)
 	}
 	else
 	{
-		DeadStarShipPtr->RaceDescPtr = 0;
 		free_ship (DeadStarShipPtr->RaceDescPtr, TRUE, TRUE);
+		DeadStarShipPtr->RaceDescPtr = 0;
 		//UnbatchGraphics ();
 	}
 }
