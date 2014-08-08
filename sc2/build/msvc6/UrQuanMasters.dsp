@@ -44,7 +44,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MD /W2 /GX /Zi /O2 /I "..\..\src" /I "..\..\src\regex" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D _VW=320 /D _VH=240 /D "HAVE_OPENGL" /D "GFXMODULE_SDL" /D "THREADLIB_SDL" /D "HAVE_OPENAL" /D "HAVE_ZIP" /D "HAVE_JOYSTICK" /D "NETPLAY" /D "ZLIB_DLL" /D "USE_INTERNAL_MIKMOD" /D "USE_PLATFORM_ACCEL" /FD /c
+# ADD CPP /nologo /MD /W2 /GX /Zi /O2 /I "..\..\src" /I "..\..\src\regex" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D _VW=320 /D _VH=240 /D "HAVE_OPENGL" /D "GFXMODULE_SDL" /D "THREADLIB_SDL" /D "HAVE_OPENAL" /D "HAVE_ZIP" /D "HAVE_JOYSTICK" /D "NETPLAY" /D "ZLIB_DLL" /D "USE_INTERNAL_MIKMOD" /D "USE_INTERNAL_LUA" /D "USE_PLATFORM_ACCEL" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -74,7 +74,7 @@ PostBuild_Cmds=rebase -b 0x400000 -x . "../../uqm.exe"
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /GX /Zi /Od /I "..\..\src" /I "..\..\src\regex" /D "DEBUG" /D "_DEBUG" /D "DEBUG_TRACK_SEM" /D "DEBUG_DCQ_THREADS" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D _VW=320 /D _VH=240 /D "HAVE_OPENGL" /D "GFXMODULE_SDL" /D "THREADLIB_SDL" /D "HAVE_OPENAL" /D "HAVE_ZIP" /D "HAVE_JOYSTICK" /D "NETPLAY" /D "ZLIB_DLL" /D "USE_INTERNAL_MIKMOD" /D "USE_PLATFORM_ACCEL" /FR /FD /GZ /c
+# ADD CPP /nologo /MDd /W3 /GX /Zi /Od /I "..\..\src" /I "..\..\src\regex" /D "DEBUG" /D "_DEBUG" /D "DEBUG_TRACK_SEM" /D "DEBUG_DCQ_THREADS" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D _VW=320 /D _VH=240 /D "HAVE_OPENGL" /D "GFXMODULE_SDL" /D "THREADLIB_SDL" /D "HAVE_OPENAL" /D "HAVE_ZIP" /D "HAVE_JOYSTICK" /D "NETPLAY" /D "ZLIB_DLL" /D "USE_INTERNAL_MIKMOD" /D "USE_INTERNAL_LUA" /D "USE_PLATFORM_ACCEL" /FR /FD /GZ /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
@@ -101,7 +101,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /Zi /Od /D "WIN32" /D "_DEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /GX /Zi /Od /I "..\..\src" /I "..\..\src\regex" /D "DEBUG" /D "_DEBUG" /D "DEBUG_TRACK_SEM" /D "DEBUG_DCQ_THREADS" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D _VW=320 /D _VH=240 /D "HAVE_OPENGL" /D "GFXMODULE_SDL" /D "THREADLIB_SDL" /D "HAVE_OPENAL" /D "HAVE_ZIP" /D "HAVE_JOYSTICK" /D "NETPLAY" /D "ZLIB_DLL" /D "USE_INTERNAL_MIKMOD" /FR /FD /GZ /c
+# ADD CPP /nologo /MDd /W3 /GX /Zi /Od /I "..\..\src" /I "..\..\src\regex" /D "DEBUG" /D "_DEBUG" /D "DEBUG_TRACK_SEM" /D "DEBUG_DCQ_THREADS" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D _VW=320 /D _VH=240 /D "HAVE_OPENGL" /D "GFXMODULE_SDL" /D "THREADLIB_SDL" /D "HAVE_OPENAL" /D "HAVE_ZIP" /D "HAVE_JOYSTICK" /D "NETPLAY" /D "ZLIB_DLL" /D "USE_INTERNAL_MIKMOD" /D "USE_INTERNAL_LUA" /FR /FD /GZ /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
 # ADD RSC /l 0x409 /d "_DEBUG"
@@ -128,7 +128,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_CONSOLE" /D "_MBCS" /YX /FD /c
-# ADD CPP /nologo /MD /W2 /GX /Zi /O2 /I "..\..\src" /I "..\..\src\regex" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D _VW=320 /D _VH=240 /D "HAVE_OPENGL" /D "GFXMODULE_SDL" /D "THREADLIB_SDL" /D "HAVE_OPENAL" /D "HAVE_ZIP" /D "HAVE_JOYSTICK" /D "NETPLAY" /D "ZLIB_DLL" /D "USE_INTERNAL_MIKMOD" /FD /c
+# ADD CPP /nologo /MD /W2 /GX /Zi /O2 /I "..\..\src" /I "..\..\src\regex" /D "NDEBUG" /D "WIN32" /D "_CONSOLE" /D "_MBCS" /D _VW=320 /D _VH=240 /D "HAVE_OPENGL" /D "GFXMODULE_SDL" /D "THREADLIB_SDL" /D "HAVE_OPENAL" /D "HAVE_ZIP" /D "HAVE_JOYSTICK" /D "NETPLAY" /D "ZLIB_DLL" /D "USE_INTERNAL_MIKMOD" /D "USE_INTERNAL_LUA" /FD /c
 # SUBTRACT CPP /YX
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
 # ADD RSC /l 0x409 /d "NDEBUG"
@@ -675,10 +675,6 @@ SOURCE=..\..\src\libs\lua\lgc.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\src\libs\lua\linit.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\src\libs\lua\llex.c
 # End Source File
 # Begin Source File
@@ -711,11 +707,11 @@ SOURCE=..\..\src\libs\lua\lobject.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\src\libs\lua\opcodes.c
+SOURCE=..\..\src\libs\lua\lopcodes.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\src\libs\lua\opcodes.h
+SOURCE=..\..\src\libs\lua\lopcodes.h
 # End Source File
 # Begin Source File
 
@@ -767,11 +763,11 @@ SOURCE=..\..\src\libs\lua\ltm.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\src\libs\lua\luaconf.h
+SOURCE=..\..\src\libs\lua\lua.h
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\src\libs\lua\lua.h
+SOURCE=..\..\src\libs\lua\luaconf.h
 # End Source File
 # Begin Source File
 
@@ -1116,6 +1112,14 @@ SOURCE=..\..\src\libs\strings\sfileins.c
 # Begin Source File
 
 SOURCE=..\..\src\libs\strings\sresins.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\src\libs\strings\stringhashtable.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\src\libs\strings\stringhashtable.h
 # End Source File
 # Begin Source File
 
@@ -2236,14 +2240,12 @@ SOURCE=..\..\src\uqm\comm\zoqfot\zoqfotc.c
 SOURCE=..\..\src\uqm\comm\commall.h
 # End Source File
 # End Group
-# Begin Group "lua"
+# Begin Group "lua (uqm)"
 
 # PROP Default_Filter ""
-
 # Begin Group "luafuncs"
 
 # PROP Default_Filter ""
-
 # Begin Source File
 
 SOURCE=..\..\src\uqm\lua\luafuncs\commfuncs.c
@@ -2325,7 +2327,6 @@ SOURCE=..\..\src\uqm\lua\luastate.c
 
 SOURCE=..\..\src\uqm\lua\luastate.h
 # End Source File
-
 # End Group
 # Begin Group "planets"
 
